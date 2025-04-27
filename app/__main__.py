@@ -57,7 +57,9 @@ async def check_and_notify():
                     i += 1
                 await asyncio.gather(*process_tasks)
 
-            keys = list(await db.redis.keys("notification:*:*")) # keys 결과를 리스트로 변환
+            # Redis에서 알림 읽어와서 발송
+            # 수정: keys() -> scan_iter() 사용 및 async list comprehension 적용
+            keys = [key async for key in db.redis.scan_iter("notification:*:*")]
             if keys:
                 logger.info(f"{len(keys)}개의 알림 발송 예정...")
                 send_tasks = []

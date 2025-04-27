@@ -9,6 +9,7 @@
 *   새로운 공시 발생 시 또는 공시 부재 시 텔레그램 알림
 *   Docker 기반 실행 환경 제공
 *   Prometheus 메트릭 노출 (기본 포트 8000)
+*   관리자 기능 (사용자 관리, 공지 발송 등)
 
 ## 프로젝트 구조
 
@@ -32,7 +33,7 @@
 ├── .env                  # 환경 변수 설정 파일 (Git 무시됨)
 ├── .gitignore            # Git 무시 목록
 ├── .venv/                # Python 가상 환경 (Git 무시됨)
-├── docker-compose.yml    # Docker Compose 설정 파일
+├── docker-compose.yml    # Docker Compose 설정 파일 (프로젝트 루트)
 ├── requirements.txt      # Python 의존성 목록
 └── README.md             # 프로젝트 설명 파일
 ```
@@ -66,47 +67,54 @@
     pip install -r requirements.txt
     ```
 4.  **환경 변수 설정 (`.env` 파일 생성):**
-    프로젝트 루트 디렉토리 (`StockEye/`)에 `.env` 파일을 생성하고 아래 내용을 참고하여 실제 값으로 채웁니다.
+    프로젝트 루트 디렉토리 (`StockEye/`)에 `.env` 파일을 생성하고 **반드시 실제 값으로 채워야 합니다.** 아래는 예시입니다.
     ```dotenv
     # PostgreSQL 연결 정보
     #   Docker 실행 시 서비스 이름
     DB_HOST=stockeye_postgres
-    #   로컬 실행 시  
+    # 로컬 실행 시 (PostgreSQL이 로컬에 설치된 경우)
     # DB_HOST=localhost
     DB_PORT=5432
     DB_NAME=stockeye
     DB_USER=stockeye
-    # 실제 비밀번호로 변경
+    # 실제 DB 비밀번호로 변경 필수!
     DB_PASSWORD=your_secret_db_password
 
-    # Redis 연결 정보
-    #   Docker 실행 시 서비스 이름
+    # --- Redis 연결 정보 --- #
+    # Docker 실행 시 서비스 이름 사용
     REDIS_HOST=stockeye_redis
-    #   로컬 실행 시
+    # 로컬 실행 시 (Redis가 로컬에 설치된 경우)
     # REDIS_HOST=localhost
     REDIS_PORT=6379
 
-    # API 키 및 토큰
-    DART_API_KEY=your_dart_api_key       # 실제 DART API 키로 변경
-    TELEGRAM_BOT_TOKEN=your_telegram_bot_token # 실제 봇 토큰으로 변경
+    # --- API 키 및 토큰 --- #
+    # 실제 DART API 키로 변경 필수!
+    DART_API_KEY=your_dart_api_key
+    # 실제 Telegram Bot 토큰으로 변경 필수!
+    TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 
-    # 테스트 변수 (선택 사항)
-    TEST_VAR=it_works
+    # --- 관리자 설정 --- #
+    # 실제 관리자 계정의 Telegram 숫자 ID로 변경 필수!
+    ADMIN_ID=our_telegram_user_id     
     ```
-    **주의:** `.env` 파일은 민감 정보를 포함하므로 `.gitignore`에 반드시 추가하여 Git 저장소에 올라가지 않도록 합니다.
+    **주의:** `.env` 파일은 민감 정보를 포함하므로 `.gitignore`에 반드시 추가하여 Git 저장소에 올라가지 않도록 합니다. 특히 `DB_PASSWORD`, `DART_API_KEY`, `TELEGRAM_BOT_TOKEN`, `ADMIN_ID`는 **필수적으로 설정**해야 합니다.
 
 5.  **로컬 데이터 디렉토리 생성 (Docker 사용 시):**
     Docker 볼륨 마운트를 위해 프로젝트 루트에 디렉토리를 생성합니다.
     ```bash
-    mkdir db_data
-    mkdir db_data\postgres # Windows
-    mkdir db_data\redis   # Windows
-    # mkdir -p db_data/postgres db_data/redis # Linux/macOS
+    # Windows
+    mkdir db_data 2> nul || echo Directory already exists.
+    mkdir db_data\postgres 2> nul || echo Directory already exists.
+    mkdir db_data\redis 2> nul || echo Directory already exists.
+    # Linux/macOS
+    # mkdir -p db_data/postgres db_data/redis
     ```
 
 ## 서비스 실행
 
 **1. Docker Compose 사용 (권장):**
+
+    프로젝트 루트 디렉토리에서 실행합니다.
 
 *   **빌드 및 백그라운드 실행:**
     ```bash
@@ -147,18 +155,30 @@
     ```bash
     pytest
     ```
+    *(현재 테스트 코드는 기본 구조만 있으며, 실제 테스트 로직 구현 필요)*
 
 ## 서비스 사용법 (텔레그램 봇 명령어)
 
 봇과 대화하여 다음 명령어들을 사용할 수 있습니다.
 
-*   `/start` : 봇 시작 및 환영 메시지 표시
+**일반 사용자 명령어:**
+
+*   `/start` : 봇 시작 및 환영 메시지 표시 (관리자에게는 관리 메뉴 안내 추가)
 *   `/help` : 사용 가능한 명령어 및 도움말 보기
-*   `/register` : 봇 사용을 위한 사용자 등록 시작 (간단한 인증 필요)
+*   `/register` : 봇 사용을 위한 사용자 등록 시작 (간단한 인증 필요 - 기본 키 'stockeye')
 *   `/add` : 모니터링할 주식 추가 시작 (예: `005930 삼성전자` 형식으로 입력)
 *   `/remove` : 모니터링 중인 주식 목록을 버튼으로 보여주고 선택하여 삭제
 *   `/list` : 현재 모니터링 중인 주식 목록 보기
 *   `/cancel` : 진행 중인 작업(등록, 추가 등) 취소
+
+**관리자 전용 명령어:**
+
+    **주의:** 아래 명령어들은 `.env` 파일에 `ADMIN_ID`로 지정된 사용자만 사용할 수 있습니다.
+
+*   `/admin` : 사용 가능한 관리 명령어 목록 표시
+*   `/list_users` : 등록된 모든 사용자 목록 보기 (ID, 사용자명, 이름, 등록일시)
+*   `/delete_user <user_id>` : 지정된 ID의 사용자를 데이터베이스에서 삭제합니다. 해당 사용자가 모니터링하던 주식 정보도 함께 삭제됩니다. (주의: 복구 불가능)
+*   `/broadcast <message>` : 등록된 모든 사용자에게 관리자 명의로 공지 메시지를 발송합니다.
 
 ## Git 사용 가이드
 
