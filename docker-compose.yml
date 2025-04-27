@@ -1,0 +1,68 @@
+services:
+  stockeye_app:
+    build:
+      context: .  # 빌드 컨텍스트를 프로젝트 루트로 변경
+      dockerfile: docker/Dockerfile # Dockerfile 경로 지정
+    environment:
+      - DB_HOST=stockeye_postgres
+      - DB_PORT=5432
+      - DB_NAME=stockeye
+      - DB_USER=stockeye
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=stockeye_redis
+      - REDIS_PORT=6379
+      # 환경변수 추가
+      - DART_API_KEY=${DART_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    depends_on:
+      # postgres 서비스가 healthy 상태가 될 때까지 기다리도록 수정
+      stockeye_postgres:
+        condition: service_healthy
+      stockeye_redis: # Redis는 일반적으로 빨리 준비되므로 condition 불필요할 수 있음
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - stockeye-network
+
+  stockeye_postgres:
+    image: postgres:15-alpine
+    environment:
+      # DB 컨테이너 내부 설정 (고정값 사용 권장)
+      - POSTGRES_DB=stockeye
+      - POSTGRES_USER=stockeye
+      # 비밀번호는 .env 에서 가져옴
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      # 루트 기준 로컬 경로
+      - ./db_data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - stockeye-network
+    # Healthcheck 추가
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockeye -d stockeye"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  stockeye_redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      # 루트 기준 로컬 경로
+      - ./db_data/redis:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - stockeye-network
+    # Redis Healthcheck (선택 사항)
+    healthcheck:
+       test: ["CMD", "redis-cli", "ping"]
+       interval: 5s
+       timeout: 3s
+       retries: 5
+
+networks:
+  stockeye-network:
+    driver: bridge 

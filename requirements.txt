@@ -1,0 +1,22 @@
+# Telegram Bot
+python-telegram-bot[ext]
+
+# Database & Cache
+asyncpg
+redis
+
+# HTTP Client
+aiohttp
+
+# Configuration & Validation
+pydantic
+pydantic-settings
+
+# Monitoring & Logging
+prometheus-client
+python-json-logger
+
+# Testing
+pytest
+pytest-asyncio
+httpx # For mocking HTTP requests in tests
