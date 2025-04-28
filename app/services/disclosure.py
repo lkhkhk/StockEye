@@ -58,16 +58,19 @@ class DisclosureService:
             
             return
 
-        latest_time = disclosures[0]['rcept_dt'] + disclosures[0]['rcept_tm']
-        
+        # Use get() with a default value to prevent KeyError
+        rcept_dt = disclosures[0].get('rcept_dt', '')
+        rcept_tm = disclosures[0].get('rcept_tm', '')
+        latest_time = rcept_dt + rcept_tm if rcept_dt and rcept_tm else ''
+
         if stock_code not in self.last_disclosure_time:
             self.last_disclosure_time[stock_code] = latest_time
             return
         
-        if latest_time > self.last_disclosure_time[stock_code]:
+        if latest_time and latest_time > self.last_disclosure_time[stock_code]: # Check if latest_time is not empty
             new_disclosures = [
                 item for item in disclosures
-                if item['rcept_dt'] + item['rcept_tm'] > self.last_disclosure_time[stock_code]
+                if item.get('rcept_dt', '') + item.get('rcept_tm', '') > self.last_disclosure_time[stock_code]
             ]
             
             if new_disclosures:
@@ -92,13 +95,19 @@ class DisclosureService:
         message = f"🔔 <b>{stock_name}</b>의 새로운 공시가 등록되었습니다!\n\n"
         
         for item in disclosures:
-            date_str = f"{item['rcept_dt'][:4]}-{item['rcept_dt'][4:6]}-{item['rcept_dt'][6:]}"
-            time_str = f"{item['rcept_tm'][:2]}:{item['rcept_tm'][2:4]}"
-            report_link = f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={item['rcept_no']}"
+            # Use get() with default values here as well for safety
+            rcept_dt = item.get('rcept_dt', '--------') # Default to indicate missing data
+            rcept_tm = item.get('rcept_tm', '----') # Default to indicate missing data
+            rcept_no = item.get('rcept_no', '')
+            report_nm = item.get('report_nm', '제목 없음')
+
+            date_str = f"{rcept_dt[:4]}-{rcept_dt[4:6]}-{rcept_dt[6:]}" if len(rcept_dt) == 8 else rcept_dt
+            time_str = f"{rcept_tm[:2]}:{rcept_tm[2:4]}" if len(rcept_tm) == 4 else rcept_tm
+            report_link = f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}" if rcept_no else "#"
             
-            message += f"📄 <b>{item['report_nm']}</b>\n"
+            message += f"📄 <b>{report_nm}</b>\n" # Use HTML bold tag
             message += f"⏰ {date_str} {time_str}\n"
-            message += f"🔗 <a href='{report_link}'>공시 보기</a>\n\n"
+            message += f"🔗 <a href='{report_link}'>공시 보기</a>\n\n" # Use HTML link tag
         
         return message
 
