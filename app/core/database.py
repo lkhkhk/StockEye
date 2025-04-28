@@ -61,6 +61,7 @@ class Database:
                 CREATE TABLE IF NOT EXISTS stocks (
                     code TEXT PRIMARY KEY,
                     name TEXT,
+                    corp_code TEXT,
                     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
@@ -71,9 +72,13 @@ class Database:
                     stock_code TEXT,
                     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (user_id, stock_code),
-                    FOREIGN KEY (user_id) REFERENCES users (user_id),
-                    FOREIGN KEY (stock_code) REFERENCES stocks (code)
+                    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+                    FOREIGN KEY (stock_code) REFERENCES stocks (code) ON DELETE CASCADE
                 )
             ''')
+
+            await conn.execute('CREATE INDEX IF NOT EXISTS idx_user_stocks_user_id ON user_stocks (user_id)')
+            await conn.execute('CREATE INDEX IF NOT EXISTS idx_user_stocks_stock_code ON user_stocks (stock_code)')
+            await conn.execute('CREATE INDEX IF NOT EXISTS idx_stocks_corp_code ON stocks (corp_code)')
 
 db = Database() 

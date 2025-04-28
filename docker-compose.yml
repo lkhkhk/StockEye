@@ -4,16 +4,19 @@ services:
       context: .  # 빌드 컨텍스트를 프로젝트 루트로 변경
       dockerfile: docker/Dockerfile # Dockerfile 경로 지정
     environment:
-      - DB_HOST=stockeye_postgres
-      - DB_PORT=5432
-      - DB_NAME=stockeye
-      - DB_USER=stockeye
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=stockeye_redis
-      - REDIS_PORT=6379
+      TZ: 'Asia/Seoul'
+      DB_HOST: stockeye_postgres
+      DB_PORT: 5432
+      DB_NAME: stockeye
+      DB_USER: stockeye
+      # DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: stockeye_redis
+      REDIS_PORT: 6379
       # 환경변수 추가
-      - DART_API_KEY=${DART_API_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      DART_API_KEY: ${DART_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    # env_file:
+    #   - .env
     depends_on:
       # postgres 서비스가 healthy 상태가 될 때까지 기다리도록 수정
       stockeye_postgres:
@@ -27,11 +30,12 @@ services:
   stockeye_postgres:
     image: postgres:15-alpine
     environment:
+      TZ: 'Asia/Seoul'
       # DB 컨테이너 내부 설정 (고정값 사용 권장)
-      - POSTGRES_DB=stockeye
-      - POSTGRES_USER=stockeye
+      POSTGRES_DB: stockeye
+      POSTGRES_USER: stockeye
       # 비밀번호는 .env 에서 가져옴
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       # 루트 기준 로컬 경로
       - ./db_data/postgres:/var/lib/postgresql/data
@@ -49,6 +53,8 @@ services:
   stockeye_redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
+    environment:
+      TZ: 'Asia/Seoul' 
     volumes:
       # 루트 기준 로컬 경로
       - ./db_data/redis:/data

@@ -20,3 +20,10 @@ python-json-logger
 pytest
 pytest-asyncio
 httpx # For mocking HTTP requests in tests
+
+# Additional libraries
+psycopg2-binary
+python-dotenv
+requests
+apscheduler
+lxml
