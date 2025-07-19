@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+psycopg2-binary
+pytest
+requests
+sqlalchemy
+passlib[bcrypt]
+pydantic[email]
+python-dotenv
+python-telegram-bot
+pandas 

@@ -1,0 +1,20 @@
+# 기존 내용 유지
+# 환경/민감/불요 파일 추가
+.env
+.env.*
+.env.example
+*.pyc
+__pycache__/
+.vscode/
+.venv/
+.DS_Store
+*.db
+*.sqlite3
+*.log
+*.bak
+*.swp
+.idea/
+node_modules/
+# 프로젝트 문서/계획 파일은 docs/로 이동
+PLAN.MD
+requirement.md

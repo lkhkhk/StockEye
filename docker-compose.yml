@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/api/Dockerfile
+    container_name: api_service
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=service_db
+      - DB_PORT=5432
+    depends_on:
+      db:
+        condition: service_healthy
+  bot:
+    build:
+      context: .
+      dockerfile: src/bot/Dockerfile
+    container_name: bot_service
+    env_file:
+      - .env
+    environment:
+      - API_HOST=api
+    depends_on:
+      - api
+  db:
+    image: postgres:14
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: service_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/db_schema.sql:/docker-entrypoint-initdb.d/db_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  db_data: 
