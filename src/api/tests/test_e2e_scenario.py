@@ -45,7 +45,7 @@ def test_e2e_scenario():
     assert isinstance(r.json().get("history", []), list)
 
     # 8. 통계/헬스체크
-    r = client.get("/admin_stats")
+    r = client.get("/admin/admin_stats")  # 경로 수정
     assert r.status_code == 200
     r = client.get("/health")
     assert r.status_code == 200 

@@ -2,6 +2,7 @@ fastapi
 uvicorn
 psycopg2-binary
 pytest
+pytest-asyncio
 requests
 sqlalchemy
 passlib[bcrypt]
@@ -9,3 +10,6 @@ pydantic[email]
 python-dotenv
 python-telegram-bot
 pandas 
+APScheduler==3.10.4
+python-jose[cryptography]
+python-multipart

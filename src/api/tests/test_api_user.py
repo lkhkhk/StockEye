@@ -16,6 +16,8 @@ def test_user_register():
     data = response.json()
     assert "id" in data
     assert "username" in data
+    assert "email" in data
+    assert "role" in data
 
 def test_user_login():
     unique = str(uuid4())[:8]
@@ -31,7 +33,9 @@ def test_user_login():
     response = client.post("/users/login", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert "token" in data or "id" in data
+    assert "access_token" in data
+    assert "token_type" in data
+    assert "user" in data
 
 def test_user_stats():
     unique = str(uuid4())[:8]
@@ -47,4 +51,6 @@ def test_user_stats():
     response = client.get(f"/users/stats/{user_id}")
     assert response.status_code == 200
     data = response.json()
-    assert "username" in data 
+    assert "username" in data
+    assert "trade_count" in data
+    assert "prediction_count" in data 

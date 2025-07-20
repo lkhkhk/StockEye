@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger
+from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger, func
 from src.api.models.base import Base
 from datetime import datetime
 
@@ -10,4 +10,9 @@ class SimulatedTrade(Base):
     trade_type = Column(String(10), nullable=False)  # 'buy' or 'sell'
     price = Column(Float, nullable=False)
     quantity = Column(Integer, nullable=False)
-    trade_time = Column(DateTime, default=datetime.utcnow) 
+    trade_time = Column(DateTime, default=datetime.utcnow)
+    profit_loss = Column(Float, nullable=True)  # 수익/손실
+    profit_rate = Column(Float, nullable=True)  # 수익률 (%)
+    current_price = Column(Float, nullable=True)  # 현재가
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False) 

@@ -1,15 +1,21 @@
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram import Update
 from dotenv import load_dotenv
 from handlers.history import history_command
 from handlers.help import help_command
-from handlers.admin import health_command, admin_stats_command
+from handlers.admin import health_command, admin_stats, admin_update_master, admin_update_price, admin_show_schedules, admin_trigger_job
 from handlers.predict import predict_command
 from handlers.watchlist import watchlist_add_command, watchlist_remove_command, watchlist_get_command
-from handlers.trade import trade_simulate_command, trade_history_command
 from handlers.symbols import symbols_command, symbols_search_command, symbol_info_command
 from handlers.natural import natural_message_handler
+from bot.handlers.alert import get_handler, get_list_handler, get_remove_handler
+from bot.handlers.register import get_register_handler, get_unregister_handler
+from bot.handlers.start import get_start_handler
+from bot.handlers.help import get_help_handler
+from bot.handlers.admin import get_admin_handler
 
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -25,8 +31,16 @@ HELP_MSG = (
     "/watchlist_get - 관심 종목 목록 조회\n"
     "/trade_simulate [buy/sell] [종목코드] [가격] [수량] - 모의 거래 기록 (예: /trade_simulate buy 005930 10000 10)\n"
     "/trade_history - 모의 거래 기록 조회\n"
+    "/symbols - 전체 종목 목록 조회\n"
+    "/symbols_search [키워드] - 종목 검색\n"
+    "/symbol_info [종목코드] - 종목 상세 정보\n"
+    "\n**관리자 명령어:**\n"
     "/health - 서비스 헬스체크\n"
     "/admin_stats - 전체 통계 조회\n"
+    "/update_master - 종목마스터 갱신\n"
+    "/update_price - 일별시세 갱신\n"
+    "/show_schedules - 스케줄러 상태 조회\n"
+    "/trigger_job [job_id] - 특정 잡 수동 실행\n"
     "\n메시지로 종목코드만 입력해도 예측 결과를 받을 수 있습니다."
 )
 
@@ -36,22 +50,46 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"메시지 수신: {update.message.text}")
 
+# 로깅 설정 (stdout + 파일)
+LOG_DIR = "/logs"
+LOG_FILE = os.path.join(LOG_DIR, "bot.log")
+os.makedirs(LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=2, encoding='utf-8')
+    ]
+)
+logger = logging.getLogger(__name__)
+
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(get_start_handler()) # /start
+    app.add_handler(get_help_handler())  # /help
     app.add_handler(CommandHandler("history", history_command))
     app.add_handler(CommandHandler("health", health_command))
-    app.add_handler(CommandHandler("admin_stats", admin_stats_command))
+    app.add_handler(CommandHandler("admin_stats", admin_stats))
+    app.add_handler(CommandHandler("update_master", admin_update_master))
+    app.add_handler(CommandHandler("update_price", admin_update_price))
+    app.add_handler(CommandHandler("show_schedules", admin_show_schedules))
+    app.add_handler(CommandHandler("trigger_job", admin_trigger_job))
     app.add_handler(CommandHandler("predict", predict_command))
     app.add_handler(CommandHandler("watchlist_add", watchlist_add_command))
     app.add_handler(CommandHandler("watchlist_remove", watchlist_remove_command))
     app.add_handler(CommandHandler("watchlist_get", watchlist_get_command))
-    app.add_handler(CommandHandler("trade_simulate", trade_simulate_command))
-    app.add_handler(CommandHandler("trade_history", trade_history_command))
+    # app.add_handler(CommandHandler("trade_simulate", trade_simulate_command))
+    # app.add_handler(CommandHandler("trade_history", trade_history_command))
     app.add_handler(CommandHandler("symbols", symbols_command))
     app.add_handler(CommandHandler("symbols_search", symbols_search_command))
     app.add_handler(CommandHandler("symbol_info", symbol_info_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message_handler))
+    app.add_handler(get_handler())      # /alert_add
+    app.add_handler(get_list_handler()) # /alert_list
+    app.add_handler(get_remove_handler()) # /alert_remove
+    app.add_handler(get_register_handler()) # /register
+    app.add_handler(get_unregister_handler()) # /unregister
+    app.add_handler(get_admin_handler()) # /admin
     print("텔레그램 봇이 시작되었습니다. 메시지를 기다리는 중...")
     app.run_polling() 

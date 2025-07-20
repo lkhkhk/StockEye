@@ -1,0 +1,33 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.18, pytest-8.4.1, pluggy-1.6.0 -- /usr/local/bin/python3.10
+cachedir: .pytest_cache
+rootdir: /app
+plugins: anyio-4.9.0, asyncio-1.1.0
+asyncio: mode=strict, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 23 items
+
+src/api/tests/test_admin_scheduler.py::TestAdminScheduler::test_health_check PASSED [  4%]
+src/api/tests/test_admin_scheduler.py::TestAdminScheduler::test_schedule_status PASSED [  8%]
+src/api/tests/test_admin_scheduler.py::TestAdminScheduler::test_trigger_job_valid PASSED [ 13%]
+src/api/tests/test_admin_scheduler.py::TestAdminScheduler::test_trigger_job_invalid PASSED [ 17%]
+src/api/tests/test_api_admin.py::test_health PASSED                      [ 21%]
+src/api/tests/test_api_admin.py::test_admin_stats PASSED                 [ 26%]
+src/api/tests/test_api_alerts.py::test_create_price_alert PASSED         [ 30%]
+src/api/tests/test_api_alerts.py::test_get_my_alerts PASSED              [ 34%]
+src/api/tests/test_api_alerts.py::test_update_and_delete_alert PASSED    [ 39%]
+src/api/tests/test_api_basic.py::test_read_root PASSED                   [ 43%]
+src/api/tests/test_api_predict.py::test_predict_success PASSED           [ 47%]
+src/api/tests/test_api_predict.py::test_predict_invalid_symbol PASSED    [ 52%]
+src/api/tests/test_api_predict.py::test_predict_missing_symbol PASSED    [ 56%]
+src/api/tests/test_api_prediction_history.py::test_get_prediction_history PASSED [ 60%]
+src/api/tests/test_api_simulated_trade.py::test_simulate_trade PASSED    [ 65%]
+src/api/tests/test_api_simulated_trade.py::test_get_trade_history PASSED [ 69%]
+src/api/tests/test_api_user.py::test_user_register PASSED                [ 73%]
+src/api/tests/test_api_user.py::test_user_login PASSED                   [ 78%]
+src/api/tests/test_api_user.py::test_user_stats PASSED                   [ 82%]
+src/api/tests/test_api_watchlist.py::test_add_to_watchlist PASSED        [ 86%]
+src/api/tests/test_api_watchlist.py::test_get_watchlist PASSED           [ 91%]
+src/api/tests/test_api_watchlist.py::test_remove_from_watchlist PASSED   [ 95%]
+src/api/tests/test_e2e_scenario.py::test_e2e_scenario PASSED             [100%]
+
+======================== 23 passed, 2 warnings in 4.84s ========================

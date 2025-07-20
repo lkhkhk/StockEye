@@ -2,32 +2,40 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import pandas as pd
 from src.api.models.daily_price import DailyPrice
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 최근 N일간 주가 데이터 조회
 
 def get_recent_prices(db: Session, symbol: str, days: int = 40):
-    end_date = datetime.now().date()
-    start_date = end_date - timedelta(days=days)
-    rows = db.query(DailyPrice).filter(
-        DailyPrice.symbol == symbol,
-        DailyPrice.date >= start_date,
-        DailyPrice.date <= end_date
-    ).order_by(DailyPrice.date.asc()).all()
-    # SQLAlchemy 객체를 dict로 변환
-    return [
-        {
-            "date": row.date,
-            "open": row.open,
-            "high": row.high,
-            "low": row.low,
-            "close": row.close,
-            "volume": row.volume
-        }
-        for row in rows
-    ]
+    try:
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        rows = db.query(DailyPrice).filter(
+            DailyPrice.symbol == symbol,
+            DailyPrice.date >= start_date,
+            DailyPrice.date <= end_date
+        ).order_by(DailyPrice.date.asc()).all()
+        # SQLAlchemy 객체를 dict로 변환
+        return [
+            {
+                "date": row.date,
+                "open": row.open,
+                "high": row.high,
+                "low": row.low,
+                "close": row.close,
+                "volume": row.volume
+            }
+            for row in rows
+        ]
+    except Exception as e:
+        logger.error(f"get_recent_prices 실패: {str(e)}", exc_info=True)
+        return []
 
 def calculate_analysis_items(data):
     if not data or len(data) < 2:
+        logger.warning("분석 데이터 부족: 2개 미만")
         return None
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'])
@@ -142,6 +150,7 @@ def calculate_analysis_items(data):
 def predict_stock_movement(db: Session, symbol: str):
     recent_data = get_recent_prices(db, symbol, days=40)
     if len(recent_data) < 20:
+        logger.warning(f"예측 불가: 데이터 부족({len(recent_data)}일)")
         return {
             "prediction": "예측 불가",
             "trend": "정보 부족",
@@ -153,6 +162,7 @@ def predict_stock_movement(db: Session, symbol: str):
         }
     analysis_result = calculate_analysis_items(recent_data)
     if analysis_result is None:
+        logger.error("예측 불가: 데이터 분석 실패")
         return {
             "prediction": "예측 불가",
             "trend": "정보 부족",

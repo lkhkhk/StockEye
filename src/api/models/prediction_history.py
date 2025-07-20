@@ -8,4 +8,5 @@ class PredictionHistory(Base):
     user_id = Column(Integer, nullable=False)
     symbol = Column(String(20), nullable=False)
     prediction = Column(String(20), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow) 
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow) 

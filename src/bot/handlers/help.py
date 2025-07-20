@@ -1,18 +1,32 @@
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, CommandHandler
+import os
+
+ADMIN_ID = os.getenv("TELEGRAM_ADMIN_ID", "")
+
+HELP_TEXT_USER = (
+    "[StocksBot 도움말]\n"
+    "\n"
+    "- /register : 알림 수신 동의(ON, 텔레그램 알림 활성화)\n"
+    "- /unregister : 알림 수신 동의 해제(OFF, 텔레그램 알림 비활성화)\n"
+    "- /alert_add [종목코드] [가격] [이상|이하] : 종목별 가격 알림 등록\n"
+    "- /alert_list : 내 종목별 가격 알림 목록 조회\n"
+    "- /alert_remove [알림ID] : 종목별 가격 알림 삭제(비활성화)\n"
+    "\n"
+    "예시: /register\n"
+    "예시: /alert_add 005930 70000 이상\n"
+    "\n"
+    "기타 명령어: /start, /help"
+)
+
+HELP_TEXT_ADMIN = HELP_TEXT_USER + "\n\n[관리자 전용 명령어 안내]\n- /admin : 관리자 명령어 전체 안내"
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = (
-        "사용 가능한 명령어:\n"
-        "/start - 봇 시작\n"
-        "/help - 명령어/사용법 안내\n"
-        "/predict [종목코드] - 특정 종목 예측 (예: /predict 005930)\n"
-        "/history - 예측 이력 조회\n"
-        "/watchlist_add [종목코드] - 관심 종목 추가 (예: /watchlist_add 005930)\n"
-        "/watchlist_remove [종목코드] - 관심 종목 제거 (예: /watchlist_remove 005930)\n"
-        "/watchlist_get - 관심 종목 목록 조회\n"
-        "/trade_simulate [buy/sell] [종목코드] [가격] [수량] - 모의 거래 기록 (예: /trade_simulate buy 005930 10000 10)\n"
-        "/trade_history - 모의 거래 기록 조회\n"
-        "\n메시지로 종목코드만 입력해도 예측 결과를 받을 수 있습니다."
-    )
-    await update.message.reply_text(msg) 
+    user_id = str(update.effective_user.id)
+    if user_id == ADMIN_ID:
+        await update.message.reply_text(HELP_TEXT_ADMIN)
+    else:
+        await update.message.reply_text(HELP_TEXT_USER)
+
+def get_help_handler():
+    return CommandHandler("help", help_command) 
