@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.api.schemas.simulated_trade import SimulatedTradeItem
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.services.stock_service import StockService
-from src.api.db import get_db
+from src.common.db_connector import get_db
 from datetime import datetime
 import logging
 

@@ -3,7 +3,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from src.api.db import get_db
+from src.common.db_connector import get_db
 from src.api.models.user import User
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.models.prediction_history import PredictionHistory
@@ -159,4 +159,15 @@ def trigger_job(job_id: str):
         }
     except Exception as e:
         logger.error(f"[trigger_job] 잡 실행 실패: {job_id} - {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"잡 실행 실패: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"잡 실행 실패: {str(e)}")
+
+@router.post("/trigger/check_disclosures", tags=["admin_trigger"])
+def trigger_check_disclosures_job(db: Session = Depends(get_db)):
+    """(테스트용) 최신 공시 확인 및 알림 잡을 즉시 실행합니다."""
+    try:
+        logger.info("관리자에 의해 공시 확인 잡이 수동으로 트리거되었습니다.")
+        stock_service.check_and_notify_new_disclosures(db)
+        return {"message": "공시 확인 잡이 성공적으로 실행되었습니다."}
+    except Exception as e:
+        logger.error(f"공시 확인 잡 수동 실행 중 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) 

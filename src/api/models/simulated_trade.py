@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger, func
-from src.api.models.base import Base
+from sqlalchemy import Column, BigInteger, String, Float, DateTime, ForeignKey, func, Integer
+from src.common.db_connector import Base
 from datetime import datetime
 
 class SimulatedTrade(Base):

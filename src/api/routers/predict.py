@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from src.api.schemas.predict import StockPredictionRequest, StockPredictionResponse
 from src.api.services.predict_service import predict_stock_movement
 from src.api.models.prediction_history import PredictionHistory
-from src.api.db import get_db
+from src.common.db_connector import get_db
 from datetime import datetime
 
 logger = logging.getLogger(__name__)

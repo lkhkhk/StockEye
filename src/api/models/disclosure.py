@@ -1,9 +1,9 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
-from src.api.models.base import Base
+from sqlalchemy import Column, String, DateTime, BigInteger, func
+from src.common.db_connector import Base
 
 class Disclosure(Base):
     __tablename__ = 'disclosures'
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     stock_code = Column(String(20), nullable=False, index=True)  # 6자리 종목코드
     corp_code = Column(String(20), nullable=False, index=True)   # DART 고유번호
     title = Column(String(200), nullable=False)

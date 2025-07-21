@@ -1,19 +1,125 @@
 from sqlalchemy.orm import Session
 from src.api.models.stock_master import StockMaster
 from src.api.models.daily_price import DailyPrice
-from src.api.db import get_db
+from src.common.db_connector import get_db
 import logging
 from datetime import datetime, timedelta
 import random
 from src.common.dart_utils import dart_get_all_stocks
 from src.api.models.disclosure import Disclosure
 from src.common.dart_utils import dart_get_disclosures
+from src.api.models.price_alert import PriceAlert
+from src.api.models.user import User
+from src.api.models.system_config import SystemConfig
+from src.common.exceptions import DartApiError
 
 logger = logging.getLogger(__name__)
 
 class StockService:
     def __init__(self):
-        pass
+        self.last_checked_rcept_no = None
+
+    def check_and_notify_new_disclosures(self, db: Session):
+        """
+        DART에서 최신 공시를 확인하고, 구독자에게 알림을 보낸 후 관리자에게 요약 리포트를 보냅니다.
+        """
+        from src.common.notify_service import send_telegram_message
+        import os
+
+        try:
+            # 1. DB에서 마지막 확인한 공시 접수번호 조회
+            last_checked_config = db.query(SystemConfig).filter(SystemConfig.key == 'last_checked_rcept_no').first()
+            last_checked_rcept_no = last_checked_config.value if last_checked_config else None
+
+            # 2. 최신 공시 조회
+            logger.info("DART에서 최신 공시 목록을 조회합니다.")
+            try:
+                latest_disclosures = dart_get_disclosures(corp_code=None, max_count=15)
+            except DartApiError as e:
+                if e.status_code == '020': # 사용한도 초과
+                    logger.critical(f"DART API 사용 한도를 초과했습니다: {e}")
+                else:
+                    logger.error(f"DART 공시 조회 중 API 오류 발생: {e}", exc_info=True)
+                return # 함수 실행 중단
+
+            if not latest_disclosures:
+                logger.info("새로운 공시가 없습니다.")
+                return
+
+            # 3. 최초 실행 시 기준점 설정 (DB에 값이 없을 때)
+            if last_checked_rcept_no is None:
+                new_rcept_no = latest_disclosures[0]['rcept_no']
+                if last_checked_config:
+                    last_checked_config.value = new_rcept_no
+                else:
+                    db.add(SystemConfig(key='last_checked_rcept_no', value=new_rcept_no))
+                db.commit()
+                logger.info(f"최초 실행. 기준 접수번호를 {new_rcept_no}로 DB에 설정합니다.")
+                return
+
+            # 4. 신규 공시 필터링
+            new_disclosures = [d for d in latest_disclosures if d['rcept_no'] > last_checked_rcept_no]
+            if not new_disclosures:
+                logger.info(f"신규 공시가 없습니다. (DB 기준: {last_checked_rcept_no})")
+                return
+
+            logger.info(f"{len(new_disclosures)}건의 신규 공시를 발견했습니다.")
+            
+            total_notified_users = 0
+            
+            # 4. 신규 공시별로 구독자에게 알림 전송
+            for disclosure in reversed(new_disclosures):
+                stock_code = disclosure.get('stock_code')
+                if not stock_code:
+                    continue # 상장되지 않은 기업의 공시는 건너뜀
+
+                # 해당 종목의 공시를 구독한 사용자 조회
+                subscriptions = db.query(PriceAlert).filter(
+                    PriceAlert.symbol == stock_code,
+                    PriceAlert.notify_on_disclosure == True,
+                    PriceAlert.is_active == True
+                ).all()
+
+                if not subscriptions:
+                    continue
+
+                user_ids = [sub.user_id for sub in subscriptions]
+                users = db.query(User).filter(User.id.in_(user_ids)).all()
+                
+                notified_count_per_disclosure = 0
+                for user in users:
+                    if user.telegram_id:
+                        msg = (
+                            f"🔔 [{disclosure['corp_name']}] 신규 공시\n\n"
+                            f"📑 {disclosure['report_nm']}\n"
+                            f"🕒 {disclosure['rcept_dt']}\n"
+                            f"🔗 https://dart.fss.or.kr/dsaf001/main.do?rcpNo={disclosure['rcept_no']}"
+                        )
+                        send_telegram_message(user.telegram_id, msg)
+                        notified_count_per_disclosure += 1
+                
+                total_notified_users += notified_count_per_disclosure
+                logger.info(f"'{disclosure['corp_name']}' 공시를 {notified_count_per_disclosure}명에게 알렸습니다.")
+
+            # 5. 관리자에게 요약 리포트 전송
+            admin_id = os.getenv("TELEGRAM_ADMIN_ID")
+            if admin_id:
+                summary_msg = (
+                    f"📈 공시 알림 요약 리포트\n\n"
+                    f"- 발견된 신규 공시: {len(new_disclosures)}건\n"
+                    f"- 총 알림 발송 건수: {total_notified_users}건"
+                )
+                send_telegram_message(int(admin_id), summary_msg)
+            
+            # 6. 마지막 확인 번호 DB에 갱신
+            newest_rcept_no = new_disclosures[0]['rcept_no']
+            last_checked_config.value = newest_rcept_no
+            db.commit()
+            logger.info(f"마지막 확인 접수번호를 {newest_rcept_no}로 DB에 갱신합니다.")
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"신규 공시 확인 및 알림 작업 중 예상치 못한 오류 발생: {e}", exc_info=True)
 
     def get_stock_by_symbol(self, symbol: str, db: Session):
         """종목코드로 종목 정보 조회"""
@@ -201,29 +307,4 @@ class StockService:
             db.rollback()
             result['success'] = False
             result['errors'].append(str(e))
-        return result
-
-    def get_scheduler_status(self):
-        """스케줄러 상태 조회"""
-        try:
-            from src.api.main import scheduler
-            if scheduler is None:
-                raise RuntimeError("scheduler 객체가 None입니다. 초기화 실패 또는 import 순서 문제")
-            jobs = []
-            for job in scheduler.get_jobs():
-                jobs.append({
-                    "id": job.id,
-                    "name": job.name,
-                    "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
-                    "trigger": str(job.trigger)
-                })
-            return {
-                "scheduler_running": scheduler.running,
-                "job_count": len(jobs),
-                "jobs": jobs
-            }
-        except Exception as e:
-            import logging
-            logging.error(f"get_scheduler_status 예외: {e}", exc_info=True)
-            from fastapi import HTTPException
-            raise HTTPException(status_code=503, detail=f"스케줄러 상태 조회 실패: {e}") 
+        return result 

@@ -6,12 +6,12 @@ from telegram import Update
 from dotenv import load_dotenv
 from handlers.history import history_command
 from handlers.help import help_command
-from handlers.admin import health_command, admin_stats, admin_update_master, admin_update_price, admin_show_schedules, admin_trigger_job, admin_update_disclosure, update_disclosure_callback
+from handlers.admin import health_command, admin_stats, admin_update_master, admin_update_price, admin_show_schedules, admin_trigger_job, admin_update_disclosure, update_disclosure_callback, test_notify_command
 from handlers.predict import predict_command
 from handlers.watchlist import watchlist_add_command, watchlist_remove_command, watchlist_get_command
 from handlers.symbols import symbols_command, symbols_search_command, symbol_info_command
 from handlers.natural import natural_message_handler
-from bot.handlers.alert import get_handler, get_list_handler, get_remove_handler
+from bot.handlers.alert import get_handler, get_list_handler, get_remove_handler, alert_button_callback, set_price_alert
 from bot.handlers.register import get_register_handler, get_unregister_handler
 from bot.handlers.start import get_start_handler
 from bot.handlers.help import get_help_handler
@@ -86,12 +86,15 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("symbol_info", symbol_info_command))
     app.add_handler(CommandHandler("update_disclosure", admin_update_disclosure))
     app.add_handler(CallbackQueryHandler(update_disclosure_callback, pattern="^update_disclosure_"))
+    app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message_handler))
-    app.add_handler(get_handler())      # /alert_add
-    app.add_handler(get_list_handler()) # /alert_list
-    app.add_handler(get_remove_handler()) # /alert_remove
+    app.add_handler(CommandHandler("alert_add", get_handler().callback))
+    app.add_handler(CommandHandler("alert_list", get_list_handler().callback))
+    app.add_handler(CommandHandler("alert_remove", get_remove_handler().callback))
+    app.add_handler(CommandHandler("set_price", set_price_alert)) # 새로운 핸들러 등록
     app.add_handler(get_register_handler()) # /register
     app.add_handler(get_unregister_handler()) # /unregister
     app.add_handler(get_admin_handler()) # /admin
+    app.add_handler(CommandHandler("test_notify", test_notify_command))
     print("텔레그램 봇이 시작되었습니다. 메시지를 기다리는 중...")
     app.run_polling() 

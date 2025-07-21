@@ -2,7 +2,7 @@
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from src.api.db import get_db
+from src.common.db_connector import get_db
 from src.api.models.prediction_history import PredictionHistory
 from pydantic import BaseModel
 from typing import List, Optional

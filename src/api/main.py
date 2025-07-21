@@ -1,28 +1,35 @@
 from fastapi import FastAPI
-from src.api.routers import user_router, notification_router, predict_router, watchlist_router, simulated_trade_router, prediction_history_router, admin_router, symbols_router
-from src.api.models import Base
-from src.api.db import engine, get_db
+from src.api.routers.user import router as user_router
+from src.api.routers.notification import router as notification_router
+from src.api.routers.predict import router as predict_router
+from src.api.routers.watchlist import router as watchlist_router
+from src.api.routers.simulated_trade import router as simulated_trade_router
+from src.api.routers.prediction_history import router as prediction_history_router
+from src.api.routers.admin import router as admin_router
+from src.api.routers.stock_master import router as symbols_router # 'symbols_router'가 stock_master.py에 있을 경우
+from src.api.routers.bot_router import router as bot_router
+
+from src.common.db_connector import Base, engine, get_db
 import sys
-# APScheduler 추가
-from apscheduler.schedulers.background import BackgroundScheduler
+import os
 import logging
+from logging.handlers import RotatingFileHandler
 from datetime import datetime
+
+# APScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
+
+# Services
 from src.api.services.price_alert_service import PriceAlertService
 from src.api.services.stock_service import StockService
-from apscheduler.triggers.interval import IntervalTrigger
-from src.common.notify_service import send_telegram_message
-from src.api.models.user import User
-from src.api.models.price_alert import PriceAlert
-from sqlalchemy import text
-from logging.handlers import RotatingFileHandler
-import os
+from src.api.models.system_config import SystemConfig
 
-# 로그 디렉토리 생성 (없으면)
+# 로그 디렉토리 생성
 LOG_DIR = "/logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# 로깅 설정 (stdout + 파일)
+# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -33,94 +40,97 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 디버깅: Base.metadata.tables, DB 연결 정보 출력
-print('Base.metadata.tables:', list(Base.metadata.tables.keys()))
-print('DB 연결 정보:', engine.url)
 # DB 테이블 자동 생성
-Base.metadata.create_all(bind=engine)
-# 디버깅: 실제 DB 내 테이블 목록 출력
-with engine.connect() as conn:
-    result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public';"))
-    print('DB 내 테이블 목록:', [row[0] for row in result])
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("DB 테이블이 성공적으로 생성되었거나 이미 존재합니다.")
+except Exception as e:
+    logger.error(f"DB 테이블 생성 중 오류 발생: {e}", exc_info=True)
+
 
 app = FastAPI()
 
-# APScheduler 인스턴스 생성 및 샘플 잡 등록
-scheduler = BackgroundScheduler()
+# --- Scheduler Jobs ---
 
-def sample_job():
-    logger.info(f"[APScheduler] 샘플 잡 실행: {datetime.now()} - FastAPI 스케줄러 정상 동작")
-
-def update_stock_master_job():
+def update_stock_master_job(stock_service: StockService, *args, **kwargs):
     """종목마스터 정보 갱신 잡"""
     logger.info(f"[APScheduler] 종목마스터 갱신 잡 실행: {datetime.now()}")
+    db_gen = get_db()
+    db = next(db_gen)
     try:
-        from src.api.services.stock_service import StockService
-        stock_service = StockService()
-        db = next(get_db())
-        result = stock_service.update_stock_master(db)
-        if result["success"]:
-            logger.info(f"종목마스터 갱신 완료: {result['updated_count']}개 종목")
-        else:
-            logger.error(f"종목마스터 갱신 실패: {result['error']}")
+        stock_service.update_stock_master(db)
     except Exception as e:
-        logger.error(f"종목마스터 갱신 잡 실행 중 오류: {str(e)}")
+        logger.error(f"종목마스터 갱신 잡 실행 중 오류: {e}", exc_info=True)
+    finally:
+        next(db_gen, None)
 
-def update_daily_price_job():
+def update_daily_price_job(stock_service: StockService, *args, **kwargs):
     """일별시세 갱신 잡"""
     logger.info(f"[APScheduler] 일별시세 갱신 잡 실행: {datetime.now()}")
+    db_gen = get_db()
+    db = next(db_gen)
     try:
-        from src.api.services.stock_service import StockService
-        stock_service = StockService()
-        db = next(get_db())
-        result = stock_service.update_daily_prices(db)
-        if result["success"]:
-            logger.info(f"일별시세 갱신 완료: {result['updated_count']}개 데이터")
-        else:
-            logger.error(f"일별시세 갱신 실패: {result['error']}")
+        stock_service.update_all_daily_prices(db)
     except Exception as e:
-        logger.error(f"일별시세 갱신 잡 실행 중 오류: {str(e)}")
+        logger.error(f"일별시세 갱신 잡 실행 중 오류: {e}", exc_info=True)
+    finally:
+        next(db_gen, None)
+
+def check_disclosures_job(stock_service: StockService, *args, **kwargs):
+    """최신 공시 확인 및 알림 잡"""
+    logger.info(f"[APScheduler] 최신 공시 확인 잡 실행: {datetime.now()}")
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        stock_service.check_and_notify_new_disclosures(db)
+    except Exception as e:
+        logger.error(f"최신 공시 확인 잡 실행 중 오류: {e}", exc_info=True)
+    finally:
+        next(db_gen, None)
+
+def check_price_alerts_job(alert_service: PriceAlertService, *args, **kwargs):
+    """가격 알림 조건 확인 및 알림 잡"""
+    logger.info(f"[APScheduler] 가격 알림 체크 잡 실행: {datetime.now()}")
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        alert_service.check_alerts(db)
+    except Exception as e:
+        logger.error(f"가격 알림 체크 잡 실행 중 오류: {e}", exc_info=True)
+    finally:
+        next(db_gen, None)
+
+# --- Scheduler Setup ---
+
+scheduler = BackgroundScheduler(timezone='Asia/Seoul')
+
+# 서비스 인스턴스 생성
+stock_service = StockService()
+alert_service = PriceAlertService()
 
 # 스케줄러에 잡 등록
-scheduler.add_job(sample_job, 'interval', minutes=1, id='sample_job', replace_existing=True)
-scheduler.add_job(update_stock_master_job, 'cron', hour=9, minute=0, id='update_master_job', replace_existing=True)  # 매일 오전 9시
-scheduler.add_job(update_daily_price_job, 'cron', hour=18, minute=0, id='update_price_job', replace_existing=True)  # 매일 오후 6시
+scheduler.add_job(update_stock_master_job, 'cron', hour=7, minute=0, id='update_stock_master_job', replace_existing=True, kwargs={'stock_service': stock_service})
+scheduler.add_job(update_daily_price_job, 'cron', hour=18, minute=0, id='update_daily_price_job', replace_existing=True, kwargs={'stock_service': stock_service})
+scheduler.add_job(check_disclosures_job, 'interval', minutes=60, id='check_disclosures_job', replace_existing=True, kwargs={'stock_service': stock_service})
+scheduler.add_job(check_price_alerts_job, 'interval', minutes=1, id='check_price_alerts_job', replace_existing=True, kwargs={'alert_service': alert_service})
 
-alert_service = PriceAlertService()
-stock_service = StockService()
 
-# 가격 알림 체크 잡
-def check_price_alerts_job():
-    db = next(get_db())
-    # 모든 활성화된 알림의 종목 목록 추출
-    symbols = set([a.symbol for a in db.query(PriceAlert).all()])
-    for symbol in symbols:
-        current_price = stock_service.get_current_price(symbol, db)
-        triggered_alerts = alert_service.check_alerts(db, symbol, current_price)
-        for alert in triggered_alerts:
-            user = db.query(User).filter(User.id == alert.user_id).first()
-            if user and user.telegram_id and user.is_active:
-                msg = f"[가격알림] {alert.symbol} {current_price}원 ({'이상' if alert.condition == 'gte' else '이하'} {alert.target_price})"
-                send_telegram_message(user.telegram_id, msg)
-            print(f"[알림] 사용자 {alert.user_id} - {alert.symbol} {current_price}원, 조건: {alert.condition} {alert.target_price}")
-            alert.is_active = False
-            db.commit()
-
-scheduler.add_job(
-    check_price_alerts_job,
-    trigger=IntervalTrigger(minutes=1),
-    id="check_price_alerts",
-    name="가격 알림 조건 체크",
-    replace_existing=True
-)
-
-# FastAPI 앱의 startup 이벤트에서 scheduler.start()를 명시적으로 호출
 @app.on_event("startup")
 def start_scheduler():
     if not scheduler.running:
         scheduler.start()
         logger.info("APScheduler (startup 이벤트) 시작됨")
+        logger.info("등록된 잡 목록:")
+        for job in scheduler.get_jobs():
+            logger.info(f"- Job ID: {job.id}, Trigger: {job.trigger}")
 
+@app.on_event("shutdown")
+def shutdown_scheduler():
+    if scheduler.running:
+        scheduler.shutdown()
+        logger.info("APScheduler가 정상적으로 종료되었습니다.")
+
+# --- Routers ---
 app.include_router(user_router)
 app.include_router(notification_router)
 app.include_router(predict_router)
@@ -129,7 +139,9 @@ app.include_router(simulated_trade_router)
 app.include_router(prediction_history_router)
 app.include_router(admin_router)
 app.include_router(symbols_router)
+app.include_router(bot_router)
 
+# --- Basic Endpoints ---
 @app.get("/")
 def read_root():
     return {"message": "API 서비스 정상 동작"}
@@ -141,9 +153,4 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "scheduler_running": scheduler.running
-    }
-
-print('=== FastAPI 라우트 목록 ===')
-for route in app.routes:
-    print(route.path)
-sys.stdout.flush() 
+    } 

@@ -280,5 +280,16 @@ async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAU
         logger.error(f"공시 이력 갱신(버튼) 중 오류: {str(e)}")
         await query.edit_message_text(f"❌ 서버 오류: {str(e)}")
 
+async def test_notify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("관리자 전용 명령어입니다.")
+        return
+    chat_id = update.effective_chat.id
+    try:
+        await context.bot.send_message(chat_id=chat_id, text="[테스트 알림] 공시 알림 테스트 메시지입니다.\n\n(이 메시지가 즉시 도착하면 실시간 알림 전송이 정상 동작함을 의미합니다.)")
+    except Exception as e:
+        await update.message.reply_text(f"알림 전송 실패: {e}")
+
 def get_admin_handler():
     return CommandHandler("admin", admin_command) 

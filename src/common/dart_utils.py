@@ -4,6 +4,10 @@ import io
 from lxml import etree
 import os
 from typing import List, Dict, Optional
+from src.common.exceptions import DartApiError
+import logging
+
+logger = logging.getLogger(__name__)
 
 def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
     """
@@ -15,8 +19,12 @@ def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
     if not api_key:
         raise ValueError("DART_API_KEY가 환경변수에 없거나 인자로 전달되지 않았습니다.")
     url = f"https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key={api_key}"
-    resp = requests.get(url, timeout=60)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(url, timeout=60)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"DART CORPCODE.xml 요청 실패: {e}", exc_info=True)
+        raise DartApiError(f"DART API 요청 실패: {e}") from e
     zip_content = resp.content
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
         if 'CORPCODE.xml' not in z.namelist():
@@ -57,14 +65,26 @@ def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bgn_de: 
     url = "https://opendart.fss.or.kr/api/list.json"
     params = {
         "crtfc_key": api_key,
-        "corp_code": corp_code,
         "bgn_de": bgn_de,
         "end_de": end_de,
         "page_count": max_count
     }
-    resp = requests.get(url, params=params, timeout=10)
-    resp.raise_for_status()
-    data = resp.json()
-    if data.get("status") != "000":
-        raise RuntimeError(f"DART 공시 API 오류: {data.get('status')} - {data.get('message')}")
+    if corp_code:
+        params["corp_code"] = corp_code
+
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"DART 공시 조회 API 요청 실패 (corp_code: {corp_code}): {e}", exc_info=True)
+        raise DartApiError(f"DART API 요청 실패: {e}") from e
+
+    status = data.get("status")
+    message = data.get("message")
+
+    if status != "000":
+        logger.error(f"DART 공시 API가 오류를 반환했습니다. status: {status}, message: {message}, corp_code: {corp_code}")
+        raise DartApiError(message, status_code=status)
+
     return data.get("list", []) 

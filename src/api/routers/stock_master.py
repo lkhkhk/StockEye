@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from src.api.models.stock_master import StockMaster
-from src.api.db import get_db
+from src.common.db_connector import get_db
 from typing import List
 
 router = APIRouter(prefix="/symbols", tags=["symbols"])

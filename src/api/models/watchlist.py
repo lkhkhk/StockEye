@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, BigInteger, DateTime, func
-from src.api.models.base import Base
+from sqlalchemy import Column, BigInteger, String, ForeignKey, DateTime, func
+from src.common.db_connector import Base
+from sqlalchemy.orm import relationship
 
-class WatchList(Base):
+class Watchlist(Base):
     __tablename__ = 'watch_list'
     user_id = Column(BigInteger, primary_key=True)
     symbol = Column(String(20), primary_key=True)

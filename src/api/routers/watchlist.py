@@ -2,8 +2,9 @@
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from src.api.db import get_db
-from src.api.models.watchlist import WatchList
+from src.common.db_connector import get_db
+from src.api.models.watchlist import Watchlist
+from src.api.schemas.watchlist import WatchlistCreate, Watchlist as WatchlistSchema
 from pydantic import BaseModel
 from typing import List
 
@@ -15,21 +16,21 @@ class WatchListItem(BaseModel):
 
 @router.post("/add", tags=["watchlist"])
 def add_to_watchlist(item: WatchListItem, db: Session = Depends(get_db)):
-    exists = db.query(WatchList).filter_by(user_id=item.user_id, symbol=item.symbol).first()
+    exists = db.query(Watchlist).filter_by(user_id=item.user_id, symbol=item.symbol).first()
     if exists:
         return {"message": "이미 관심 목록에 있는 종목입니다."}
-    db.add(WatchList(user_id=item.user_id, symbol=item.symbol))
+    db.add(Watchlist(user_id=item.user_id, symbol=item.symbol))
     db.commit()
     return {"message": "종목이 관심 목록에 추가되었습니다."}
 
 @router.get("/get/{user_id}", tags=["watchlist"])
 def get_watchlist(user_id: int, db: Session = Depends(get_db)):
-    rows = db.query(WatchList).filter_by(user_id=user_id).all()
+    rows = db.query(Watchlist).filter_by(user_id=user_id).all()
     return {"watchlist": [row.symbol for row in rows]}
 
 @router.post("/remove", tags=["watchlist"])
 def remove_from_watchlist(item: WatchListItem, db: Session = Depends(get_db)):
-    row = db.query(WatchList).filter_by(user_id=item.user_id, symbol=item.symbol).first()
+    row = db.query(Watchlist).filter_by(user_id=item.user_id, symbol=item.symbol).first()
     if not row:
         return {"message": "관심 목록에 없는 종목입니다."}
     db.delete(row)

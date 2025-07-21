@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, DateTime, func
-from src.api.models.base import Base
+from src.common.db_connector import Base
 
 class StockMaster(Base):
     __tablename__ = 'stock_master'
