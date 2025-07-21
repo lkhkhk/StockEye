@@ -175,21 +175,20 @@ class StockService:
         ]
 
     def update_stock_master(self, db: Session, use_dart: bool = True):
-        """종목마스터 정보 갱신 (운영: DART 전체 종목, 테스트: 샘플)"""
+        """DART API를 통해 전체 종목 마스터를 DB에 업데이트/삽입합니다."""
+        updated_count = 0
         try:
-            logger.info("종목마스터 갱신 시작")
             if use_dart:
                 try:
-                    stocks = dart_get_all_stocks()
-                    logger.info(f"DART 전체 종목 수집: {len(stocks)}개")
-                except Exception as e:
+                    all_stocks = dart_get_all_stocks()
+                except DartApiError as e:
                     logger.error(f"DART API 연동 실패: {e}")
-                    stocks = get_sample_stocks_for_test()
-                    logger.info("DART 실패시 샘플 데이터로 대체")
+                    raise  # 예외를 다시 발생시켜 상위 except 블록에서 처리하도록 함
             else:
-                stocks = get_sample_stocks_for_test()
-            updated_count = 0
-            for stock_data in stocks:
+                # 테스트용 샘플 데이터
+                all_stocks = self.get_sample_stocks_for_test()
+
+            for stock_data in all_stocks:
                 existing_stock = db.query(StockMaster).filter(
                     StockMaster.symbol == stock_data["symbol"]
                 ).first()
@@ -210,24 +209,30 @@ class StockService:
                     db.add(new_stock)
                 updated_count += 1
             db.commit()
-            logger.info(f"종목마스터 갱신 완료: {updated_count}개 종목 처리")
             return {"success": True, "updated_count": updated_count}
-            
         except Exception as e:
-            logger.error(f"종목마스터 갱신 실패: {str(e)}")
             db.rollback()
+            logger.error(f"종목마스터 갱신 실패: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     def update_daily_prices(self, db: Session):
-        """일별시세 갱신"""
+        """일별시세 갱신 (전체 종목 대상)"""
         try:
-            logger.info("일별시세 갱신 시작")
-            
-            # 모든 종목 조회
+            logger.info("전체 종목 일별시세 갱신 시작")
             stocks = db.query(StockMaster).all()
-            updated_count = 0
-            
-            for stock in stocks:
+            return self._update_prices_for_stocks(db, stocks)
+        except Exception as e:
+            logger.error(f"전체 종목 일별시세 갱신 중 상위에서 오류 발생: {e}", exc_info=True)
+            db.rollback()
+            return {"success": False, "error": str(e)}
+
+    def _update_prices_for_stocks(self, db: Session, stocks: list):
+        """주어진 종목 리스트에 대한 일별시세를 갱신하는 내부 로직"""
+        updated_count = 0
+        error_stocks = []
+        
+        for stock in stocks:
+            try:
                 # 최근 30일간의 일별시세 생성/갱신
                 for i in range(30):
                     target_date = datetime.now() - timedelta(days=i)
@@ -255,15 +260,13 @@ class StockService:
                         )
                         db.add(new_price)
                         updated_count += 1
-            
-            db.commit()
-            logger.info(f"일별시세 갱신 완료: {updated_count}개 데이터 처리")
-            return {"success": True, "updated_count": updated_count}
-            
-        except Exception as e:
-            logger.error(f"일별시세 갱신 실패: {str(e)}")
-            db.rollback()
-            return {"success": False, "error": str(e)}
+            except Exception as e:
+                logger.error(f"일별시세 갱신 중 '{stock.symbol}' 처리에서 오류 발생: {e}")
+                error_stocks.append(stock.symbol)
+        
+        db.commit()
+        logger.info(f"일별시세 갱신 완료: {updated_count}개 데이터 처리. 오류: {len(error_stocks)}개 종목")
+        return {"success": True, "updated_count": updated_count, "errors": error_stocks}
 
     def update_disclosures(self, db: Session, corp_code: str, stock_code: str, stock_name: str = "", max_count: int = 10):
         """

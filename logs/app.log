@@ -427,3 +427,352 @@ Traceback (most recent call last):
     alert_service.check_alerts(db)
 TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
 2025-07-21 11:52:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:53:44 KST)" executed successfully
+2025-07-21 11:53:44,183 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:54:44 KST)" (scheduled at 2025-07-21 20:53:44.176230+09:00)
+2025-07-21 11:53:44,183 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 11:53:44.183741
+2025-07-21 11:53:44,184 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 11:53:44,184 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:54:44 KST)" executed successfully
+2025-07-21 11:54:44,176 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:55:44 KST)" (scheduled at 2025-07-21 20:54:44.176230+09:00)
+2025-07-21 11:54:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 11:54:44.177353
+2025-07-21 11:54:44,177 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 11:54:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:55:44 KST)" executed successfully
+2025-07-21 11:55:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:56:44 KST)" (scheduled at 2025-07-21 20:55:44.176230+09:00)
+2025-07-21 11:55:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 11:55:44.178434
+2025-07-21 11:55:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 11:55:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:56:44 KST)" executed successfully
+2025-07-21 11:56:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:57:44 KST)" (scheduled at 2025-07-21 20:56:44.176230+09:00)
+2025-07-21 11:56:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 11:56:44.177627
+2025-07-21 11:56:44,177 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 11:56:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:57:44 KST)" executed successfully
+2025-07-21 11:57:44,187 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:58:44 KST)" (scheduled at 2025-07-21 20:57:44.176230+09:00)
+2025-07-21 11:57:44,188 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 11:57:44.187999
+2025-07-21 11:57:44,188 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 11:57:44,188 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:58:44 KST)" executed successfully
+2025-07-21 11:58:44,180 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:59:44 KST)" (scheduled at 2025-07-21 20:58:44.176230+09:00)
+2025-07-21 11:58:44,180 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 11:58:44.180594
+2025-07-21 11:58:44,180 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 11:58:44,181 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 20:59:44 KST)" executed successfully
+2025-07-21 11:59:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:00:44 KST)" (scheduled at 2025-07-21 20:59:44.176230+09:00)
+2025-07-21 11:59:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 11:59:44.178259
+2025-07-21 11:59:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 11:59:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:00:44 KST)" executed successfully
+2025-07-21 12:00:44,182 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:01:44 KST)" (scheduled at 2025-07-21 21:00:44.176230+09:00)
+2025-07-21 12:00:44,183 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:00:44.183404
+2025-07-21 12:00:44,183 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:00:44,184 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:01:44 KST)" executed successfully
+2025-07-21 12:01:44,179 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:02:44 KST)" (scheduled at 2025-07-21 21:01:44.176230+09:00)
+2025-07-21 12:01:44,179 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:01:44.179665
+2025-07-21 12:01:44,180 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:01:44,180 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:02:44 KST)" executed successfully
+2025-07-21 12:02:44,180 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:03:44 KST)" (scheduled at 2025-07-21 21:02:44.176230+09:00)
+2025-07-21 12:02:44,181 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:02:44.181230
+2025-07-21 12:02:44,181 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:02:44,181 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:03:44 KST)" executed successfully
+2025-07-21 12:03:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:04:44 KST)" (scheduled at 2025-07-21 21:03:44.176230+09:00)
+2025-07-21 12:03:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:03:44.177664
+2025-07-21 12:03:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:03:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:04:44 KST)" executed successfully
+2025-07-21 12:04:44,178 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:05:44 KST)" (scheduled at 2025-07-21 21:04:44.176230+09:00)
+2025-07-21 12:04:44,179 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:04:44.179302
+2025-07-21 12:04:44,179 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:04:44,180 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:05:44 KST)" executed successfully
+2025-07-21 12:05:44,182 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:06:44 KST)" (scheduled at 2025-07-21 21:05:44.176230+09:00)
+2025-07-21 12:05:44,182 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:05:44.182658
+2025-07-21 12:05:44,182 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:05:44,183 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:06:44 KST)" executed successfully
+2025-07-21 12:06:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:07:44 KST)" (scheduled at 2025-07-21 21:06:44.176230+09:00)
+2025-07-21 12:06:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:06:44.178298
+2025-07-21 12:06:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:06:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:07:44 KST)" executed successfully
+2025-07-21 12:07:44,179 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:08:44 KST)" (scheduled at 2025-07-21 21:07:44.176230+09:00)
+2025-07-21 12:07:44,180 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:07:44.180100
+2025-07-21 12:07:44,180 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:07:44,180 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:08:44 KST)" executed successfully
+2025-07-21 12:08:44,176 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:09:44 KST)" (scheduled at 2025-07-21 21:08:44.176230+09:00)
+2025-07-21 12:08:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:08:44.177248
+2025-07-21 12:08:44,177 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:08:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:09:44 KST)" executed successfully
+2025-07-21 12:09:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:10:44 KST)" (scheduled at 2025-07-21 21:09:44.176230+09:00)
+2025-07-21 12:09:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:09:44.178466
+2025-07-21 12:09:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:09:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:10:44 KST)" executed successfully
+2025-07-21 12:10:44,178 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:11:44 KST)" (scheduled at 2025-07-21 21:10:44.176230+09:00)
+2025-07-21 12:10:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:10:44.178761
+2025-07-21 12:10:44,179 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:10:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:11:44 KST)" executed successfully
+2025-07-21 12:11:44,180 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:12:44 KST)" (scheduled at 2025-07-21 21:11:44.176230+09:00)
+2025-07-21 12:11:44,180 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:11:44.180668
+2025-07-21 12:11:44,180 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:11:44,181 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:12:44 KST)" executed successfully
+2025-07-21 12:12:44,189 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:13:44 KST)" (scheduled at 2025-07-21 21:12:44.176230+09:00)
+2025-07-21 12:12:44,190 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:12:44.190047
+2025-07-21 12:12:44,190 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:12:44,190 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:13:44 KST)" executed successfully
+2025-07-21 12:13:44,178 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:14:44 KST)" (scheduled at 2025-07-21 21:13:44.176230+09:00)
+2025-07-21 12:13:44,179 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:13:44.179012
+2025-07-21 12:13:44,179 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:13:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:14:44 KST)" executed successfully
+2025-07-21 12:14:44,179 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:15:44 KST)" (scheduled at 2025-07-21 21:14:44.176230+09:00)
+2025-07-21 12:14:44,180 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:14:44.180379
+2025-07-21 12:14:44,180 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:14:44,181 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:15:44 KST)" executed successfully
+2025-07-21 12:15:44,179 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:16:44 KST)" (scheduled at 2025-07-21 21:15:44.176230+09:00)
+2025-07-21 12:15:44,180 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:15:44.180008
+2025-07-21 12:15:44,180 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:15:44,180 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:16:44 KST)" executed successfully
+2025-07-21 12:16:44,178 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:17:44 KST)" (scheduled at 2025-07-21 21:16:44.176230+09:00)
+2025-07-21 12:16:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:16:44.178529
+2025-07-21 12:16:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:16:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:17:44 KST)" executed successfully
+2025-07-21 12:17:44,178 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:18:44 KST)" (scheduled at 2025-07-21 21:17:44.176230+09:00)
+2025-07-21 12:17:44,179 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:17:44.179149
+2025-07-21 12:17:44,179 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:17:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:18:44 KST)" executed successfully
+2025-07-21 12:18:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:19:44 KST)" (scheduled at 2025-07-21 21:18:44.176230+09:00)
+2025-07-21 12:18:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:18:44.177683
+2025-07-21 12:18:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:18:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:19:44 KST)" executed successfully
+2025-07-21 12:19:44,177 - apscheduler.executors.default - INFO - Running job "check_disclosures_job (trigger: interval[1:00:00], next run at: 2025-07-21 22:19:44 KST)" (scheduled at 2025-07-21 21:19:44.175905+09:00)
+2025-07-21 12:19:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:20:44 KST)" (scheduled at 2025-07-21 21:19:44.176230+09:00)
+2025-07-21 12:19:44,178 - main - INFO - [APScheduler] 최신 공시 확인 잡 실행: 2025-07-21 12:19:44.178431
+2025-07-21 12:19:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:19:44.178738
+2025-07-21 12:19:44,181 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:19:44,182 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:20:44 KST)" executed successfully
+2025-07-21 12:19:44,183 - src.api.services.stock_service - INFO - DART에서 최신 공시 목록을 조회합니다.
+2025-07-21 12:19:44,284 - src.common.dart_utils - ERROR - DART 공시 API가 오류를 반환했습니다. status: 020, message: 사용한도를 초과하였습니다., corp_code: None
+2025-07-21 12:19:44,284 - src.api.services.stock_service - CRITICAL - DART API 사용 한도를 초과했습니다: [020] 사용한도를 초과하였습니다.
+2025-07-21 12:19:44,285 - apscheduler.executors.default - INFO - Job "check_disclosures_job (trigger: interval[1:00:00], next run at: 2025-07-21 22:19:44 KST)" executed successfully
+2025-07-21 12:20:44,176 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:21:44 KST)" (scheduled at 2025-07-21 21:20:44.176230+09:00)
+2025-07-21 12:20:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:20:44.177115
+2025-07-21 12:20:44,177 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:20:44,177 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:21:44 KST)" executed successfully
+2025-07-21 12:21:44,178 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:22:44 KST)" (scheduled at 2025-07-21 21:21:44.176230+09:00)
+2025-07-21 12:21:44,178 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:21:44.178814
+2025-07-21 12:21:44,179 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:21:44,179 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:22:44 KST)" executed successfully
+2025-07-21 12:22:44,180 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:23:44 KST)" (scheduled at 2025-07-21 21:22:44.176230+09:00)
+2025-07-21 12:22:44,180 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:22:44.180877
+2025-07-21 12:22:44,181 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    alert_service.check_alerts(db)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:22:44,181 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:23:44 KST)" executed successfully
+2025-07-21 12:23:44,176 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:24:44 KST)" (scheduled at 2025-07-21 21:23:44.176230+09:00)
+2025-07-21 12:23:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:23:44.177343
+2025-07-21 12:23:44,177 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    db = next(db_gen)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:23:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:24:44 KST)" executed successfully
+2025-07-21 12:24:44,177 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:25:44 KST)" (scheduled at 2025-07-21 21:24:44.176230+09:00)
+2025-07-21 12:24:44,177 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:24:44.177897
+2025-07-21 12:24:44,178 - main - ERROR - 가격 알림 체크 잡 실행 중 오류: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+Traceback (most recent call last):
+  File "/app/src/api/main.py", line 97, in check_price_alerts_job
+    db = next(db_gen)
+TypeError: PriceAlertService.check_alerts() missing 2 required positional arguments: 'symbol' and 'current_price'
+2025-07-21 12:24:44,178 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:25:44 KST)" executed successfully
+2025-07-21 12:25:15,468 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2025-07-21 12:25:15,469 - main - INFO - APScheduler가 정상적으로 종료되었습니다.
+2025-07-21 12:25:27,782 - main - INFO - DB 테이블이 성공적으로 생성되었거나 이미 존재합니다.
+2025-07-21 12:25:27,791 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-07-21 12:25:27,938 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-07-21 12:25:27,939 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-07-21 12:25:27,940 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-07-21 12:25:28,026 - apscheduler.scheduler - INFO - Added job "update_stock_master_job" to job store "default"
+2025-07-21 12:25:28,026 - apscheduler.scheduler - INFO - Added job "update_daily_price_job" to job store "default"
+2025-07-21 12:25:28,026 - apscheduler.scheduler - INFO - Added job "check_disclosures_job" to job store "default"
+2025-07-21 12:25:28,027 - apscheduler.scheduler - INFO - Added job "check_price_alerts_job" to job store "default"
+2025-07-21 12:25:28,027 - apscheduler.scheduler - INFO - Scheduler started
+2025-07-21 12:25:28,028 - main - INFO - APScheduler (startup 이벤트) 시작됨
+2025-07-21 12:25:28,028 - main - INFO - 등록된 잡 목록:
+2025-07-21 12:25:28,028 - main - INFO - - Job ID: check_price_alerts_job, Trigger: interval[0:01:00]
+2025-07-21 12:25:28,028 - main - INFO - - Job ID: check_disclosures_job, Trigger: interval[1:00:00]
+2025-07-21 12:25:28,029 - main - INFO - - Job ID: update_stock_master_job, Trigger: cron[hour='7', minute='0']
+2025-07-21 12:25:28,029 - main - INFO - - Job ID: update_daily_price_job, Trigger: cron[hour='18', minute='0']
+2025-07-21 12:26:27,942 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:27:27 KST)" (scheduled at 2025-07-21 21:26:27.940125+09:00)
+2025-07-21 12:26:27,942 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:26:27.942870
+2025-07-21 12:26:27,956 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:27:27 KST)" executed successfully
+2025-07-21 12:27:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:28:27 KST)" (scheduled at 2025-07-21 21:27:27.940125+09:00)
+2025-07-21 12:27:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:27:27.941752
+2025-07-21 12:27:27,944 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:28:27 KST)" executed successfully
+2025-07-21 12:28:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:29:27 KST)" (scheduled at 2025-07-21 21:28:27.940125+09:00)
+2025-07-21 12:28:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:28:27.941628
+2025-07-21 12:28:27,945 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:29:27 KST)" executed successfully
+2025-07-21 12:29:27,940 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:30:27 KST)" (scheduled at 2025-07-21 21:29:27.940125+09:00)
+2025-07-21 12:29:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:29:27.941060
+2025-07-21 12:29:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:30:27 KST)" executed successfully
+2025-07-21 12:30:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:31:27 KST)" (scheduled at 2025-07-21 21:30:27.940125+09:00)
+2025-07-21 12:30:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:30:27.941604
+2025-07-21 12:30:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:31:27 KST)" executed successfully
+2025-07-21 12:31:27,942 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:32:27 KST)" (scheduled at 2025-07-21 21:31:27.940125+09:00)
+2025-07-21 12:31:27,942 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:31:27.942918
+2025-07-21 12:31:27,944 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:32:27 KST)" executed successfully
+2025-07-21 12:32:27,940 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:33:27 KST)" (scheduled at 2025-07-21 21:32:27.940125+09:00)
+2025-07-21 12:32:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:32:27.941124
+2025-07-21 12:32:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:33:27 KST)" executed successfully
+2025-07-21 12:33:27,942 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:34:27 KST)" (scheduled at 2025-07-21 21:33:27.940125+09:00)
+2025-07-21 12:33:27,942 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:33:27.942715
+2025-07-21 12:33:27,946 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:34:27 KST)" executed successfully
+2025-07-21 12:34:27,943 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:35:27 KST)" (scheduled at 2025-07-21 21:34:27.940125+09:00)
+2025-07-21 12:34:27,943 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:34:27.943966
+2025-07-21 12:34:27,945 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:35:27 KST)" executed successfully
+2025-07-21 12:35:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:36:27 KST)" (scheduled at 2025-07-21 21:35:27.940125+09:00)
+2025-07-21 12:35:27,942 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:35:27.942063
+2025-07-21 12:35:27,944 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:36:27 KST)" executed successfully
+2025-07-21 12:36:27,940 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:37:27 KST)" (scheduled at 2025-07-21 21:36:27.940125+09:00)
+2025-07-21 12:36:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:36:27.941224
+2025-07-21 12:36:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:37:27 KST)" executed successfully
+2025-07-21 12:37:27,946 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:38:27 KST)" (scheduled at 2025-07-21 21:37:27.940125+09:00)
+2025-07-21 12:37:27,947 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:37:27.947287
+2025-07-21 12:37:27,949 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:38:27 KST)" executed successfully
+2025-07-21 12:38:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:39:27 KST)" (scheduled at 2025-07-21 21:38:27.940125+09:00)
+2025-07-21 12:38:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:38:27.941850
+2025-07-21 12:38:27,944 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:39:27 KST)" executed successfully
+2025-07-21 12:39:27,940 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:40:27 KST)" (scheduled at 2025-07-21 21:39:27.940125+09:00)
+2025-07-21 12:39:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:39:27.941474
+2025-07-21 12:39:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:40:27 KST)" executed successfully
+2025-07-21 12:40:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:41:27 KST)" (scheduled at 2025-07-21 21:40:27.940125+09:00)
+2025-07-21 12:40:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:40:27.941867
+2025-07-21 12:40:27,944 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:41:27 KST)" executed successfully
+2025-07-21 12:41:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:42:27 KST)" (scheduled at 2025-07-21 21:41:27.940125+09:00)
+2025-07-21 12:41:27,942 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:41:27.942191
+2025-07-21 12:41:27,944 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:42:27 KST)" executed successfully
+2025-07-21 12:42:27,940 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:43:27 KST)" (scheduled at 2025-07-21 21:42:27.940125+09:00)
+2025-07-21 12:42:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:42:27.941343
+2025-07-21 12:42:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:43:27 KST)" executed successfully
+2025-07-21 12:43:27,943 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:44:27 KST)" (scheduled at 2025-07-21 21:43:27.940125+09:00)
+2025-07-21 12:43:27,943 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:43:27.943677
+2025-07-21 12:43:27,946 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:44:27 KST)" executed successfully
+2025-07-21 12:44:27,940 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:45:27 KST)" (scheduled at 2025-07-21 21:44:27.940125+09:00)
+2025-07-21 12:44:27,940 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:44:27.940933
+2025-07-21 12:44:27,942 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:45:27 KST)" executed successfully
+2025-07-21 12:45:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:46:27 KST)" (scheduled at 2025-07-21 21:45:27.940125+09:00)
+2025-07-21 12:45:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:45:27.941466
+2025-07-21 12:45:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:46:27 KST)" executed successfully
+2025-07-21 12:46:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:47:27 KST)" (scheduled at 2025-07-21 21:46:27.940125+09:00)
+2025-07-21 12:46:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:46:27.941747
+2025-07-21 12:46:27,943 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:47:27 KST)" executed successfully
+2025-07-21 12:47:27,946 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:48:27 KST)" (scheduled at 2025-07-21 21:47:27.940125+09:00)
+2025-07-21 12:47:27,946 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:47:27.946894
+2025-07-21 12:47:27,949 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:48:27 KST)" executed successfully
+2025-07-21 12:48:27,941 - apscheduler.executors.default - INFO - Running job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:49:27 KST)" (scheduled at 2025-07-21 21:48:27.940125+09:00)
+2025-07-21 12:48:27,941 - main - INFO - [APScheduler] 가격 알림 체크 잡 실행: 2025-07-21 12:48:27.941566
+2025-07-21 12:48:27,944 - apscheduler.executors.default - INFO - Job "check_price_alerts_job (trigger: interval[0:01:00], next run at: 2025-07-21 21:49:27 KST)" executed successfully

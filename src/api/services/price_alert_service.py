@@ -46,6 +46,10 @@ class PriceAlertService:
             PriceAlert.symbol == symbol
         ).first()
 
+    def get_all_active_alerts(self, db: Session) -> List[PriceAlert]:
+        """모든 활성화된 가격 알림을 조회합니다."""
+        return db.query(PriceAlert).filter(PriceAlert.is_active == True).all()
+
     def update_alert(self, db: Session, alert_id: int, alert_update: PriceAlertUpdate) -> PriceAlert:
         alert = db.query(PriceAlert).filter(PriceAlert.id == alert_id).first()
         if not alert:

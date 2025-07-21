@@ -44,13 +44,14 @@ def update_stock_master(db: Session = Depends(get_db)):
 
 @router.post("/update_price", tags=["admin"])
 def update_daily_price(db: Session = Depends(get_db)):
-    """일별시세 수동 갱신"""
+    """일별시세 수동 갱신 (전체 종목 대상)"""
     try:
         result = stock_service.update_daily_prices(db)
         if result["success"]:
             return {
-                "message": "일별시세 갱신 완료",
-                "updated_count": result["updated_count"],
+                "message": f"일별시세 갱신 완료: {result.get('updated_count', 0)}개 데이터 처리. 오류: {len(result.get('errors', []))}개 종목",
+                "updated_count": result.get('updated_count', 0),
+                "error_stocks": result.get('errors', []),
                 "timestamp": datetime.now().isoformat()
             }
         else:

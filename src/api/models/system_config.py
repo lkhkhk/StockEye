@@ -7,4 +7,5 @@ class SystemConfig(Base):
     
     key = Column(String, primary_key=True)
     value = Column(String)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now()) 
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False) 
