@@ -114,8 +114,12 @@ scheduler.add_job(
     replace_existing=True
 )
 
-scheduler.start()
-logger.info("APScheduler 시작됨")
+# FastAPI 앱의 startup 이벤트에서 scheduler.start()를 명시적으로 호출
+@app.on_event("startup")
+def start_scheduler():
+    if not scheduler.running:
+        scheduler.start()
+        logger.info("APScheduler (startup 이벤트) 시작됨")
 
 app.include_router(user_router)
 app.include_router(notification_router)

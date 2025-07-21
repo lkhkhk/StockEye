@@ -59,6 +59,72 @@ def update_daily_price(db: Session = Depends(get_db)):
         logger.error(f"/admin/update_price 서버 오류: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
 
+@router.post("/update_disclosure", tags=["admin"])
+def update_disclosure(db: Session = Depends(get_db), code_or_name: str = ''):
+    """종목코드(6자리), 종목명, 또는 corp_code(8자리)로 공시 이력 수동 갱신. 미입력시 전체."""
+    try:
+        results = []
+        from src.api.models.stock_master import StockMaster
+        if not code_or_name:
+            # 전체 종목 대상
+            stocks = db.query(StockMaster).filter(StockMaster.corp_code != None, StockMaster.corp_code != '').all()
+            for stock in stocks:
+                try:
+                    res = stock_service.update_disclosures(db, corp_code=stock.corp_code, stock_code=stock.symbol, stock_name=stock.name)
+                    results.append({"stock_code": stock.symbol, "corp_code": stock.corp_code, **res})
+                except Exception as e:
+                    results.append({"stock_code": stock.symbol, "corp_code": stock.corp_code, "success": False, "error": str(e)})
+            total_inserted = sum(r.get('inserted', 0) for r in results if r.get('success'))
+            total_skipped = sum(r.get('skipped', 0) for r in results if r.get('success'))
+            total_errors = [r.get('error') for r in results if not r.get('success')]
+            return {
+                "message": f"전체 종목 공시 이력 갱신 완료: {total_inserted}건 추가, {total_skipped}건 중복, {len(total_errors)}건 에러",
+                "inserted": total_inserted,
+                "skipped": total_skipped,
+                "errors": total_errors
+            }
+        # 단일 종목 처리
+        code = code_or_name.strip()
+        corp_code = None
+        stock_code = None
+        stock_name = None
+        # 8자리 숫자면 corp_code로 간주
+        if code.isdigit() and len(code) == 8:
+            corp_code = code
+            stock = db.query(StockMaster).filter(StockMaster.corp_code == corp_code).first()
+            if stock:
+                stock_code = stock.symbol
+                stock_name = stock.name
+        # 6자리 숫자면 종목코드
+        elif code.isdigit() and len(code) == 6:
+            stock = db.query(StockMaster).filter(StockMaster.symbol == code).first()
+            if stock:
+                corp_code = stock.corp_code
+                stock_code = stock.symbol
+                stock_name = stock.name
+        # 그 외는 종목명(부분일치)
+        else:
+            stock = db.query(StockMaster).filter(StockMaster.name.like(f"%{code}%")).first()
+            if stock:
+                corp_code = stock.corp_code
+                stock_code = stock.symbol
+                stock_name = stock.name
+        if not corp_code:
+            raise HTTPException(status_code=404, detail="해당 입력에 대한 corp_code(고유번호)를 찾을 수 없습니다. 마스터 갱신 후 다시 시도하세요.")
+        result = stock_service.update_disclosures(db, corp_code=corp_code, stock_code=stock_code or '', stock_name=stock_name or '')
+        if result['success']:
+            return {
+                "message": f"공시 이력 갱신 완료: {result['inserted']}건 추가, {result['skipped']}건 중복",
+                "inserted": result['inserted'],
+                "skipped": result['skipped'],
+                "errors": result['errors']
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"공시 갱신 실패: {result['errors']}")
+    except Exception as e:
+        logger.error(f"/admin/update_disclosure 서버 오류: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
 @router.get("/schedule/status", tags=["admin"])
 def get_schedule_status():
     """스케줄러 상태 조회"""
@@ -75,21 +141,22 @@ def get_schedule_status():
 @router.post("/schedule/trigger/{job_id}", tags=["admin"])
 def trigger_job(job_id: str):
     """특정 잡 수동 실행"""
+    import traceback
     try:
         from src.api.main import scheduler
-        
         # 잡 존재 확인
         job = scheduler.get_job(job_id)
         if not job:
+            logger.error(f"[trigger_job] 잡을 찾을 수 없습니다: {job_id}")
             raise HTTPException(status_code=404, detail=f"잡을 찾을 수 없습니다: {job_id}")
-        
-        # 잡 실행
-        scheduler.run_job(job_id)
-        
+        # 잡 직접 실행
+        job.func(*job.args, **job.kwargs)
+        logger.info(f"[trigger_job] 잡 직접 실행 성공: {job_id}")
         return {
             "message": f"잡 실행 완료: {job_id}",
             "job_id": job_id,
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
+        logger.error(f"[trigger_job] 잡 실행 실패: {job_id} - {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"잡 실행 실패: {str(e)}") 

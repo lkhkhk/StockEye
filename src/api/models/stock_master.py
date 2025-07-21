@@ -6,5 +6,6 @@ class StockMaster(Base):
     symbol = Column(String(20), primary_key=True)
     name = Column(String(100), nullable=False)
     market = Column(String(20), nullable=True)
+    corp_code = Column(String(20), nullable=True, index=True)  # DART 고유번호
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False) 

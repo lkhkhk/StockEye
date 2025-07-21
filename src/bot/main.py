@@ -1,12 +1,12 @@
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from telegram import Update
 from dotenv import load_dotenv
 from handlers.history import history_command
 from handlers.help import help_command
-from handlers.admin import health_command, admin_stats, admin_update_master, admin_update_price, admin_show_schedules, admin_trigger_job
+from handlers.admin import health_command, admin_stats, admin_update_master, admin_update_price, admin_show_schedules, admin_trigger_job, admin_update_disclosure, update_disclosure_callback
 from handlers.predict import predict_command
 from handlers.watchlist import watchlist_add_command, watchlist_remove_command, watchlist_get_command
 from handlers.symbols import symbols_command, symbols_search_command, symbol_info_command
@@ -84,6 +84,8 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("symbols", symbols_command))
     app.add_handler(CommandHandler("symbols_search", symbols_search_command))
     app.add_handler(CommandHandler("symbol_info", symbol_info_command))
+    app.add_handler(CommandHandler("update_disclosure", admin_update_disclosure))
+    app.add_handler(CallbackQueryHandler(update_disclosure_callback, pattern="^update_disclosure_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message_handler))
     app.add_handler(get_handler())      # /alert_add
     app.add_handler(get_list_handler()) # /alert_list

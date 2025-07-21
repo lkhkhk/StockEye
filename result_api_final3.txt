@@ -1,0 +1,38 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.18, pytest-8.4.1, pluggy-1.6.0
+rootdir: /app
+plugins: anyio-4.9.0, asyncio-1.1.0
+asyncio: mode=strict, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 23 items
+
+src/api/tests/test_admin_scheduler.py .F..                               [ 17%]
+src/api/tests/test_api_admin.py ..                                       [ 26%]
+src/api/tests/test_api_alerts.py ...                                     [ 39%]
+src/api/tests/test_api_basic.py .                                        [ 43%]
+src/api/tests/test_api_predict.py ...                                    [ 56%]
+src/api/tests/test_api_prediction_history.py .                           [ 60%]
+src/api/tests/test_api_simulated_trade.py ..                             [ 69%]
+src/api/tests/test_api_user.py ...                                       [ 82%]
+src/api/tests/test_api_watchlist.py ...                                  [ 95%]
+src/api/tests/test_e2e_scenario.py .                                     [100%]
+
+=================================== FAILURES ===================================
+___________________ TestAdminScheduler.test_schedule_status ____________________
+
+self = <test_admin_scheduler.TestAdminScheduler object at 0x7f5624728940>
+
+>   ???
+E   assert 500 == 200
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+
+/home/user01/vibe-coding/StocksCursor/src/api/tests/test_admin_scheduler.py:23: AssertionError
+=============================== warnings summary ===============================
+../usr/local/lib/python3.10/site-packages/pydantic/_internal/_config.py:323
+../usr/local/lib/python3.10/site-packages/pydantic/_internal/_config.py:323
+  /usr/local/lib/python3.10/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED src/api/tests/test_admin_scheduler.py::TestAdminScheduler::test_schedule_status
+=================== 1 failed, 22 passed, 2 warnings in 4.71s ===================
