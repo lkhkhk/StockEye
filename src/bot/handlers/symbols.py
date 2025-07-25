@@ -2,12 +2,13 @@ import os
 import requests
 from telegram import Update
 from telegram.ext import ContextTypes
+from src.common.http_client import session
 
 API_URL = os.getenv("API_URL", "http://api_service:8000")
 
 async def symbols_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        response = requests.get(f"{API_URL}/symbols/")
+        response = session.get(f"{API_URL}/symbols/", timeout=10)
         response.raise_for_status()
         data = response.json()
         if not data:
@@ -24,7 +25,7 @@ async def symbols_search_command(update: Update, context: ContextTypes.DEFAULT_T
         return
     query = context.args[0]
     try:
-        response = requests.get(f"{API_URL}/symbols/search", params={"query": query})
+        response = session.get(f"{API_URL}/symbols/search", params={"query": query}, timeout=10)
         response.raise_for_status()
         data = response.json()
         if not data:
@@ -41,7 +42,7 @@ async def symbol_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     symbol = context.args[0]
     try:
-        response = requests.get(f"{API_URL}/symbols/search", params={"query": symbol})
+        response = session.get(f"{API_URL}/symbols/search", params={"query": symbol}, timeout=10)
         response.raise_for_status()
         data = response.json()
         if not data:
@@ -51,4 +52,4 @@ async def symbol_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         msg = f"[종목 상세]\n코드: {info['symbol']}\n이름: {info['name']}\n시장: {info.get('market','')}"
         await update.message.reply_text(msg)
     except Exception as e:
-        await update.message.reply_text(f"종목 상세 조회 실패: {e}") 
+        await update.message.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") 

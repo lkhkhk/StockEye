@@ -2,6 +2,7 @@ import os
 import requests
 from telegram import Update
 from telegram.ext import ContextTypes
+from src.common.http_client import session
 
 API_URL = os.getenv("API_URL", "http://api_service:8000")
 
@@ -12,7 +13,7 @@ async def watchlist_add_command(update: Update, context: ContextTypes.DEFAULT_TY
     symbol = context.args[0]
     user_id = update.effective_user.id
     try:
-        response = requests.post(f"{API_URL}/watchlist/add", json={"user_id": user_id, "symbol": symbol})
+        response = session.post(f"{API_URL}/watchlist/add", json={"user_id": user_id, "symbol": symbol}, timeout=10)
         response.raise_for_status()
         await update.message.reply_text(response.json().get("message", "관심종목 추가 완료"))
     except Exception as e:
@@ -25,7 +26,7 @@ async def watchlist_remove_command(update: Update, context: ContextTypes.DEFAULT
     symbol = context.args[0]
     user_id = update.effective_user.id
     try:
-        response = requests.post(f"{API_URL}/watchlist/remove", json={"user_id": user_id, "symbol": symbol})
+        response = session.post(f"{API_URL}/watchlist/remove", json={"user_id": user_id, "symbol": symbol}, timeout=10)
         response.raise_for_status()
         await update.message.reply_text(response.json().get("message", "관심종목 제거 완료"))
     except Exception as e:
@@ -34,7 +35,7 @@ async def watchlist_remove_command(update: Update, context: ContextTypes.DEFAULT
 async def watchlist_get_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     try:
-        response = requests.get(f"{API_URL}/watchlist/get/{user_id}")
+        response = session.get(f"{API_URL}/watchlist/get/{user_id}", timeout=10)
         response.raise_for_status()
         data = response.json()
         watchlist = data.get("watchlist", [])
@@ -44,4 +45,4 @@ async def watchlist_get_command(update: Update, context: ContextTypes.DEFAULT_TY
         msg = "[관심종목 목록]\n" + "\n".join(watchlist)
         await update.message.reply_text(msg)
     except Exception as e:
-        await update.message.reply_text(f"관심종목 조회 실패: {e}") 
+        await update.message.reply_text(f"관심종목 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") 

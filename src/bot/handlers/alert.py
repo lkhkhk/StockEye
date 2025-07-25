@@ -1,7 +1,14 @@
+from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
-import requests
+from telegram.ext import ContextTypes, CommandHandler
+from src.common.http_client import session
 import os
+import requests
+import logging
+
+API_URL = os.getenv("API_URL", "http://api_service:8000")
+
+logger = logging.getLogger(__name__)
 
 # --- Helper Functions ---
 def get_alert_options_keyboard(symbol: str) -> InlineKeyboardMarkup:
@@ -9,6 +16,17 @@ def get_alert_options_keyboard(symbol: str) -> InlineKeyboardMarkup:
     keyboard = [
         [InlineKeyboardButton("가격 알림 설정/수정", callback_data=f"alert_price_{symbol}")],
         [InlineKeyboardButton("공시 알림 켜기/끄기", callback_data=f"alert_disclosure_{symbol}")],
+        [InlineKeyboardButton("반복 알림 설정", callback_data=f"alert_repeat_{symbol}")] # 반복 알림 버튼 추가
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_repeat_interval_keyboard(symbol: str) -> InlineKeyboardMarkup:
+    """반복 알림 주기 선택 인라인 키보드를 생성합니다."""
+    keyboard = [
+        [InlineKeyboardButton("반복 안 함", callback_data=f"alert_set_repeat_{symbol}_None")],
+        [InlineKeyboardButton("매일", callback_data=f"alert_set_repeat_{symbol}_daily")],
+        [InlineKeyboardButton("매주", callback_data=f"alert_set_repeat_{symbol}_weekly")],
+        [InlineKeyboardButton("매월", callback_data=f"alert_set_repeat_{symbol}_monthly")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -26,7 +44,7 @@ async def alert_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api_url = os.getenv("API_URL", "http://api_service:8000")
 
     try:
-        search_resp = requests.get(f"{api_url}/symbols/search", params={"query": query_str}, timeout=5)
+        search_resp = session.get(f"{api_url}/symbols/search", params={"query": query_str}, timeout=10)
         if search_resp.status_code != 200:
             await update.message.reply_text(f"종목 검색 실패: {search_resp.text}")
             return
@@ -54,7 +72,7 @@ async def alert_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"'{stock_name}({symbol})'에 대한 알림을 설정합니다. 원하는 작업을 선택하세요.", reply_markup=reply_markup)
 
     except Exception as e:
-        await update.message.reply_text(f"API 요청 실패: {e}")
+        await update.message.reply_text(f"알림 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def alert_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """알림 설정 관련 인라인 버튼 콜백을 처리합니다."""
@@ -72,6 +90,10 @@ async def alert_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup = get_alert_options_keyboard(symbol)
             await query.edit_message_text(f"'{symbol}'에 대한 알림을 설정합니다. 원하는 작업을 선택하세요.", reply_markup=reply_markup)
             return
+        elif action == "repeat": # 반복 알림 설정 버튼 클릭 시
+            reply_markup = get_repeat_interval_keyboard(symbol)
+            await query.edit_message_text(f"'{symbol}'에 대한 반복 알림 주기를 선택하세요:", reply_markup=reply_markup)
+            return
 
         api_url = os.getenv("API_URL", "http://api_service:8000")
         user = query.from_user
@@ -88,7 +110,7 @@ async def alert_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 "symbol": symbol,
             }
             
-            resp = requests.post(f"{api_url}/bot/alert/disclosure-toggle", json=payload, timeout=5)
+            resp = session.post(f"{api_url}/bot/alert/disclosure-toggle", json=payload, timeout=10)
 
             if resp.status_code == 200:
                 result = resp.json()
@@ -99,9 +121,50 @@ async def alert_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await query.edit_message_text(f"오류: 공시 알림 설정 실패 ({resp.status_code} - {resp.text})")
 
     except Exception as e:
-        await query.edit_message_text(f"오류 발생: {e}")
+        await query.edit_message_text(f"알림 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
-async def set_price_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def alert_set_repeat_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """반복 알림 주기 선택 콜백을 처리합니다."""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        data = query.data
+        parts = data.split('_') # callback_data format: "alert_set_repeat_{symbol}_{interval}"
+        symbol = parts[3]
+        repeat_interval = parts[4] if parts[4] != "None" else None
+
+        # 기존 가격 알림 정보를 가져와서 repeat_interval만 업데이트
+        api_url = os.getenv("API_URL", "http://api_service:8000")
+        user = query.from_user
+
+        # TODO: 기존 알림을 찾아서 업데이트하는 로직 필요 (현재는 새로운 알림을 생성하는 방식)
+        # 여기서는 임시로 새로운 알림을 생성하는 방식으로 처리 (실제 구현에서는 기존 알림 업데이트)
+        payload = {
+            "telegram_user_id": user.id,
+            "telegram_username": user.username,
+            "telegram_first_name": user.first_name,
+            "telegram_last_name": user.last_name,
+            "symbol": symbol,
+            "repeat_interval": repeat_interval,
+            "notify_on_disclosure": False, # 반복 알림은 가격 알림에만 적용
+            "target_price": None, # 가격 알림이 아니므로 None
+            "condition": None # 가격 알림이 아니므로 None
+        }
+        
+        resp = session.post(f"{api_url}/bot/alert/price", json=payload, timeout=10) # 임시로 price 엔드포인트 사용
+
+        if resp.status_code == 200:
+            status_text = repeat_interval if repeat_interval else "안 함"
+            await query.edit_message_text(text=f"'{symbol}'의 반복 알림 주기를 '{status_text}'으로 설정했습니다.")
+        else:
+            await query.edit_message_text(f"오류: 반복 알림 설정 실패 ({resp.status_code} - {resp.text})")
+
+    except Exception as e:
+        await query.edit_message_text(f"반복 알림 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+
+
+async def set_price_alert(update: Update, context: ContextTypes.DEFAULT_TYPE, repeat_interval: Optional[str] = None):
     """
     /set_price 명령어로 가격 알림을 설정합니다.
     """
@@ -133,23 +196,24 @@ async def set_price_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "telegram_last_name": user.last_name,
         "symbol": symbol,
         "target_price": price,
-        "condition": condition
+        "condition": condition,
+        "repeat_interval": repeat_interval # repeat_interval 추가
     }
 
     try:
-        resp = requests.post(f"{api_url}/bot/alert/price", json=payload, timeout=5)
+        resp = session.post(f"{api_url}/bot/alert/price", json=payload, timeout=10)
         if resp.status_code == 200:
             await update.message.reply_text(f"✅ '{symbol}'의 가격 알림을 '{price:,}원 {cond_str}'(으)로 설정했습니다.")
         else:
             await update.message.reply_text(f"❌ 가격 알림 설정 실패: {resp.status_code} - {resp.text}")
     except Exception as e:
-        await update.message.reply_text(f"API 요청 실패: {e}")
+        await update.message.reply_text(f"가격 알림 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def alert_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api_url = os.getenv("API_URL", "http://api_service:8000")
     try:
         # TODO: JWT 인증을 통해 현재 사용자의 알림만 가져오도록 수정 필요
-        resp = requests.get(f"{api_url}/alerts/", timeout=5)
+        resp = session.get(f"{api_url}/alerts/", timeout=10)
         if resp.status_code == 200:
             alerts = resp.json()
             if not alerts:
@@ -163,13 +227,30 @@ async def alert_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     price_info = f"{a['target_price']:,}원 {cond}"
 
                 disclosure_info = "공시ON" if a.get("notify_on_disclosure") else "공시OFF"
+                repeat_info = f"반복: {a.get('repeat_interval', '안 함')}" # 반복 정보 추가
                 
-                msg += f"- {a['symbol']} ({a.get('name', '')}): {price_info} / {disclosure_info} {'(활성)' if a['is_active'] else '(비활성)'}\n"
+                # 현재가 및 등락률 정보 추가
+                current_price_resp = session.get(f"{api_url}/symbols/{a['symbol']}/current_price_and_change", timeout=5)
+                current_price_str = "N/A"
+                change_str = ""
+
+                if current_price_resp.status_code == 200:
+                    current_stock_data = current_price_resp.json()
+                    if current_stock_data and current_stock_data["current_price"] is not None:
+                        current_price_str = f"{current_stock_data['current_price']:,}원"
+                        if current_stock_data["change"] is not None and current_stock_data["change_rate"] is not None:
+                            change_sign = "+" if current_stock_data["change"] >= 0 else ""
+                            change_str = f" ({change_sign}{current_stock_data['change']:,}원, {change_sign}{current_stock_data['change_rate']:.2f}%)"
+                
+                msg += (
+                    f"- {a['symbol']} ({a.get('name', '')}): {price_info} / {disclosure_info} / {repeat_info} {'(활성)' if a['is_active'] else '(비활성)'}\n"
+                    f"  현재가: {current_price_str}{change_str}\n"
+                )
             await update.message.reply_text(msg)
         else:
             await update.message.reply_text(f"알림 목록 조회 실패: {resp.text}")
     except Exception as e:
-        await update.message.reply_text(f"API 요청 실패: {e}")
+        await update.message.reply_text(f"알림 목록 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def alert_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args or not context.args[0].isdigit():
@@ -178,13 +259,13 @@ async def alert_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     alert_id = context.args[0]
     api_url = os.getenv("API_URL", "http://api_service:8000")
     try:
-        resp = requests.delete(f"{api_url}/alerts/{alert_id}", timeout=5)
+        resp = session.delete(f"{api_url}/alerts/{alert_id}", timeout=10)
         if resp.status_code == 200:
             await update.message.reply_text(f"알림 ID {alert_id} 삭제 완료")
         else:
             await update.message.reply_text(f"알림 삭제 실패: {resp.text}")
     except Exception as e:
-        await update.message.reply_text(f"API 요청 실패: {e}")
+        await update.message.reply_text(f"알림 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 def get_handler():
     return CommandHandler("alert_add", alert_add)
@@ -193,4 +274,4 @@ def get_list_handler():
     return CommandHandler("alert_list", alert_list)
 
 def get_remove_handler():
-    return CommandHandler("alert_remove", alert_remove) 
+    return CommandHandler("alert_remove", alert_remove)

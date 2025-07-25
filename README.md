@@ -3,39 +3,35 @@
 ## 개요
 기존 OLD-PJT의 여러 프로젝트 기능을 하나의 서비스로 통합하여 관리 효율성과 확장성을 높인 프로젝트입니다. API 서비스와 봇 서비스로 구성되며, Docker 및 PostgreSQL을 기반으로 운영됩니다.
 
-## 폴더 구조 (2025-07 기준)
+## 폴더 구조 (개선 제안 반영)
 ```
-├── OLD-PJT/           # 기존 레거시 프로젝트 소스(참고용)
 ├── src/
 │   ├── api/           # FastAPI 기반 API 서비스
-│   │   ├── main.py
-│   │   ├── models/    # DB 모델
-│   │   ├── routers/   # 엔드포인트별 라우터
-│   │   ├── services/  # 비즈니스 로직
-│   │   ├── schemas/   # Pydantic 스키마
-│   │   ├── tests/     # API 테스트 코드
-│   │   └── requirements.txt
+│   │   ├── main.py      # FastAPI 앱 초기화, 스케줄러 설정
+│   │   ├── models/      # SQLAlchemy DB 모델
+│   │   ├── routers/     # API 엔드포인트별 라우터
+│   │   ├── services/    # 핵심 비즈니스 로직
+│   │   ├── schemas/     # Pydantic 데이터 검증 스키마
+│   │   └── tests/       # API 서비스 테스트 코드
 │   ├── bot/           # 텔레그램 챗봇 서비스
-│   │   ├── main.py
-│   │   ├── handlers/  # 명령어별 핸들러
-│   │   ├── tests/     # 봇 테스트 코드
-│   │   ├── utils/     # 공통 유틸리티
-│   │   └── services/  # 봇 비즈니스 로직
-│   └── common/        # (공통 모듈/유틸)
+│   │   ├── main.py      # 텔레그램 봇 앱 초기화
+│   │   ├── handlers/    # 챗봇 명령어/메시지 핸들러
+│   │   └── tests/       # 봇 서비스 테스트 코드
+│   └── common/        # 두 서비스가 공유하는 공통 모듈
+│       ├── db_connector.py # DB 연결 및 세션 관리
+│       ├── notify_service.py # 텔레그램 메시지 발송 서비스
+│       ├── dart_utils.py   # DART API 연동 유틸리티
+│       └── http_client.py  # (신규) 재시도 로직 포함 HTTP 클라이언트
 ├── db/
-│   └── db_schema.sql  # DB 스키마 정의
-├── scripts/
-│   ├── service_control.sh   # 서비스 일괄 관리 스크립트
-│   └── backup_restore.sh    # DB 백업/복구 스크립트
-├── docs/
-│   ├── PLAN.MD             # 개발 계획 및 TODO
-│   ├── requirement.md      # 요구사항 명세
-│   └── 통합_미병합_기능_분석.md # 미병합 기능 분석
-├── settings.env.example    # 환경 변수 예시 파일
-├── requirements.txt        # 전체 의존성 관리
-├── docker-compose.yml      # 통합 서비스 오케스트레이션
-├── gitignore               # git 추적 제외 파일 목록
-└── README.md               # 프로젝트 개요 및 문서
+│   └── db_data/       # PostgreSQL 데이터 영속성 볼륨
+├── scripts/           # 운영/관리용 쉘 스크립트
+├── docs/              # 프로젝트 문서 (개발 계획, 요구사항 등)
+├── logs/              # 서비스 운영 로그
+├── .env.dev           # 개발 환경 변수 파일
+├── settings.env.example # 환경 변수 예시
+├── requirements.txt   # Python 의존성 목록
+├── docker-compose.yml # Docker 서비스 통합 관리
+└── README.md          # 프로젝트 개요 및 안내
 ```
 
 ## 설치 및 실행 방법

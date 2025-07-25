@@ -3,6 +3,7 @@ import requests
 import re
 from telegram import Update
 from telegram.ext import ContextTypes
+from src.common.http_client import session
 
 API_URL = os.getenv("API_URL", "http://api_service:8000")
 
@@ -20,7 +21,7 @@ async def natural_message_handler(update: Update, context: ContextTypes.DEFAULT_
         for word in words:
             try:
                 q = word.strip()
-                response = requests.get(f"{API_URL}/symbols/search", params={"query": q})
+                response = session.get(f"{API_URL}/symbols/search", params={"query": q}, timeout=10)
                 response.raise_for_status()
                 data = response.json()
                 if data:
@@ -37,7 +38,7 @@ async def natural_message_handler(update: Update, context: ContextTypes.DEFAULT_
     if "예측" in text or "predict" in text or "얼마" in text or "가격" in text:
         # 예측 결과 안내
         try:
-            response = requests.post(f"{API_URL}/predict", json={"symbol": symbol})
+            response = session.post(f"{API_URL}/predict", json={"symbol": symbol}, timeout=10)
             response.raise_for_status()
             data = response.json()
             msg = f"[예측 결과] {symbol}: {data.get('prediction', 'N/A')}\n사유: {data.get('reason', '')}"
@@ -47,7 +48,7 @@ async def natural_message_handler(update: Update, context: ContextTypes.DEFAULT_
     else:
         # 종목 상세 안내
         try:
-            response = requests.get(f"{API_URL}/symbols/search", params={"query": symbol})
+            response = session.get(f"{API_URL}/symbols/search", params={"query": symbol}, timeout=10)
             response.raise_for_status()
             data = response.json()
             if not data:
@@ -57,4 +58,4 @@ async def natural_message_handler(update: Update, context: ContextTypes.DEFAULT_
             msg = f"[종목 상세]\n코드: {info['symbol']}\n이름: {info['name']}\n시장: {info.get('market','')}"
             await update.message.reply_text(msg)
         except Exception as e:
-            await update.message.reply_text(f"종목 상세 조회 실패: {e}") 
+            await update.message.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (오류: {e})") 

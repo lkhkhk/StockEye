@@ -12,10 +12,12 @@ from src.api.models.prediction_history import PredictionHistory
 from typing import List
 
 router = APIRouter(prefix="/users", tags=["users"])
-auth_service = AuthService()
+
+def get_auth_service():
+    return AuthService()
 
 @router.post("/register", response_model=UserRead, tags=["users"])
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
+def register_user(user: UserCreate, db: Session = Depends(get_db), auth_service: AuthService = Depends(get_auth_service)):
     """사용자 등록"""
     return auth_service.create_user(
         db=db,
@@ -26,7 +28,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     )
 
 @router.post("/login", response_model=Token, tags=["users"])
-def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
+def login_user(user_credentials: UserLogin, db: Session = Depends(get_db), auth_service: AuthService = Depends(get_auth_service)):
     """사용자 로그인"""
     return auth_service.login_user(
         db=db,
@@ -35,7 +37,7 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     )
 
 @router.get("/me", response_model=UserRead, tags=["users"])
-def get_current_user_info(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_current_user_info(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), auth_service: AuthService = Depends(get_auth_service)):
     """현재 사용자 정보 조회"""
     user = auth_service.get_user_by_id(db, current_user["user_id"])
     if not user:
@@ -49,7 +51,8 @@ def get_current_user_info(current_user: dict = Depends(get_current_user), db: Se
 def update_current_user(
     user_update: UserUpdate,
     current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service)
 ):
     """현재 사용자 정보 업데이트"""
     user = auth_service.get_user_by_id(db, current_user["user_id"])
@@ -98,7 +101,7 @@ def telegram_register(
         return {"result": "updated", "is_active": is_active}
 
 @router.get("/stats/{user_id}", tags=["users"])
-def get_user_stats(user_id: int, db: Session = Depends(get_db)):
+def get_user_stats(user_id: int, db: Session = Depends(get_db), auth_service: AuthService = Depends(get_auth_service)):
     """사용자 통계 조회"""
     # 사용자 존재 확인
     user = auth_service.get_user_by_id(db, user_id)

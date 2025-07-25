@@ -1,14 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
-from src.api.services.user_service import user_service
+from src.api.services.user_service import UserService # user_service 대신 UserService 클래스 임포트
 from src.api.services.price_alert_service import PriceAlertService
 from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate, PriceAlertRead
 from pydantic import BaseModel
 from typing import Optional
 
 router = APIRouter(prefix="/bot", tags=["bot_internal"])
-price_alert_service = PriceAlertService()
+
+# 의존성 주입 함수 정의
+def get_user_service():
+    return UserService()
+
+def get_price_alert_service():
+    return PriceAlertService()
 
 class BotAlertRequest(BaseModel):
     telegram_user_id: int
@@ -21,7 +27,7 @@ class BotAlertRequest(BaseModel):
     notify_on_disclosure: Optional[bool] = None # 토글 로직을 위해 봇에서 상태를 보내지 않도록 변경
 
 @router.post("/alert/disclosure-toggle", response_model=PriceAlertRead)
-def toggle_disclosure_alert_for_bot(request: BotAlertRequest = Body(...), db: Session = Depends(get_db)):
+def toggle_disclosure_alert_for_bot(request: BotAlertRequest = Body(...), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), price_alert_service: PriceAlertService = Depends(get_price_alert_service)):
     """(봇 전용) 특정 종목의 공시 알림 상태를 토글합니다."""
     user = user_service.get_user_by_telegram_id(db, request.telegram_user_id)
     if not user:
@@ -59,7 +65,7 @@ class BotPriceAlertRequest(BaseModel):
     condition: str
 
 @router.post("/alert/price", response_model=PriceAlertRead)
-def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Session = Depends(get_db)):
+def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), price_alert_service: PriceAlertService = Depends(get_price_alert_service)):
     """(봇 전용) 특정 종목의 가격 알림을 설정합니다."""
     user = user_service.get_user_by_telegram_id(db, request.telegram_user_id)
     if not user:

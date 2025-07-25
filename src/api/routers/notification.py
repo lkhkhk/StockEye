@@ -9,22 +9,24 @@ from src.api.models.price_alert import PriceAlert
 from src.common.notify_service import send_telegram_message
 
 router = APIRouter(prefix="/alerts", tags=["notification"])
-alert_service = PriceAlertService()
+
+def get_price_alert_service():
+    return PriceAlertService()
 
 @router.post("/", response_model=PriceAlertRead)
-def create_alert(alert: PriceAlertCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_alert(alert: PriceAlertCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
     """가격 알림 생성"""
     result = alert_service.create_alert(db, user_id=current_user["user_id"], alert=alert)
     return PriceAlertRead.model_validate(result)
 
 @router.get("/", response_model=List[PriceAlertRead])
-def get_my_alerts(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_my_alerts(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
     """내 가격 알림 목록 조회"""
     results = alert_service.get_alerts(db, user_id=current_user["user_id"])
     return [PriceAlertRead.model_validate(r) for r in results]
 
 @router.get("/user/{user_id}/symbol/{symbol}", response_model=PriceAlertRead)
-def get_alert_by_user_and_symbol(user_id: int, symbol: str, db: Session = Depends(get_db)):
+def get_alert_by_user_and_symbol(user_id: int, symbol: str, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
     """사용자 ID와 종목코드로 특정 알림 조회 (봇 내부용)"""
     alert = alert_service.get_alert_by_user_and_symbol(db, user_id=user_id, symbol=symbol)
     if not alert:
@@ -33,7 +35,7 @@ def get_alert_by_user_and_symbol(user_id: int, symbol: str, db: Session = Depend
 
 
 @router.put("/{alert_id}", response_model=PriceAlertRead)
-def update_alert(alert_id: int, alert_update: PriceAlertUpdate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_alert(alert_id: int, alert_update: PriceAlertUpdate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
     """가격 알림 수정"""
     alert = alert_service.update_alert(db, alert_id, alert_update)
     if alert.user_id != current_user["user_id"]:
@@ -41,7 +43,7 @@ def update_alert(alert_id: int, alert_update: PriceAlertUpdate, current_user: di
     return PriceAlertRead.model_validate(alert)
 
 @router.delete("/{alert_id}")
-def delete_alert(alert_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_alert(alert_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
     """가격 알림 삭제"""
     alert = db.query(PriceAlert).filter_by(id=alert_id).first()
     if alert and alert.user_id != current_user["user_id"]:

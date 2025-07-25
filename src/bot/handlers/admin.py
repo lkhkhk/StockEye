@@ -1,10 +1,10 @@
 import os
 import requests
-from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
+from src.common.http_client import session # Import the session object directly
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +39,12 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        response = requests.get(f"{API_URL}/health")
+        response = session.get(f"{API_URL}/health", timeout=10) # session 사용 및 timeout 추가
         response.raise_for_status()
         data = response.json()
         await update.message.reply_text(f"서비스 상태: {data.get('status', 'unknown')}")
     except Exception as e:
-        await update.message.reply_text(f"헬스체크 실패: {e}")
+        await update.message.reply_text(f"헬스체크에 실패했습니다. 서버 상태를 확인해주세요.")
 
 async def admin_update_master(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """종목마스터 갱신 명령어"""
@@ -55,11 +55,11 @@ async def admin_update_master(update: Update, context: ContextTypes.DEFAULT_TYPE
         return  # 안내 메시지 전송 후 즉시 반환
     except Exception as e:
         logger.error(f"종목마스터 갱신 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 서버 오류: {str(e)}")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def run_update_master_and_notify(context, chat_id):
     try:
-        response = requests.post("http://api:8000/admin/update_master")
+        response = session.post(f"{API_URL}/admin/update_master", timeout=60) # session 사용 및 timeout 추가
         if response.status_code == 200:
             result = response.json()
             await context.bot.send_message(
@@ -72,7 +72,7 @@ async def run_update_master_and_notify(context, chat_id):
             await context.bot.send_message(chat_id=chat_id, text=f"❌ 갱신 실패: {response.status_code}")
     except Exception as e:
         logger.error(f"종목마스터 갱신(비동기) 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ 서버 오류: {str(e)}")
+        await context.bot.send_message(chat_id=chat_id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def admin_update_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """일별시세 갱신 명령어"""
@@ -83,11 +83,11 @@ async def admin_update_price(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return  # 안내 메시지 전송 후 즉시 반환
     except Exception as e:
         logger.error(f"일별시세 갱신 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 서버 오류: {str(e)}")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def run_update_price_and_notify(context, chat_id):
     try:
-        response = requests.post("http://api:8000/admin/update_price")
+        response = session.post(f"{API_URL}/admin/update_price", timeout=60) # session 사용 및 timeout 추가
         if response.status_code == 200:
             result = response.json()
             await context.bot.send_message(
@@ -100,42 +100,34 @@ async def run_update_price_and_notify(context, chat_id):
             await context.bot.send_message(chat_id=chat_id, text=f"❌ 갱신 실패: {response.status_code}")
     except Exception as e:
         logger.error(f"일별시세 갱신(비동기) 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ 서버 오류: {str(e)}")
+        await context.bot.send_message(chat_id=chat_id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """스케줄러 상태 조회 명령어"""
     import re
     try:
         # API 호출
-        response = requests.get("http://api:8000/admin/schedule/status")
+        response = session.get(f"{API_URL}/admin/schedules", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
             result = response.json()
-            status = result['status']
             
-            message = "스케줄러 상태\n\n"
-            message += f"실행 상태: {'실행중' if status['scheduler_running'] else '중지'}\n"
-            message += f"등록된 잡: {status['job_count']}개\n\n"
+            message = "⏰ **스케줄러 잡 목록**\n\n"
+            if not result:
+                message += "실행 중인 잡이 없습니다."
+            else:
+                for job in result:
+                    message += f"- **ID:** `{job['id']}`\n"
+                    message += f"  **다음 실행:** `{job['next_run_time']}`\n"
+                    message += f"  **트리거:** `{job['trigger']}`\n"
             
-            for job in status['jobs']:
-                message += f"잡 ID: {job['id']}\n"
-                message += f"  - 다음 실행: {job['next_run_time'] or '없음'}\n"
-                message += f"  - 트리거: {job['trigger']}\n\n"
-            # 한글, 영문, 숫자, 공백, :, ., -, \n만 허용 (이외 모두 제거)
-            message = re.sub(r'[^\w\sㄱ-ㅎ가-힣0-9:\.\-\n]', '', message)
-            # 연속된 줄바꿈 2개까지만 허용
-            message = re.sub(r'\n{3,}', '\n\n', message)
-            # 메시지 길이 제한 (4000자 이하)
-            max_len = 4000
-            for i in range(0, len(message), max_len):
-                logger.info(f"[admin_show_schedules] 전송 메시지: {message[i:i+max_len]}")
-                await update.message.reply_text(message[i:i+max_len], parse_mode=None)
+            await update.message.reply_text(message, parse_mode='Markdown')
         else:
             await update.message.reply_text(f"조회 실패: {response.status_code}", parse_mode=None)
             
     except Exception as e:
         logger.error(f"스케줄러 상태 조회 중 오류: {str(e)}")
-        await update.message.reply_text(f"서버 오류: {str(e)}", parse_mode=None)
+        await update.message.reply_text(f"스케줄러 상태 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", parse_mode=None)
 
 async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """특정 잡 수동 실행 명령어"""
@@ -154,14 +146,13 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
         job_id = parts[1]
         
         # API 호출
-        response = requests.post(f"http://api:8000/admin/schedule/trigger/{job_id}")
+        response = session.post(f"{API_URL}/admin/trigger-job/{job_id}", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
             result = response.json()
             await update.message.reply_text(
                 f"✅ 잡 실행 완료!\n"
-                f"🔧 잡 ID: {result['job_id']}\n"
-                f"⏰ 시간: {result['timestamp']}"
+                f"🔧 잡 ID: {result['message']}\n" # message 필드에 잡 ID가 포함됨
             )
         elif response.status_code == 404:
             await update.message.reply_text(f"❌ 잡을 찾을 수 없습니다: {job_id}")
@@ -170,28 +161,28 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         logger.error(f"잡 실행 중 오류: {str(e)}")
-        await update.message.reply_text(f"❌ 서버 오류: {str(e)}")
+        await update.message.reply_text(f"잡 수동 실행 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """관리자 통계 조회 명령어"""
     try:
         # API 호출
-        response = requests.get("http://api:8000/admin/admin_stats")
+        response = session.get(f"{API_URL}/admin/stats", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
             stats = response.json()
             await update.message.reply_text(
                 f"📊 **시스템 통계**\n\n"
-                f"👥 사용자 수: {stats['user_count']}명\n"
-                f"💰 모의매매 기록: {stats['trade_count']}건\n"
-                f"🔮 예측 기록: {stats['prediction_count']}건"
+                f"👥 사용자 수: {stats['total_users']}명\n" # 필드명 변경
+                f"💰 모의매매 기록: {stats['total_simulated_trades']}건\n" # 필드명 변경
+                f"🔮 예측 기록: {stats['total_predictions']}건" # 필드명 변경
             , parse_mode='Markdown')
         else:
             await update.message.reply_text(f"❌ 조회 실패: {response.status_code}")
             
     except Exception as e:
         logger.error(f"통계 조회 중 오류: {str(e)}")
-        await update.message.reply_text(f"❌ 서버 오류: {str(e)}") 
+        await update.message.reply_text(f"잡 수동 실행 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") 
 
 async def admin_update_disclosure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """공시 이력 수동 갱신 명령어 (/update_disclosure [code_or_name])"""
@@ -203,14 +194,13 @@ async def admin_update_disclosure(update: Update, context: ContextTypes.DEFAULT_
             asyncio.create_task(run_update_disclosure_and_notify(context, chat_id, None))
             return  # 안내 메시지 전송 후 즉시 반환
         code_or_name = args[0]
-        api_url = "http://api:8000"
-        search_resp = requests.get(f"{api_url}/symbols/search", params={"query": code_or_name})
+        search_resp = session.get(f"{API_URL}/symbols/search", params={"query": code_or_name}, timeout=10) # session 사용 및 timeout 추가
         if search_resp.status_code == 200:
             stocks = search_resp.json()
             if isinstance(stocks, list) and len(stocks) > 1:
                 keyboard = []
                 for stock in stocks[:10]:
-                    btn_text = f"{stock.get('name','')} ({stock.get('symbol','')})"
+                    btn_text = f"{stock.get('name','')}" # ({stock.get('symbol','')})"
                     callback_data = f"update_disclosure_{stock.get('symbol','')}"
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=callback_data)])
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -223,12 +213,12 @@ async def admin_update_disclosure(update: Update, context: ContextTypes.DEFAULT_
         return  # 안내 메시지 전송 후 즉시 반환
     except Exception as e:
         logger.error(f"공시 이력 갱신 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 서버 오류: {str(e)}")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def run_update_disclosure_and_notify(context, chat_id, code_or_name: str):
     try:
         if not code_or_name:
-            response = requests.post(f"http://api:8000/admin/update_disclosure")
+            response = session.post(f"{API_URL}/admin/update_disclosure", timeout=60) # session 사용 및 timeout 추가
             if response.status_code == 200:
                 result = response.json()
                 await context.bot.send_message(
@@ -241,7 +231,7 @@ async def run_update_disclosure_and_notify(context, chat_id, code_or_name: str):
             else:
                 await context.bot.send_message(chat_id=chat_id, text=f"❌ 전체 처리 실패: {response.status_code} {response.text}")
             return
-        response = requests.post(f"http://api:8000/admin/update_disclosure", params={"code_or_name": code_or_name})
+        response = session.post(f"{API_URL}/admin/update_disclosure", params={"code_or_name": code_or_name}, timeout=60) # session 사용 및 timeout 추가
         if response.status_code == 200:
             result = response.json()
             await context.bot.send_message(
@@ -255,7 +245,7 @@ async def run_update_disclosure_and_notify(context, chat_id, code_or_name: str):
             await context.bot.send_message(chat_id=chat_id, text=f"❌ 갱신 실패: {response.status_code} {response.text}")
     except Exception as e:
         logger.error(f"공시 이력 갱신(비동기) 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ 서버 오류: {str(e)}")
+        await context.bot.send_message(chat_id=chat_id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """복수 종목 선택 인라인 버튼 콜백 핸들러"""
@@ -265,7 +255,7 @@ async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAU
         data = query.data
         if data.startswith("update_disclosure_"):
             symbol = data.replace("update_disclosure_", "")
-            response = requests.post(f"http://api:8000/admin/update_disclosure", params={"code_or_name": symbol})
+            response = session.post(f"{API_URL}/admin/update_disclosure", params={"code_or_name": symbol}, timeout=60) # session 사용 및 timeout 추가
             if response.status_code == 200:
                 result = response.json()
                 await query.edit_message_text(
@@ -275,10 +265,10 @@ async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAU
                     f"⚠️ 에러: {len(result.get('errors', []))}건"
                 )
             else:
-                await query.edit_message_text(f"❌ 갱신 실패: {response.status_code} {response.text}")
+                await query.edit_message_text(f"공시 이력 갱신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
     except Exception as e:
         logger.error(f"공시 이력 갱신(버튼) 중 오류: {str(e)}")
-        await query.edit_message_text(f"❌ 서버 오류: {str(e)}")
+        await update.message.reply_text(f"통계 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def test_notify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -289,7 +279,7 @@ async def test_notify_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         await context.bot.send_message(chat_id=chat_id, text="[테스트 알림] 공시 알림 테스트 메시지입니다.\n\n(이 메시지가 즉시 도착하면 실시간 알림 전송이 정상 동작함을 의미합니다.)")
     except Exception as e:
-        await update.message.reply_text(f"알림 전송 실패: {e}")
+        await update.message.reply_text(f"테스트 알림 전송에 실패했습니다. 텔레그램 봇 설정을 확인해주세요.")
 
 def get_admin_handler():
-    return CommandHandler("admin", admin_command) 
+    return CommandHandler("admin", admin_command)

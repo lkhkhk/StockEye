@@ -1,7 +1,7 @@
 # 각 엔드포인트에 tags를 명시적으로 지정해야 Swagger UI에서 그룹화가 100% 보장됩니다.
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
 from src.api.models.user import User
@@ -9,10 +9,13 @@ from src.api.models.simulated_trade import SimulatedTrade
 from src.api.models.prediction_history import PredictionHistory
 from src.api.services.stock_service import StockService
 from datetime import datetime
+# from src.api.main import scheduler # scheduler 객체 직접 import
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-stock_service = StockService()
 logger = logging.getLogger(__name__)
+
+def get_stock_service():
+    return StockService()
 
 @router.get("/admin_stats", tags=["admin"])
 def admin_stats(db: Session = Depends(get_db)):
@@ -26,7 +29,7 @@ def admin_stats(db: Session = Depends(get_db)):
     }
 
 @router.post("/update_master", tags=["admin"])
-def update_stock_master(db: Session = Depends(get_db)):
+def update_stock_master(db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service)):
     """종목마스터 정보 수동 갱신"""
     try:
         result = stock_service.update_stock_master(db)
@@ -43,7 +46,7 @@ def update_stock_master(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
 
 @router.post("/update_price", tags=["admin"])
-def update_daily_price(db: Session = Depends(get_db)):
+def update_daily_price(db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service)):
     """일별시세 수동 갱신 (전체 종목 대상)"""
     try:
         result = stock_service.update_daily_prices(db)
@@ -61,7 +64,7 @@ def update_daily_price(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
 
 @router.post("/update_disclosure", tags=["admin"])
-def update_disclosure(db: Session = Depends(get_db), code_or_name: str = ''):
+def update_disclosure(db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service), code_or_name: str = ''):
     """종목코드(6자리), 종목명, 또는 corp_code(8자리)로 공시 이력 수동 갱신. 미입력시 전체."""
     try:
         results = []
@@ -127,24 +130,32 @@ def update_disclosure(db: Session = Depends(get_db), code_or_name: str = ''):
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
 
 @router.get("/schedule/status", tags=["admin"])
-def get_schedule_status():
+def get_schedule_status(request: Request):
     """스케줄러 상태 조회"""
     try:
-        status = stock_service.get_scheduler_status()
-        return {
-            "message": "스케줄러 상태 조회 완료",
-            "status": status,
-            "timestamp": datetime.now().isoformat()
-        }
+        scheduler = request.app.state.scheduler
+        if not scheduler.running:
+            return {"running": False, "jobs": []}
+
+        jobs = []
+        for job in scheduler.get_jobs():
+            jobs.append({
+                "id": job.id,
+                "name": job.name,
+                "trigger": str(job.trigger),
+                "next_run_time": str(job.next_run_time)
+            })
+        return {"running": scheduler.running, "jobs": jobs}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"조회 실패: {str(e)}")
+        logger.error(f"/schedule/status 조회 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"스케줄러 상태 조회 실패: {str(e)}")
 
 @router.post("/schedule/trigger/{job_id}", tags=["admin"])
-def trigger_job(job_id: str):
+def trigger_job(job_id: str, request: Request):
     """특정 잡 수동 실행"""
     import traceback
     try:
-        from src.api.main import scheduler
+        scheduler = request.app.state.scheduler
         # 잡 존재 확인
         job = scheduler.get_job(job_id)
         if not job:
@@ -163,7 +174,7 @@ def trigger_job(job_id: str):
         raise HTTPException(status_code=500, detail=f"잡 실행 실패: {str(e)}")
 
 @router.post("/trigger/check_disclosures", tags=["admin_trigger"])
-def trigger_check_disclosures_job(db: Session = Depends(get_db)):
+def trigger_check_disclosures_job(db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service)):
     """(테스트용) 최신 공시 확인 및 알림 잡을 즉시 실행합니다."""
     try:
         logger.info("관리자에 의해 공시 확인 잡이 수동으로 트리거되었습니다.")

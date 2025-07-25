@@ -4,21 +4,25 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.api.schemas.predict import StockPredictionRequest, StockPredictionResponse
-from src.api.services.predict_service import predict_stock_movement
 from src.api.models.prediction_history import PredictionHistory
 from src.common.db_connector import get_db
 from datetime import datetime
+from typing import Callable
+from src.api.services.predict_service import predict_stock_movement as _predict_stock_movement
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/predict", tags=["predict"])
 
+def get_predict_stock_movement_func() -> Callable[[Session, str], dict]:
+    return _predict_stock_movement
+
 @router.post("/", response_model=StockPredictionResponse, tags=["predict"])
-def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db)):
+def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db), predict_func: Callable[[Session, str], dict] = Depends(get_predict_stock_movement_func)):
     symbol = request.symbol
     
     # 예측 수행
-    result = predict_stock_movement(db, symbol)
+    result = predict_func(db, symbol)
     
     # 예측 이력 저장 (사용자 ID가 있는 경우)
     if hasattr(request, 'user_id') and request.user_id:

@@ -1,13 +1,8 @@
-import requests
-import zipfile
-import io
-from lxml import etree
-import os
 from typing import List, Dict, Optional
-from src.common.exceptions import DartApiError
-import logging
+from src.common.http_client import session
 
-logger = logging.getLogger(__name__)
+# 전역 세션 객체 생성 (모든 DART API 호출에 재사용)
+session = session
 
 def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
     """
@@ -20,7 +15,8 @@ def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
         raise ValueError("DART_API_KEY가 환경변수에 없거나 인자로 전달되지 않았습니다.")
     url = f"https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key={api_key}"
     try:
-        resp = requests.get(url, timeout=60)
+        # session 객체를 사용하여 요청
+        resp = session.get(url, timeout=60)
         resp.raise_for_status()
     except requests.exceptions.RequestException as e:
         logger.error(f"DART CORPCODE.xml 요청 실패: {e}", exc_info=True)
@@ -73,7 +69,8 @@ def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bgn_de: 
         params["corp_code"] = corp_code
 
     try:
-        resp = requests.get(url, params=params, timeout=10)
+        # session 객체를 사용하여 요청
+        resp = session.get(url, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.RequestException as e:
@@ -87,4 +84,4 @@ def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bgn_de: 
         logger.error(f"DART 공시 API가 오류를 반환했습니다. status: {status}, message: {message}, corp_code: {corp_code}")
         raise DartApiError(message, status_code=status)
 
-    return data.get("list", []) 
+    return data.get("list", [])

@@ -12,14 +12,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/trade", tags=["simulated_trade"])
-stock_service = StockService()
+
+def get_stock_service():
+    return StockService()
 
 @router.post("/simulate", tags=["simulated_trade"])
-def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db)):
+def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service)):
     """모의매매 기록"""
+    logger.debug(f"simulate_trade 호출: user_id={trade.user_id}, symbol={trade.symbol}, trade_type={trade.trade_type}")
     try:
         # 현재가 조회 (실제로는 외부 API에서 가져옴)
-        current_price = stock_service.get_current_price(trade.symbol, db)
+        current_price = stock_service.get_current_price_and_change(trade.symbol, db)['current_price']
+        logger.debug(f"종목 {trade.symbol}의 현재가: {current_price}")
         # 수익률 계산
         profit_loss = None
         profit_rate = None
@@ -34,6 +38,7 @@ def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db)):
             if buy_trade:
                 profit_loss = (trade.price - buy_trade.price) * trade.quantity
                 profit_rate = ((trade.price - buy_trade.price) / buy_trade.price) * 100
+                logger.debug(f"매도 거래 수익률 계산: profit_loss={profit_loss}, profit_rate={profit_rate}")
         # 모의매매 기록 생성
         simulated_trade = SimulatedTrade(
             user_id=trade.user_id,
@@ -48,6 +53,7 @@ def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db)):
         )
         db.add(simulated_trade)
         db.commit()
+        logger.info(f"모의매매 기록 완료: user_id={trade.user_id}, symbol={trade.symbol}, trade_type={trade.trade_type}")
         return {"message": "모의매매 기록 완료"}
     except Exception as e:
         db.rollback()
@@ -57,15 +63,25 @@ def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db)):
 @router.get("/history/{user_id}", tags=["simulated_trade"])
 def get_trade_history(user_id: int, db: Session = Depends(get_db)):
     """사용자의 모의매매 이력 조회"""
+    logger.debug(f"get_trade_history 호출: user_id={user_id}")
     trades = db.query(SimulatedTrade).filter(
         SimulatedTrade.user_id == user_id
     ).order_by(SimulatedTrade.trade_time.desc()).all()
     
+    logger.debug(f"사용자({user_id})의 모의매매 이력 {len(trades)}건 조회됨.")
     # 수익률 통계 계산
     total_profit_loss = sum(t.profit_loss or 0 for t in trades if t.profit_loss is not None)
     total_trades = len(trades)
     profitable_trades = len([t for t in trades if t.profit_loss and t.profit_loss > 0])
     
+    statistics = {
+        "total_trades": total_trades,
+        "total_profit_loss": total_profit_loss,
+        "profitable_trades": profitable_trades,
+        "win_rate": (profitable_trades / total_trades * 100) if total_trades > 0 else 0
+    }
+    logger.debug(f"모의매매 통계: {statistics}")
+
     return {
         "trades": [
             {
@@ -80,10 +96,5 @@ def get_trade_history(user_id: int, db: Session = Depends(get_db)):
                 "current_price": t.current_price
             } for t in trades
         ],
-        "statistics": {
-            "total_trades": total_trades,
-            "total_profit_loss": total_profit_loss,
-            "profitable_trades": profitable_trades,
-            "win_rate": (profitable_trades / total_trades * 100) if total_trades > 0 else 0
-        }
-    } 
+        "statistics": statistics
+    }
