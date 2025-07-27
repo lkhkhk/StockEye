@@ -9,7 +9,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 def send_telegram_message(chat_id: int, text: str):
-    logger.info(f"Attempting to send message to chat_id: {chat_id}")
+    logger.debug(f"Attempting to send message to chat_id: {chat_id}, text: {text[:50]}...") # 텍스트는 너무 길 수 있으므로 일부만 로깅
     try:
         # 비동기 함수를 동기 코드에서 실행하기 위해 asyncio.run() 사용
         message = asyncio.run(bot.send_message(chat_id=chat_id, text=text))
@@ -18,4 +18,4 @@ def send_telegram_message(chat_id: int, text: str):
         else:
             logger.warning(f"Message sent to chat_id: {chat_id}, but no message object was returned.")
     except Exception as e:
-        logger.error(f"[텔레그램 알림 전송 실패] chat_id: {chat_id}, error: {e}", exc_info=True) 
+        logger.error(f"[텔레그램 알림 전송 실패] chat_id: {chat_id}, error: {e}", exc_info=True)

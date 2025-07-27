@@ -10,7 +10,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     payload = {"telegram_id": telegram_id, "is_active": True}
     # 인증 없이 telegram_id만 등록 (실제 서비스에서는 인증 필요)
     try:
-        resp = session.put(f"{api_url}/users/telegram_register", json=payload, timeout=10)
+        resp = await session.put(f"{api_url}/users/telegram_register", json=payload, timeout=10)
         if resp.status_code == 200:
             await update.message.reply_text("알림 수신 동의가 완료되었습니다. (텔레그램 알림 ON)")
         else:
@@ -24,7 +24,7 @@ async def unregister(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 알림 수신 해제 (is_active=False)
     payload = {"telegram_id": telegram_id, "is_active": False}
     try:
-        resp = session.put(f"{api_url}/users/telegram_register", json=payload, timeout=10)
+        resp = await session.put(f"{api_url}/users/telegram_register", json=payload, timeout=10)
         if resp.status_code == 200:
             await update.message.reply_text("알림 수신 동의가 해제되었습니다. (텔레그램 알림 OFF)")
         else:

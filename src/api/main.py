@@ -132,7 +132,8 @@ def check_price_alerts_job():
         for symbol, alerts in alerts_by_symbol.items():
             logger.debug(f"종목 {symbol}에 대한 알림 확인 시작. 알림 수: {len(alerts)}") # DEBUG 로깅 추가
             try:
-                current_price = stock_service.get_current_price(symbol, db)
+                price_data = stock_service.get_current_price_and_change(symbol, db)
+                current_price = price_data.get("current_price")
                 logger.debug(f"종목 {symbol} 현재가: {current_price}") # DEBUG 로깅 추가
                 if current_price is None:
                     logger.warning(f"'{symbol}'의 현재가를 조회할 수 없어 건너뜁니다.")

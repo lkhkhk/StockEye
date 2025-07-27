@@ -1,165 +1,253 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from src.api.main import app, get_db
-from src.common.db_connector import Base
-from src.api.models.user import User
+from src.api.tests.helpers import create_test_user, get_auth_headers
+from src.api.schemas.price_alert import PriceAlertRead, PriceAlertCreate, PriceAlertUpdate
 from src.api.models.price_alert import PriceAlert
-from src.api.models.watchlist import Watchlist
-from src.api.models.stock_master import StockMaster
-from src.api.models.daily_price import DailyPrice
-from src.api.models.disclosure import Disclosure
-from src.api.models.prediction_history import PredictionHistory
-from src.api.models.simulated_trade import SimulatedTrade
-
-# 테스트용 데이터베이스 설정
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 테스트 데이터베이스 의존성 오버라이드
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_db] = override_get_db
-
-@pytest.fixture(scope="function")
-def db_session():
-    # 테스트 시작 전 DB 테이블 생성
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    yield db
-    db.close()
-    # 테스트 종료 후 DB 테이블 삭제
-    Base.metadata.drop_all(bind=engine)
+from unittest.mock import patch, MagicMock
+from src.common.notify_service import send_telegram_message
+from sqlalchemy.orm import Session
 
 
-@pytest.fixture(scope="module")
-def client():
-    # 테스트 클라이언트 생성
-    with TestClient(app) as c:
-        yield c
+class TestPriceAlertRouter:
+    """가격 알림 라우터 테스트"""
 
-# ===================================
-#  테스트 케이스
-# ===================================
+    def test_create_alert_success(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
+        alert_payload = {"symbol": "005930", "target_price": 90000, "condition": "gte"}
 
-def test_auto_create_user_and_toggle_disclosure_alert(client, db_session):
-    """
-    사용자가 존재하지 않을 때, 공시 알림 토글 시 사용자가 자동 생성되고
-    알림이 정상적으로 등록되는지 테스트
-    """
-    # GIVEN: 존재하지 않는 사용자 ID와 종목 코드
-    test_telegram_user_id = 123456789
-    test_symbol = "005930" # 삼성전자
+        # When
+        response = client.post("/alerts/", json=alert_payload, headers=headers)
 
-    # WHEN: 공시 알림 토글 API를 호출
-    response = client.post(
-        "/bot/alert/disclosure-toggle",
-        json={
-            "telegram_user_id": test_telegram_user_id,
-            "telegram_username": "testuser",
-            "telegram_first_name": "Test",
-            "telegram_last_name": "User",
-            "symbol": test_symbol
-        }
-    )
+        # Then
+        assert response.status_code == 200
+        created_alert = PriceAlertRead.parse_obj(response.json())
+        assert created_alert.symbol == "005930"
+        assert created_alert.target_price == 90000
+        assert created_alert.condition == "gte"
+        assert created_alert.user_id == user.id
 
-    # THEN: API 응답이 성공(200)이어야 함
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["message"] == "공시 알림이 켜졌습니다."
+    def test_create_alert_unauthenticated(self, client: TestClient):
+        # Given
+        alert_payload = {"symbol": "005930", "target_price": 90000, "condition": "gte"}
 
-    # THEN: 데이터베이스에 사용자가 생성되었는지 확인
-    user = db_session.query(User).filter(User.telegram_user_id == test_telegram_user_id).first()
-    assert user is not None
-    assert user.telegram_username == "testuser"
+        # When
+        response = client.post("/alerts/", json=alert_payload)
 
-    # THEN: 데이터베이스에 공시 알림이 생성되었는지 확인
-    alert = db_session.query(PriceAlert).filter(
-        PriceAlert.user_id == user.id,
-        PriceAlert.symbol == test_symbol
-    ).first()
-    assert alert is not None
-    assert alert.notify_on_disclosure is True
+        # Then
+        assert response.status_code == 403
 
+    def test_create_alert_invalid_data(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
+        alert_payload = {"symbol": "005930", "target_price": "invalid", "condition": "gte"} # Invalid target_price
 
-def test_set_price_alert_for_existing_user(client, db_session):
-    """
-    기존 사용자에게 가격 알림을 설정하는 기능 테스트
-    """
-    # GIVEN: 기존 사용자 및 알림 생성
-    user = User(telegram_user_id=987654321, telegram_username="existinguser")
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+        # When
+        response = client.post("/alerts/", json=alert_payload, headers=headers)
 
-    test_symbol = "000660" # SK하이닉스
-    test_target_price = 150000
-    test_condition = "이상"
+        # Then
+        assert response.status_code == 422
 
-    # WHEN: 가격 알림 설정 API 호출
-    response = client.post(
-        "/bot/alert/price",
-        json={
-            "telegram_user_id": user.telegram_user_id,
-            "symbol": test_symbol,
-            "target_price": test_target_price,
-            "condition": test_condition
-        }
-    )
+    def test_get_my_alerts_success(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
+        client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
+        client.post("/alerts/", json={"symbol": "035720", "target_price": 50000, "condition": "lte"}, headers=headers)
 
-    # THEN: API 응답이 성공(200)이어야 함
-    assert response.status_code == 200
-    assert "가격 알림이 설정되었습니다." in response.json()["message"]
+        # When
+        response = client.get("/alerts/", headers=headers)
 
-    # THEN: 데이터베이스에 가격 알림이 올바르게 설정되었는지 확인
-    alert = db_session.query(PriceAlert).filter(
-        PriceAlert.user_id == user.id,
-        PriceAlert.symbol == test_symbol
-    ).first()
-    assert alert is not None
-    assert alert.target_price == test_target_price
-    assert alert.condition == test_condition
-    assert alert.notify_on_disclosure is False # 기본값 확인
+        # Then
+        assert response.status_code == 200
+        alerts = [PriceAlertRead.parse_obj(a) for a in response.json()]
+        assert len(alerts) == 2
+        assert any(a.symbol == "005930" for a in alerts)
+        assert any(a.symbol == "035720" for a in alerts)
 
+    def test_get_my_alerts_empty(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
 
-def test_get_alerts_for_user(client, db_session):
-    """
-    특정 사용자의 모든 알림 목록을 조회하는 기능 테스트
-    """
-    # GIVEN: 사용자 및 여러 알림 생성
-    user = User(telegram_user_id=11223344, telegram_username="alertlistuser")
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+        # When
+        response = client.get("/alerts/", headers=headers)
 
-    alert1 = PriceAlert(user_id=user.id, symbol="005930", target_price=90000, condition="이상", notify_on_disclosure=True)
-    alert2 = PriceAlert(user_id=user.id, symbol="035720", notify_on_disclosure=True) # 카카오, 공시만
-    alert3 = PriceAlert(user_id=user.id, symbol="000660", target_price=120000, condition="이하")
+        # Then
+        assert response.status_code == 200
+        assert response.json() == []
 
-    db_session.add_all([alert1, alert2, alert3])
-    db_session.commit()
+    def test_get_my_alerts_unauthenticated(self, client: TestClient):
+        # When
+        response = client.get("/alerts/")
 
-    # WHEN: 해당 사용자의 알림 목록 API 호출
-    response = client.get(f"/alerts/user/{user.id}")
+        # Then
+        assert response.status_code == 403
 
-    # THEN: API 응답이 성공(200)이어야 함
-    assert response.status_code == 200
-    alerts = response.json()
-    
-    # THEN: 알림 개수가 일치해야 함
-    assert len(alerts) == 3
+    def test_get_alert_by_user_and_symbol_success(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user))
 
-    # THEN: 각 알림의 내용이 올바른지 확인 (symbol 기준 정렬 후 비교)
-    sorted_alerts = sorted(alerts, key=lambda x: x['symbol'])
-    assert sorted_alerts[0]["symbol"] == "000660"
-    assert sorted_alerts[1]["symbol"] == "005930"
-    assert sorted_alerts[1]["notify_on_disclosure"] is True
-    assert sorted_alerts[2]["symbol"] == "035720"
-    assert sorted_alerts[2]["target_price"] is None 
+        # When
+        response = client.get(f"/alerts/user/{user.id}/symbol/005930")
+
+        # Then
+        assert response.status_code == 200
+        alert = PriceAlertRead.parse_obj(response.json())
+        assert alert.symbol == "005930"
+        assert alert.user_id == user.id
+
+    def test_get_alert_by_user_and_symbol_not_found(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+
+        # When
+        response = client.get(f"/alerts/user/{user.id}/symbol/NONEXISTENT")
+
+        # Then
+        assert response.status_code == 404
+        assert response.json() == {"detail": "해당 종목에 대한 알림 설정을 찾을 수 없습니다."}
+
+    def test_update_alert_success(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
+        alert_id = create_response.json()["id"]
+
+        # When
+        update_payload = {"target_price": 95000, "condition": "lte", "is_active": False}
+        response = client.put(f"/alerts/{alert_id}", json=update_payload, headers=headers)
+
+        # Then
+        assert response.status_code == 200
+        updated_alert = PriceAlertRead.parse_obj(response.json())
+        assert updated_alert.id == alert_id
+        assert updated_alert.target_price == 95000
+        assert updated_alert.condition == "lte"
+        assert updated_alert.is_active is False
+
+    def test_update_alert_unauthenticated(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user))
+        alert_id = create_response.json()["id"]
+
+        # When
+        update_payload = {"target_price": 95000}
+        response = client.put(f"/alerts/{alert_id}", json=update_payload)
+
+        # Then
+        assert response.status_code == 403
+
+    def test_update_alert_not_found(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
+
+        # When
+        update_payload = {"target_price": 95000}
+        response = client.put(f"/alerts/99999", json=update_payload, headers=headers)
+
+        # Then
+        assert response.status_code == 404
+
+    def test_update_alert_forbidden(self, client: TestClient, db: Session):
+        # Given
+        user1 = create_test_user(db)
+        user2 = create_test_user(db)
+        headers2 = get_auth_headers(user2)
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user1))
+        alert_id = create_response.json()["id"]
+
+        # When
+        update_payload = {"target_price": 95000}
+        response = client.put(f"/alerts/{alert_id}", json=update_payload, headers=headers2)
+
+        # Then
+        assert response.status_code == 403
+
+    def test_delete_alert_success(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
+        alert_id = create_response.json()["id"]
+
+        # When
+        response = client.delete(f"/alerts/{alert_id}", headers=headers)
+
+        # Then
+        assert response.status_code == 200
+        assert response.json() == {"result": True}
+        # DB에서 실제로 삭제되었는지 확인
+        assert db.query(PriceAlert).filter_by(id=alert_id).first() is None
+
+    def test_delete_alert_unauthenticated(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user))
+        alert_id = create_response.json()["id"]
+
+        # When
+        response = client.delete(f"/alerts/{alert_id}")
+
+        # Then
+        assert response.status_code == 403
+
+    def test_delete_alert_not_found(self, client: TestClient, db: Session):
+        # Given
+        user = create_test_user(db)
+        headers = get_auth_headers(user)
+
+        # When
+        response = client.delete(f"/alerts/99999", headers=headers)
+
+        # Then
+        assert response.status_code == 404
+
+    def test_delete_alert_forbidden(self, client: TestClient, db: Session):
+        # Given
+        user1 = create_test_user(db)
+        user2 = create_test_user(db)
+        headers2 = get_auth_headers(user2)
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user1))
+        alert_id = create_response.json()["id"]
+
+        # When
+        response = client.delete(f"/alerts/{alert_id}", headers=headers2)
+
+        # Then
+        assert response.status_code == 403
+
+    @patch('src.api.routers.notification.send_telegram_message')
+    def test_test_notify_api_success(self, mock_send_telegram_message, client: TestClient):
+        # Given
+        chat_id = 123456789
+        text = "테스트 메시지입니다."
+
+        # When
+        response = client.post("/alerts/test_notify", json={"chat_id": chat_id, "text": text})
+
+        # Then
+        assert response.status_code == 200
+        assert response.json() == {"result": True, "message": "메시지 전송 성공"}
+        mock_send_telegram_message.assert_called_once_with(chat_id, text)
+
+    @patch('src.api.routers.notification.send_telegram_message')
+    def test_test_notify_api_failure(self, mock_send_telegram_message, client: TestClient):
+        # Given
+        chat_id = 123456789
+        text = "테스트 메시지입니다."
+        mock_send_telegram_message.side_effect = Exception("Telegram API Error")
+
+        # When
+        response = client.post("/alerts/test_notify", json={"chat_id": chat_id, "text": text})
+
+        # Then
+        assert response.status_code == 200 # API 자체는 200을 반환하고 내부 오류를 메시지로 전달
+        assert response.json() == {"result": False, "error": "Telegram API Error"}
+        mock_send_telegram_message.assert_called_once_with(chat_id, text)

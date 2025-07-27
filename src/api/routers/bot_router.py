@@ -63,6 +63,7 @@ class BotPriceAlertRequest(BaseModel):
     symbol: str
     target_price: float
     condition: str
+    repeat_interval: Optional[str] = None
 
 @router.post("/alert/price", response_model=PriceAlertRead)
 def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), price_alert_service: PriceAlertService = Depends(get_price_alert_service)):
@@ -84,6 +85,7 @@ def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Sessi
         update_data = PriceAlertUpdate(
             target_price=request.target_price,
             condition=request.condition,
+            repeat_interval=request.repeat_interval,
             is_active=True # 비활성 상태였다면 다시 활성화
         )
         return price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_update=update_data)
@@ -92,7 +94,8 @@ def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Sessi
         create_data = PriceAlertCreate(
             symbol=request.symbol,
             target_price=request.target_price,
-            condition=request.condition
+            condition=request.condition,
+            repeat_interval=request.repeat_interval
         )
         return price_alert_service.create_alert(db, user_id=user.id, alert=create_data)
 

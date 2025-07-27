@@ -5,8 +5,11 @@ from datetime import datetime
 class PriceAlertBase(BaseModel):
     symbol: str
     target_price: Optional[float] = None
-    condition: Optional[str] = None
+    condition: Optional[str] = None # 'gte', 'lte'
+    change_percent: Optional[float] = None # N% 변동률
+    change_type: Optional[str] = None # 'up', 'down' (변동률 조건과 함께 사용)
     notify_on_disclosure: Optional[bool] = False
+    repeat_interval: Optional[str] = None
 
 class PriceAlertCreate(PriceAlertBase):
     pass
@@ -24,5 +27,8 @@ class PriceAlertRead(PriceAlertBase):
 class PriceAlertUpdate(BaseModel):
     target_price: Optional[float] = None
     condition: Optional[str] = None
+    change_percent: Optional[float] = None
+    change_type: Optional[str] = None
     is_active: Optional[bool] = None
-    notify_on_disclosure: Optional[bool] = None 
+    notify_on_disclosure: Optional[bool] = None
+    repeat_interval: Optional[str] = None

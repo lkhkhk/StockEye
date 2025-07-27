@@ -7,6 +7,9 @@ from src.api.models.prediction_history import PredictionHistory
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/prediction", tags=["prediction_history"])
 
@@ -33,6 +36,7 @@ def get_prediction_history(
     prediction: Optional[str] = Query(None, description="예측 결과 필터")
 ):
     """사용자의 예측 이력 조회 (페이지네이션 및 필터링 지원)"""
+    logger.debug(f"get_prediction_history 호출: user_id={user_id}, page={page}, page_size={page_size}, symbol={symbol}, prediction={prediction}")
     
     # 기본 쿼리
     query = db.query(PredictionHistory).filter(PredictionHistory.user_id == user_id)
@@ -40,15 +44,19 @@ def get_prediction_history(
     # 필터 적용
     if symbol:
         query = query.filter(PredictionHistory.symbol.like(f"%{symbol}%"))
+        logger.debug(f"예측 이력 필터 적용: symbol={symbol}")
     if prediction:
         query = query.filter(PredictionHistory.prediction == prediction)
+        logger.debug(f"예측 이력 필터 적용: prediction={prediction}")
     
     # 전체 개수 조회
     total_count = query.count()
+    logger.debug(f"예측 이력 총 개수: {total_count}")
     
     # 페이지네이션 적용
     offset = (page - 1) * page_size
     records = query.order_by(PredictionHistory.created_at.desc()).offset(offset).limit(page_size).all()
+    logger.debug(f"예측 이력 {len(records)}개 조회됨 (페이지 {page}, 페이지 크기 {page_size}).")
     
     return PredictionHistoryResponse(
         history=[PredictionHistoryRecord(
@@ -61,4 +69,4 @@ def get_prediction_history(
         total_count=total_count,
         page=page,
         page_size=page_size
-    ) 
+    )

@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 # 최근 N일간 주가 데이터 조회
 
 def get_recent_prices(db: Session, symbol: str, days: int = 40):
+    logger.debug(f"get_recent_prices 호출: symbol={symbol}, days={days}")
     try:
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
@@ -18,7 +19,7 @@ def get_recent_prices(db: Session, symbol: str, days: int = 40):
             DailyPrice.date <= end_date
         ).order_by(DailyPrice.date.asc()).all()
         # SQLAlchemy 객체를 dict로 변환
-        return [
+        recent_prices_data = [
             {
                 "date": row.date,
                 "open": row.open,
@@ -29,11 +30,14 @@ def get_recent_prices(db: Session, symbol: str, days: int = 40):
             }
             for row in rows
         ]
+        logger.debug(f"get_recent_prices 결과: {len(recent_prices_data)}개 데이터.")
+        return recent_prices_data
     except Exception as e:
         logger.error(f"get_recent_prices 실패: {str(e)}", exc_info=True)
         return []
 
 def calculate_analysis_items(data):
+    logger.debug(f"calculate_analysis_items 호출: {len(data)}개 데이터.")
     if not data or len(data) < 2:
         logger.warning("분석 데이터 부족: 2개 미만")
         return None
@@ -116,7 +120,7 @@ def calculate_analysis_items(data):
         if len(df) >= 3:
             movement_type_latest = movement_type
             prev_change_percent = df['daily_change_percent'].iloc[-2] if len(df) >= 2 else None
-            movement_type_prev = "정보 부족"
+            movement_type_prev = "보합"
             if pd.notna(prev_change_percent):
                 if abs(prev_change_percent) >= 4:
                     movement_type_prev = "급등" if prev_change_percent > 0 else "급락"
@@ -137,6 +141,7 @@ def calculate_analysis_items(data):
         reason += " (저점 횡보 패턴 감지)"
     elif prediction == "sell":
         reason += " (급등 후 횡보 패턴 감지)"
+    logger.debug(f"calculate_analysis_items 결과: prediction={prediction}, reason={reason}")
     return {
         "prediction": prediction,
         "trend": trend,
@@ -148,6 +153,7 @@ def calculate_analysis_items(data):
     }
 
 def predict_stock_movement(db: Session, symbol: str):
+    logger.debug(f"predict_stock_movement 호출: symbol={symbol}")
     recent_data = get_recent_prices(db, symbol, days=40)
     if len(recent_data) < 20:
         logger.warning(f"예측 불가: 데이터 부족({len(recent_data)}일)")
@@ -172,4 +178,5 @@ def predict_stock_movement(db: Session, symbol: str):
             "trend_count": {"up": 0, "down": 0},
             "reason": "데이터 분석 중 오류가 발생했습니다.",
         }
-    return analysis_result 
+    logger.debug(f"predict_stock_movement 결과: {analysis_result['prediction']}")
+    return analysis_result

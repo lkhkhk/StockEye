@@ -5,6 +5,7 @@ from src.api.auth.jwt_handler import verify_password, get_password_hash, create_
 from fastapi import HTTPException, status
 from datetime import timedelta
 from src.api.schemas.user import UserRead
+from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger(__name__)
 
@@ -22,35 +23,42 @@ class AuthService:
         return user
 
     def create_user(self, db: Session, username: str, email: str, password: str, role: str = "user"):
-        """새 사용자 생성"""
-        try:
-            # 중복 확인
-            existing_user = db.query(User).filter(
-                (User.username == username) | (User.email == email)
-            ).first()
-            if existing_user:
-                logger.error(f"이미 등록된 사용자: {username}, {email}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Username or email already registered"
-                )
-            # 비밀번호 해싱
-            hashed_password = get_password_hash(password)
-            # 새 사용자 생성
-            user = User(
-                username=username,
-                email=email,
-                password_hash=hashed_password,
-                role=role
+        """새로운 사용자를 생성합니다."""
+        # 1. 중복 확인
+        existing_user = db.query(User).filter(
+            (User.username == username) | (User.email == email)
+        ).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username or email already registered"
             )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            return user
-        except Exception as e:
+
+        # 2. 새 사용자 생성
+        hashed_password = get_password_hash(password)
+        db_user = User(
+            username=username,
+            email=email,
+            password_hash=hashed_password,
+            role=role
+        )
+        db.add(db_user)
+
+        # 3. DB에 반영
+        try:
+            db.flush()
+            db.refresh(db_user)
+        except IntegrityError as e:
             db.rollback()
-            logger.error(f"사용자 생성 실패: {str(e)}", exc_info=True)
-            raise
+            logger.error(f"사용자 생성 중 DB 오류 발생: {e}", exc_info=True)
+            # IntegrityError는 대부분 중복 등록 시도이므로 400에러를 반환합니다.
+            # (autoincrement 이슈 등 다른 원인일 수도 있습니다)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Database error during user creation. May be a duplicate entry."
+            )
+        
+        return db_user
 
     def login_user(self, db: Session, username: str, password: str):
         """사용자 로그인"""

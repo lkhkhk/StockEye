@@ -31,15 +31,9 @@ class TestAdminScheduler:
         response = client.get("/admin/schedule/status")
         assert response.status_code == 200
         data = response.json()
-        assert "message" in data
-        assert "status" in data
-        assert "timestamp" in data
-        
-        status = data["status"]
-        assert "scheduler_running" in status
-        assert "job_count" in status
-        assert "jobs" in status
-        assert isinstance(status["jobs"], list)
+        assert "running" in data
+        assert "jobs" in data
+        assert isinstance(data["jobs"], list)
     
     def test_trigger_job_valid(self):
         """유효한 잡 수동 실행 테스트"""

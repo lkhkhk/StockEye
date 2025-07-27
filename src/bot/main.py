@@ -11,7 +11,7 @@ from handlers.predict import predict_command
 from handlers.watchlist import watchlist_add_command, watchlist_remove_command, watchlist_get_command
 from handlers.symbols import symbols_command, symbols_search_command, symbol_info_command
 from handlers.natural import natural_message_handler
-from bot.handlers.alert import get_handler, get_list_handler, get_remove_handler, alert_button_callback, set_price_alert
+from bot.handlers.alert import get_handler, get_list_handler, get_remove_handler, alert_button_callback, set_price_alert, alert_set_repeat_callback
 from bot.handlers.register import get_register_handler, get_unregister_handler
 from bot.handlers.start import get_start_handler
 from bot.handlers.help import get_help_handler
@@ -55,7 +55,7 @@ LOG_DIR = "/logs"
 LOG_FILE = os.path.join(LOG_DIR, "bot.log")
 os.makedirs(LOG_DIR, exist_ok=True)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
@@ -87,6 +87,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("update_disclosure", admin_update_disclosure))
     app.add_handler(CallbackQueryHandler(update_disclosure_callback, pattern="^update_disclosure_"))
     app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_"))
+    app.add_handler(CallbackQueryHandler(alert_set_repeat_callback, pattern="^alert_set_repeat_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message_handler))
     app.add_handler(CommandHandler("alert_add", get_handler().callback))
     app.add_handler(CommandHandler("alert_list", get_list_handler().callback))
@@ -97,4 +98,4 @@ if __name__ == "__main__":
     app.add_handler(get_admin_handler()) # /admin
     app.add_handler(CommandHandler("test_notify", test_notify_command))
     print("텔레그램 봇이 시작되었습니다. 메시지를 기다리는 중...")
-    app.run_polling() 
+    app.run_polling()
