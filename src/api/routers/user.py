@@ -76,7 +76,7 @@ def update_current_user(
 
 @router.put("/telegram_register", tags=["users"])
 def telegram_register(
-    telegram_id: str = Body(...),
+    telegram_id: int = Body(...),
     is_active: bool = Body(...),
     db: Session = Depends(get_db)
 ):

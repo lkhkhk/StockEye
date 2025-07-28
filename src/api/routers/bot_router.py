@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
@@ -8,6 +9,10 @@ from pydantic import BaseModel
 from typing import Optional
 
 router = APIRouter(prefix="/bot", tags=["bot_internal"])
+
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 # 의존성 주입 함수 정의
 def get_user_service():
@@ -35,7 +40,7 @@ def toggle_disclosure_alert_for_bot(request: BotAlertRequest = Body(...), db: Se
         user = user_service.create_user_from_telegram(
             db,
             telegram_id=request.telegram_user_id,
-            username=request.telegram_username,
+            username=request.telegram_username or f"telegram_user_{request.telegram_user_id}",
             first_name=request.telegram_first_name,
             last_name=request.telegram_last_name
         )
@@ -44,14 +49,20 @@ def toggle_disclosure_alert_for_bot(request: BotAlertRequest = Body(...), db: Se
 
     if existing_alert:
         # 기존 알림이 있으면 상태를 토글
+        # db.refresh(existing_alert) # 데이터베이스에서 최신 상태로 새로고침 
+        logger.debug(f"Before toggle: existing_alert.notify_on_disclosure = {existing_alert.notify_on_disclosure}") 
         new_status = not existing_alert.notify_on_disclosure
+        logger.debug(f"Calculated new_status: {new_status}")       
         update_data = PriceAlertUpdate(notify_on_disclosure=new_status)
-        return price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_update=update_data)
+        updated_alert_orm = price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_update=update_data)
+        logger.debug(f"After update_alert call: updated_alert_orm.notify_on_disclosure = {updated_alert_orm.notify_on_disclosure}")     
+        return updated_alert_orm
     else:
         # 기존 알림이 없으면 새로 생성하며 ON으로 설정
         create_data = PriceAlertCreate(
             symbol=request.symbol,
-            notify_on_disclosure=True
+            notify_on_disclosure=True,
+            is_active=True # 명시적으로 활성화
         )
         return price_alert_service.create_alert(db, user_id=user.id, alert=create_data)
 
@@ -73,7 +84,7 @@ def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Sessi
         user = user_service.create_user_from_telegram(
             db,
             telegram_id=request.telegram_user_id,
-            username=request.telegram_username,
+            username=request.telegram_username or f"telegram_user_{request.telegram_user_id}",
             first_name=request.telegram_first_name,
             last_name=request.telegram_last_name
         )
@@ -86,7 +97,8 @@ def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Sessi
             target_price=request.target_price,
             condition=request.condition,
             repeat_interval=request.repeat_interval,
-            is_active=True # 비활성 상태였다면 다시 활성화
+            is_active=True, # 비활성 상태였다면 다시 활성화
+            notify_on_disclosure=existing_alert.notify_on_disclosure # 기존 값 유지
         )
         return price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_update=update_data)
     else:

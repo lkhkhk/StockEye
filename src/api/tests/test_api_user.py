@@ -104,7 +104,7 @@ def test_update_me_success(client: TestClient, db: Session):
 
 def test_telegram_register_new_user(client: TestClient, db: Session):
     # Given
-    telegram_id = f"tg_{uuid4().hex}"
+    telegram_id = 123456789012345678 # A large integer within BIGINT range
 
     # When
     response = client.put("/users/telegram_register", json={"telegram_id": telegram_id, "is_active": True})
@@ -118,11 +118,12 @@ def test_telegram_register_new_user(client: TestClient, db: Session):
 def test_telegram_register_update_user(client: TestClient, db: Session):
     # Given
     user = create_test_user(db)
-    user.telegram_id = f"tg_{uuid4().hex}"
+    new_telegram_id = 987654321098765432 # Another large integer within BIGINT range
+    user.telegram_id = new_telegram_id
     db.commit()
 
     # When
-    response = client.put("/users/telegram_register", json={"telegram_id": user.telegram_id, "is_active": False})
+    response = client.put("/users/telegram_register", json={"telegram_id": new_telegram_id, "is_active": False})
 
     # Then
     assert response.status_code == 200

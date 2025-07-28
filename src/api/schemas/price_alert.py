@@ -8,11 +8,11 @@ class PriceAlertBase(BaseModel):
     condition: Optional[str] = None # 'gte', 'lte'
     change_percent: Optional[float] = None # N% 변동률
     change_type: Optional[str] = None # 'up', 'down' (변동률 조건과 함께 사용)
-    notify_on_disclosure: Optional[bool] = False
+    notify_on_disclosure: bool = True
     repeat_interval: Optional[str] = None
 
 class PriceAlertCreate(PriceAlertBase):
-    pass
+    is_active: Optional[bool] = True
 
 class PriceAlertRead(PriceAlertBase):
     id: int
@@ -20,6 +20,7 @@ class PriceAlertRead(PriceAlertBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    notify_on_disclosure: bool # Explicitly define as bool to ensure it's not Optional
 
     class Config:
         from_attributes = True

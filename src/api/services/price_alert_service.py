@@ -5,6 +5,7 @@ from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate
 from fastapi import HTTPException, status
 from typing import List, Optional
 from datetime import datetime
+import time # Add this line
 from src.api.models.daily_price import DailyPrice # DailyPrice 모델 임포트
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ class PriceAlertService:
                 change_type=alert.change_type,     # 추가
                 notify_on_disclosure=alert.notify_on_disclosure,
                 repeat_interval=alert.repeat_interval,
-                is_active=True
+                is_active=alert.is_active if alert.is_active is not None else True
             )
             db.add(new_alert)
             db.commit()
@@ -93,13 +94,16 @@ class PriceAlertService:
             logger.error(f"Alert not found: {alert_id}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
         try:
+            # exclude_unset=True를 사용하여 명시적으로 설정된 값만 가져옵니다.
             update_data = alert_update.model_dump(exclude_unset=True)
+            logger.debug(f"Alert before update: notify_on_disclosure={alert.notify_on_disclosure}, is_active={alert.is_active}")
+            logger.debug(f"Update data: {update_data}")
             for key, value in update_data.items():
                 setattr(alert, key, value)
-            
-            alert.updated_at = datetime.utcnow()
+            logger.debug(f"After setattr: alert.notify_on_disclosure = {alert.notify_on_disclosure}")  
             db.commit()
             db.refresh(alert)
+            logger.debug(f"After db.refresh: alert.notify_on_disclosure = {alert.notify_on_disclosure}")  
             logger.info(f"가격 알림({alert_id}) 수정 성공.")
             return alert
         except Exception as e:
