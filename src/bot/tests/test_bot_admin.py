@@ -70,7 +70,7 @@ class TestBotAdmin:
     @patch('src.bot.handlers.admin.session.get')
     async def test_admin_show_schedules_success(self, mock_get):
         """스케줄러 상태 조회 성공 테스트"""
-        mock_response = MagicMock()
+        mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json.return_value = [ # API 응답이 리스트 형태
             {
@@ -93,7 +93,7 @@ class TestBotAdmin:
     @patch('src.bot.handlers.admin.session.post')
     async def test_admin_trigger_job_success(self, mock_post):
         """잡 수동 실행 성공 테스트"""
-        mock_response = MagicMock()
+        mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "message": "Job 'update_master_job'가 수동으로 실행되었습니다."
@@ -114,7 +114,7 @@ class TestBotAdmin:
     @patch('src.bot.handlers.admin.session.post')
     async def test_admin_trigger_job_invalid_job(self, mock_post):
         """존재하지 않는 잡 실행 테스트"""
-        mock_response = MagicMock()
+        mock_response = AsyncMock()
         mock_response.status_code = 404
         mock_post.return_value = mock_response
         
@@ -142,7 +142,7 @@ class TestBotAdmin:
     @patch('src.bot.handlers.admin.session.get')
     async def test_admin_stats_success(self, mock_get):
         """관리자 통계 조회 성공 테스트"""
-        mock_response = MagicMock()
+        mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "total_users": 5,

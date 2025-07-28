@@ -49,7 +49,7 @@ async def alert_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"종목 검색 실패: {search_resp.text}")
             return
         
-        stocks = search_resp.json()
+        stocks = await search_resp.json()
 
         if not stocks:
             await update.message.reply_text(f"'{query_str}'에 해당하는 종목을 찾을 수 없습니다.")

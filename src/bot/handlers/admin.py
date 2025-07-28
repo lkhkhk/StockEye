@@ -39,7 +39,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        response = session.get(f"{API_URL}/health", timeout=10) # session 사용 및 timeout 추가
+        response = await session.get(f"{API_URL}/health", timeout=10) # session 사용 및 timeout 추가
         response.raise_for_status()
         data = response.json()
         await update.message.reply_text(f"서비스 상태: {data.get('status', 'unknown')}")
@@ -59,9 +59,9 @@ async def admin_update_master(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def run_update_master_and_notify(context, chat_id):
     try:
-        response = session.post(f"{API_URL}/admin/update_master", timeout=60) # session 사용 및 timeout 추가
+        response = await session.post(f"{API_URL}/admin/update_master", timeout=60) # session 사용 및 timeout 추가
         if response.status_code == 200:
-            result = response.json()
+            result = await response.json()
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(f"✅ 종목마스터 갱신 완료!\n"
@@ -87,9 +87,9 @@ async def admin_update_price(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def run_update_price_and_notify(context, chat_id):
     try:
-        response = session.post(f"{API_URL}/admin/update_price", timeout=60) # session 사용 및 timeout 추가
+        response = await session.post(f"{API_URL}/admin/update_price", timeout=60) # session 사용 및 timeout 추가
         if response.status_code == 200:
-            result = response.json()
+            result = await response.json()
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(f"✅ 일별시세 갱신 완료!\n"
@@ -107,10 +107,10 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
     import re
     try:
         # API 호출
-        response = session.get(f"{API_URL}/admin/schedules", timeout=10) # session 사용 및 timeout 추가
+        response = await session.get(f"{API_URL}/admin/schedules", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
-            result = response.json()
+            result = await response.json()
             
             message = "⏰ **스케줄러 잡 목록**\n\n"
             if not result:
@@ -146,10 +146,10 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
         job_id = parts[1]
         
         # API 호출
-        response = session.post(f"{API_URL}/admin/trigger-job/{job_id}", timeout=10) # session 사용 및 timeout 추가
+        response = await session.post(f"{API_URL}/admin/trigger-job/{job_id}", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
-            result = response.json()
+            result = await response.json()
             await update.message.reply_text(
                 f"✅ 잡 실행 완료!\n"
                 f"🔧 잡 ID: {result['message']}\n" # message 필드에 잡 ID가 포함됨
@@ -167,10 +167,10 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """관리자 통계 조회 명령어"""
     try:
         # API 호출
-        response = session.get(f"{API_URL}/admin/stats", timeout=10) # session 사용 및 timeout 추가
+        response = await session.get(f"{API_URL}/admin/stats", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
-            stats = response.json()
+            stats = await response.json()
             await update.message.reply_text(
                 f"📊 **시스템 통계**\n\n"
                 f"👥 사용자 수: {stats['total_users']}명\n" # 필드명 변경
@@ -194,7 +194,7 @@ async def admin_update_disclosure(update: Update, context: ContextTypes.DEFAULT_
             asyncio.create_task(run_update_disclosure_and_notify(context, chat_id, None))
             return  # 안내 메시지 전송 후 즉시 반환
         code_or_name = args[0]
-        search_resp = session.get(f"{API_URL}/symbols/search", params={"query": code_or_name}, timeout=10) # session 사용 및 timeout 추가
+        search_resp = await session.get(f"{API_URL}/symbols/search", params={"query": code_or_name}, timeout=10) # session 사용 및 timeout 추가
         if search_resp.status_code == 200:
             stocks = search_resp.json()
             if isinstance(stocks, list) and len(stocks) > 1:
@@ -218,9 +218,9 @@ async def admin_update_disclosure(update: Update, context: ContextTypes.DEFAULT_
 async def run_update_disclosure_and_notify(context, chat_id, code_or_name: str):
     try:
         if not code_or_name:
-            response = session.post(f"{API_URL}/admin/update_disclosure", timeout=60) # session 사용 및 timeout 추가
+            response = await session.post(f"{API_URL}/admin/update_disclosure", timeout=60) # session 사용 및 timeout 추가
             if response.status_code == 200:
-                result = response.json()
+                result = await response.json()
                 await context.bot.send_message(
                     chat_id=chat_id,
                     text=(f"✅ 전체 종목 공시 이력 갱신 완료!\n"
@@ -231,9 +231,9 @@ async def run_update_disclosure_and_notify(context, chat_id, code_or_name: str):
             else:
                 await context.bot.send_message(chat_id=chat_id, text=f"❌ 전체 처리 실패: {response.status_code} {response.text}")
             return
-        response = session.post(f"{API_URL}/admin/update_disclosure", params={"code_or_name": code_or_name}, timeout=60) # session 사용 및 timeout 추가
+        response = await session.post(f"{API_URL}/admin/update_disclosure", params={"code_or_name": code_or_name}, timeout=60) # session 사용 및 timeout 추가
         if response.status_code == 200:
-            result = response.json()
+            result = await response.json()
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(f"✅ 공시 이력 갱신 완료!\n"
@@ -255,9 +255,9 @@ async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAU
         data = query.data
         if data.startswith("update_disclosure_"):
             symbol = data.replace("update_disclosure_", "")
-            response = session.post(f"{API_URL}/admin/update_disclosure", params={"code_or_name": symbol}, timeout=60) # session 사용 및 timeout 추가
+            response = await session.post(f"{API_URL}/admin/update_disclosure", params={"code_or_name": symbol}, timeout=60) # session 사용 및 timeout 추가
             if response.status_code == 200:
-                result = response.json()
+                result = await response.json()
                 await query.edit_message_text(
                     f"✅ 공시 이력 갱신 완료!\n"
                     f"➕ 추가: {result.get('inserted', 0)}건\n"
