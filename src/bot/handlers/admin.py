@@ -107,7 +107,7 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
     import re
     try:
         # API 호출
-        response = await session.get(f"{API_URL}/admin/schedules", timeout=10) # session 사용 및 timeout 추가
+        response = await session.get(f"{API_URL}/admin/schedule/status", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
             result = await response.json()
@@ -146,7 +146,7 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
         job_id = parts[1]
         
         # API 호출
-        response = await session.post(f"{API_URL}/admin/trigger-job/{job_id}", timeout=10) # session 사용 및 timeout 추가
+        response = await session.post(f"{API_URL}/admin/schedule/trigger/{job_id}", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
             result = await response.json()
@@ -167,15 +167,15 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """관리자 통계 조회 명령어"""
     try:
         # API 호출
-        response = await session.get(f"{API_URL}/admin/stats", timeout=10) # session 사용 및 timeout 추가
+        response = await session.get(f"{API_URL}/admin/admin_stats", timeout=10) # session 사용 및 timeout 추가
         
         if response.status_code == 200:
             stats = await response.json()
             await update.message.reply_text(
                 f"📊 **시스템 통계**\n\n"
-                f"👥 사용자 수: {stats['total_users']}명\n" # 필드명 변경
-                f"💰 모의매매 기록: {stats['total_simulated_trades']}건\n" # 필드명 변경
-                f"🔮 예측 기록: {stats['total_predictions']}건" # 필드명 변경
+                f"👥 사용자 수: {stats['user_count']}명\n"
+                f"💰 모의매매 기록: {stats['trade_count']}건\n"
+                f"🔮 예측 기록: {stats['prediction_count']}건"
             , parse_mode='Markdown')
         else:
             await update.message.reply_text(f"❌ 조회 실패: {response.status_code}")

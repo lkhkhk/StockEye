@@ -83,7 +83,7 @@ class TestBotAdmin:
         
         await admin_show_schedules(self.update, self.context)
         
-        mock_get.assert_called_once_with(f"{API_URL}/admin/schedules", timeout=10)
+        mock_get.assert_called_once_with(f"{API_URL}/admin/schedule/status", timeout=10)
         self.update.message.reply_text.assert_called_once()
         call_args = self.update.message.reply_text.call_args[0][0]
         assert "스케줄러 잡 목록" in call_args
@@ -104,7 +104,7 @@ class TestBotAdmin:
         
         await admin_trigger_job(self.update, self.context)
         
-        mock_post.assert_called_once_with(f"{API_URL}/admin/trigger-job/update_master_job", timeout=10)
+        mock_post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/update_master_job", timeout=10)
         self.update.message.reply_text.assert_called_once()
         call_args = self.update.message.reply_text.call_args[0][0]
         assert "✅ 잡 실행 완료!" in call_args
@@ -122,7 +122,7 @@ class TestBotAdmin:
         
         await admin_trigger_job(self.update, self.context)
         
-        mock_post.assert_called_once_with(f"{API_URL}/admin/trigger-job/nonexistent_job", timeout=10)
+        mock_post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/nonexistent_job", timeout=10)
         self.update.message.reply_text.assert_called_once()
         call_args = self.update.message.reply_text.call_args[0][0]
         assert "❌ 잡을 찾을 수 없습니다: nonexistent_job" in call_args
@@ -145,15 +145,15 @@ class TestBotAdmin:
         mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "total_users": 5,
-            "total_simulated_trades": 25,
-            "total_predictions": 15
+            "user_count": 5,
+            "trade_count": 25,
+            "prediction_count": 15
         }
         mock_get.return_value = mock_response
         
         await admin_stats(self.update, self.context)
         
-        mock_get.assert_called_once_with(f"{API_URL}/admin/stats", timeout=10)
+        mock_get.assert_called_once_with(f"{API_URL}/admin/admin_stats", timeout=10)
         self.update.message.reply_text.assert_called_once()
         call_args = self.update.message.reply_text.call_args[0][0]
         assert "📊 **시스템 통계**" in call_args
