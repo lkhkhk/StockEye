@@ -100,3 +100,15 @@ class UserService:
             logger.error(f"Failed to create user from telegram (telegram_id={telegram_id}): {str(e)}", exc_info=True)
             raise
 
+    def get_user_by_id(self, db: Session, user_id: int) -> Optional[User]:
+        logger.debug(f"Attempting to retrieve user by id: {user_id}")
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            logger.debug(f"User found by id: user_id={user.id}")
+        else:
+            logger.debug(f"User not found for id: {user_id}")
+        return user
+
+def get_user_service() -> UserService:
+    return UserService()
+

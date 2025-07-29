@@ -8,8 +8,9 @@ services:
       - "8000:8000"
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     env_file:
-      - .env.dev
+      - .env.${APP_ENV:-development}
     environment:
+      - APP_ENV=${APP_ENV:-development}
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -28,8 +29,9 @@ services:
       dockerfile: src/bot/Dockerfile
     container_name: bot_service
     env_file:
-      - .env.dev
+      - .env.${APP_ENV:-development}
     environment:
+      - APP_ENV=${APP_ENV:-development}
       - API_HOST=api
     depends_on:
       - api
@@ -42,7 +44,7 @@ services:
     container_name: postgres_db
     restart: always
     env_file:
-      - .env.dev
+      - .env.${APP_ENV:-development}
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}

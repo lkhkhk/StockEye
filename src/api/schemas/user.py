@@ -15,10 +15,10 @@ class UserLogin(BaseModel):
 class UserRead(BaseModel):
     id: int
     username: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     role: str
     is_active: bool
-    telegram_id: Optional[str] = None
+    telegram_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

@@ -8,6 +8,7 @@
 *   **계획 수립 및 관리:**
     *   진행할 과제에 대한 상세 계획을 수립합니다.
     *   이 계획을 `docs/PLAN.MD` 파일에 To-Do 항목으로 추가하고, 진행 상황에 따라 항상 최신 상태로 업데이트합니다.
+*   **문제 해결 전략:** 다수의 테스트 실패 발생 시, 사용자 요청에 따라 **한 번에 한 건의 테스트 실패만 상세 분석하고 해결**합니다. 모든 실패를 동시에 해결하려 하지 않습니다.
 *   **개발 워크플로우:**
     1.  신규/변경 기능에 대한 **테스트 코드를 먼저 작성**합니다.
     2.  테스트를 통과하는 기능 코드를 구현합니다.
@@ -119,3 +120,21 @@
         *   **해결:** `src/api/models/prediction_history.py`에서 `id` 컬럼 정의를 `Column(Integer, primary_key=True, autoincrement=True)`로 변경하여 SQLite 호환성을 확보.
         *   `src/api/tests/conftest.py`의 `db` fixture를 수정하여 각 테스트 함수 실행 전에 모든 테이블을 삭제하고 다시 생성함으로써 깨끗한 데이터베이스 상태를 보장.
 *   **테스트 결과:** 모든 API 테스트가 성공적으로 통과.
+
+### 2.5. 테스트 환경 안정화 및 API 테스트 오류 수정 (2025-07-30)
+
+*   **목표:** `api` 및 `bot` 서비스의 전체 테스트를 성공적으로 실행하고, 테스트 과정에서 발생한 오류를 해결하여 테스트 환경의 안정성을 확보.
+*   **발생 오류 및 해결 과정:**
+    1.  **`docker compose exec` 명령 오류 (`service "api_service" is not running`)**:
+        *   **원인:** `docker compose exec` 명령이 `api_service` 컨테이너를 찾지 못하는 알 수 없는 문제 발생. `docker compose ps`에서는 컨테이너가 `Up` 상태로 보였으나, `exec`, `stop`, `restart`, `logs` 등 대부분의 `docker compose` 명령에서 동일한 오류 발생. 이는 `docker compose` 클라이언트와 Docker 데몬 간의 통신 문제 또는 Docker 환경 자체의 문제로 추정.
+        *   **해결:** `docker compose down --remove-orphans` 명령으로 모든 컨테이너를 완전히 제거하고, `docker compose up -d --build`로 재빌드 및 재실행. 이후에도 `docker compose exec` 문제가 지속되어, `docker exec <container_name> <command>` 형식으로 직접 `docker exec` 명령을 사용하여 컨테이너 내부에서 테스트를 실행.
+    2.  **`test_stock_service.py` 테스트 실패 (6개 테스트)**:
+        *   **원인 1: `unittest.mock.patch` 데코레이터 인자 순서 불일치**: `@patch` 데코레이터는 역순으로 인자를 주입하므로, 테스트 함수의 인자 순서와 데코레이터의 순서가 일치하지 않아 발생.
+        *   **해결 1:** `src/api/tests/test_stock_service.py` 파일 내의 모든 `test_check_and_notify_new_disclosures` 관련 테스트 함수의 인자 순서를 `@patch` 데코레이터의 역순에 맞춰 수정.
+        *   **원인 2: `real_db.add.assert_called_once()` 및 `real_db.commit.assert_called_once()` `AttributeError`**: `real_db`가 실제 SQLAlchemy 세션 객체이므로 `assert_called_once()`와 같은 목(mock) 메서드를 직접 호출할 수 없음.
+        *   **해결 2:** `test_check_and_notify_new_disclosures_initial_run` 테스트 내에서 `patch.object(real_db, 'add')`와 `patch.object(real_db, 'commit')`를 사용하여 `real_db` 객체의 `add`와 `commit` 메서드를 목(mock) 처리.
+        *   **원인 3: `assert config.value == '...'` `AttributeError`**: `test_check_and_notify_new_disclosures_success` 테스트에서 `mock_config_initial`이 `SystemConfig`의 `value` 속성을 가지고 있지 않아 발생.
+        *   **해결 3:** `mock_config_initial`에 `value` 속성을 추가하고, `real_db.query(SystemConfig).filter(...).first()`가 반환하는 `config` 객체도 `MagicMock(spec=SystemConfig, value=...)`으로 처리하여 `value` 속성을 가질 수 있도록 수정.
+        *   **원인 4: `real_db.rollback.called` `AttributeError`**: `test_check_and_notify_new_disclosures_dart_api_limit_exceeded`, `test_check_and_notify_new_disclosures_other_dart_api_error`, `test_check_and_notify_new_disclosures_unexpected_error` 테스트에서 `real_db.rollback`이 메서드이므로 `called` 속성을 직접 가질 수 없어 발생.
+        *   **해결 4:** 각 테스트 함수 내에서 `patch.object(real_db, 'rollback')`를 사용하여 `real_db.rollback`을 목(mock) 처리하고, `mock_real_db_rollback.assert_called_once()` 또는 `mock_real_db_rollback.assert_not_called()`로 검증.
+*   **테스트 결과:** `api` 서비스의 모든 테스트 (129개 통과, 1개 스킵, 7개 경고) 및 `bot` 서비스의 모든 테스트 (22개 통과)가 성공적으로 완료.

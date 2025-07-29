@@ -27,6 +27,16 @@ from src.api.models.system_config import SystemConfig
 from src.api.models.user import User
 from src.common.notify_service import send_telegram_message
 
+APP_ENV = os.getenv("APP_ENV", "development")
+
+# 로깅 레벨 설정
+if APP_ENV == "production":
+    LOGGING_LEVEL = logging.INFO
+elif APP_ENV == "test":
+    LOGGING_LEVEL = logging.DEBUG # 테스트 환경에서도 상세 로그를 위해 DEBUG 유지
+else: # development
+    LOGGING_LEVEL = logging.DEBUG
+
 # 로그 디렉토리 생성
 LOG_DIR = "/logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
@@ -34,7 +44,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # 로깅 설정
 logging.basicConfig(
-    level=logging.DEBUG, # INFO -> DEBUG 변경
+    level=LOGGING_LEVEL, # APP_ENV에 따라 동적으로 설정
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
@@ -195,14 +205,14 @@ scheduler.add_job(check_disclosures_job, 'interval', minutes=240, id='check_disc
 scheduler.add_job(check_price_alerts_job, 'interval', minutes=1, id='check_price_alerts_job', replace_existing=True)
 
 
-@app.on_event("startup")
-def start_scheduler():
-    if not scheduler.running:
-        scheduler.start()
-        logger.info("APScheduler (startup 이벤트) 시작됨")
-        logger.info("등록된 잡 목록:")
-        for job in scheduler.get_jobs():
-            logger.info(f"- Job ID: {job.id}, Trigger: {job.trigger}")
+# @app.on_event("startup")
+# def start_scheduler():
+#     if not scheduler.running:
+#         scheduler.start()
+#         logger.info("APScheduler (startup 이벤트) 시작됨")
+#         logger.info("등록된 잡 목록:")
+#         for job in scheduler.get_jobs():
+#             logger.info(f"- Job ID: {job.id}, Trigger: {job.trigger}")
 
 @app.on_event("shutdown")
 def shutdown_scheduler():

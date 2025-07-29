@@ -8,7 +8,7 @@ from src.api.schemas.user import UserRead, Token
 
 # --- Registration Tests ---
 
-def test_register_user_success(client: TestClient, db: Session):
+def test_register_user_success(client: TestClient, real_db: Session):
     # Given
     username = f"testuser_{uuid4().hex}"
     email = f"{username}@test.com"
@@ -19,13 +19,13 @@ def test_register_user_success(client: TestClient, db: Session):
 
     # Then
     assert response.status_code == 200
-    data = UserRead.parse_obj(response.json())
+    data = UserRead.model_validate(response.json())
     assert data.username == username
     assert data.email == email
 
-def test_register_user_duplicate_username(client: TestClient, db: Session):
+def test_register_user_duplicate_username(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db)
+    user = create_test_user(real_db)
 
     # When
     response = client.post("/users/register", json={"username": user.username, "email": f"new_{user.email}", "password": "new_password"})
@@ -36,28 +36,28 @@ def test_register_user_duplicate_username(client: TestClient, db: Session):
 
 # --- Login Tests ---
 
-def test_login_user_success(client: TestClient, db: Session):
+def test_login_user_success(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db)
+    user = create_test_user(real_db)
 
     # When
     response = client.post("/users/login", json={"username": user.username, "password": "password123"})
 
     # Then
     assert response.status_code == 200
-    data = Token.parse_obj(response.json())
+    data = Token.model_validate(response.json())
     assert data.token_type == "bearer"
 
-def test_login_user_not_found(client: TestClient, db: Session):
+def test_login_user_not_found(client: TestClient, real_db: Session):
     # When
     response = client.post("/users/login", json={"username": "nonexistent", "password": "password"})
 
     # Then
     assert response.status_code == 401
 
-def test_login_user_wrong_password(client: TestClient, db: Session):
+def test_login_user_wrong_password(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db)
+    user = create_test_user(real_db)
 
     # When
     response = client.post("/users/login", json={"username": user.username, "password": "wrongpassword"})
@@ -67,9 +67,9 @@ def test_login_user_wrong_password(client: TestClient, db: Session):
 
 # --- Get/Update Me Tests ---
 
-def test_get_me_success(client: TestClient, db: Session):
+def test_get_me_success(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db)
+    user = create_test_user(real_db)
     headers = get_auth_headers(user)
 
     # When
@@ -77,7 +77,7 @@ def test_get_me_success(client: TestClient, db: Session):
 
     # Then
     assert response.status_code == 200
-    data = UserRead.parse_obj(response.json())
+    data = UserRead.model_validate(response.json())
     assert data.username == user.username
 
 def test_get_me_unauthenticated(client: TestClient):
@@ -86,9 +86,9 @@ def test_get_me_unauthenticated(client: TestClient):
     # Then
     assert response.status_code == 403
 
-def test_update_me_success(client: TestClient, db: Session):
+def test_update_me_success(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db)
+    user = create_test_user(real_db)
     headers = get_auth_headers(user)
     new_email = f"updated_{user.email}"
 
@@ -97,12 +97,12 @@ def test_update_me_success(client: TestClient, db: Session):
 
     # Then
     assert response.status_code == 200
-    data = UserRead.parse_obj(response.json())
+    data = UserRead.model_validate(response.json())
     assert data.email == new_email
 
 # --- Telegram Registration Tests ---
 
-def test_telegram_register_new_user(client: TestClient, db: Session):
+def test_telegram_register_new_user(client: TestClient, real_db: Session):
     # Given
     telegram_id = 123456789012345678 # A large integer within BIGINT range
 
@@ -115,12 +115,12 @@ def test_telegram_register_new_user(client: TestClient, db: Session):
     assert data["result"] == "registered"
     assert data["is_active"] is True
 
-def test_telegram_register_update_user(client: TestClient, db: Session):
+def test_telegram_register_update_user(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db)
+    user = create_test_user(real_db)
     new_telegram_id = 987654321098765432 # Another large integer within BIGINT range
     user.telegram_id = new_telegram_id
-    db.commit()
+    real_db.commit()
 
     # When
     response = client.put("/users/telegram_register", json={"telegram_id": new_telegram_id, "is_active": False})
@@ -133,9 +133,9 @@ def test_telegram_register_update_user(client: TestClient, db: Session):
 
 # --- Stats and Admin Tests ---
 
-def test_get_user_stats_success(client: TestClient, db: Session):
+def test_get_user_stats_success(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db)
+    user = create_test_user(real_db)
 
     # When
     response = client.get(f"/users/stats/{user.id}")
@@ -146,17 +146,17 @@ def test_get_user_stats_success(client: TestClient, db: Session):
     assert data["user_id"] == user.id
     assert "trade_count" in data
 
-def test_get_user_stats_not_found(client: TestClient):
+def test_get_user_stats_not_found(client: TestClient, real_db: Session): # Add real_db fixture
     # When
     response = client.get("/users/stats/99999")
     # Then
     assert response.status_code == 404
 
-def test_get_all_users_as_admin(client: TestClient, db: Session):
+def test_get_all_users_as_admin(client: TestClient, real_db: Session):
     # Given
-    admin_user = create_test_user(db, role="admin")
+    admin_user = create_test_user(real_db, role="admin")
     headers = get_auth_headers(admin_user)
-    create_test_user(db) # Create another user
+    create_test_user(real_db) # Create another user
 
     # When
     response = client.get("/users/", headers=headers)
@@ -165,9 +165,9 @@ def test_get_all_users_as_admin(client: TestClient, db: Session):
     assert response.status_code == 200
     assert len(response.json()) >= 2
 
-def test_get_all_users_as_user(client: TestClient, db: Session):
+def test_get_all_users_as_user(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(db, role="user")
+    user = create_test_user(real_db, role="user")
     headers = get_auth_headers(user)
 
     # When

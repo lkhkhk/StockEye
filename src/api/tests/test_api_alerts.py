@@ -11,10 +11,18 @@ from sqlalchemy.orm import Session
 class TestPriceAlertRouter:
     """가격 알림 라우터 테스트"""
 
-    def test_create_alert_success(self, client: TestClient, db: Session):
+    def test_create_alert_success(self, client: TestClient, real_db: Session): # db -> real_db 변경
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db) # db -> real_db 변경
         headers = get_auth_headers(user)
+
+        # get_current_active_user 의존성을 Mocking된 사용자로 오버라이드
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
         alert_payload = {"symbol": "005930", "target_price": 90000, "condition": "gte"}
 
         # When
@@ -28,6 +36,8 @@ class TestPriceAlertRouter:
         assert created_alert.condition == "gte"
         assert created_alert.user_id == user.id
 
+        del app.dependency_overrides[get_current_active_user] # 오버라이드 해제
+
     def test_create_alert_unauthenticated(self, client: TestClient):
         # Given
         alert_payload = {"symbol": "005930", "target_price": 90000, "condition": "gte"}
@@ -38,10 +48,17 @@ class TestPriceAlertRouter:
         # Then
         assert response.status_code == 403
 
-    def test_create_alert_invalid_data(self, client: TestClient, db: Session):
+    def test_create_alert_invalid_data(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         headers = get_auth_headers(user)
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
         alert_payload = {"symbol": "005930", "target_price": "invalid", "condition": "gte"} # Invalid target_price
 
         # When
@@ -49,11 +66,19 @@ class TestPriceAlertRouter:
 
         # Then
         assert response.status_code == 422
+        del app.dependency_overrides[get_current_active_user]
 
-    def test_get_my_alerts_success(self, client: TestClient, db: Session):
+    def test_get_my_alerts_success(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         headers = get_auth_headers(user)
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
         client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
         client.post("/alerts/", json={"symbol": "035720", "target_price": 50000, "condition": "lte"}, headers=headers)
 
@@ -62,15 +87,22 @@ class TestPriceAlertRouter:
 
         # Then
         assert response.status_code == 200
-        alerts = [PriceAlertRead.parse_obj(a) for a in response.json()]
+        alerts = [PriceAlertRead.model_validate(a) for a in response.json()]
         assert len(alerts) == 2
         assert any(a.symbol == "005930" for a in alerts)
         assert any(a.symbol == "035720" for a in alerts)
+        del app.dependency_overrides[get_current_active_user]
 
-    def test_get_my_alerts_empty(self, client: TestClient, db: Session):
+    def test_get_my_alerts_empty(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         headers = get_auth_headers(user)
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
         # When
         response = client.get("/alerts/", headers=headers)
@@ -78,6 +110,7 @@ class TestPriceAlertRouter:
         # Then
         assert response.status_code == 200
         assert response.json() == []
+        del app.dependency_overrides[get_current_active_user]
 
     def test_get_my_alerts_unauthenticated(self, client: TestClient):
         # When
@@ -86,23 +119,33 @@ class TestPriceAlertRouter:
         # Then
         assert response.status_code == 403
 
-    def test_get_alert_by_user_and_symbol_success(self, client: TestClient, db: Session):
+    def test_get_alert_by_user_and_symbol_success(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
-        client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user))
+        user = create_test_user(real_db)
+        headers = get_auth_headers(user) # Add headers for the post request
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+        client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
 
         # When
+        # This endpoint does not use get_current_active_user, so no override needed for this GET request
         response = client.get(f"/alerts/user/{user.id}/symbol/005930")
 
         # Then
         assert response.status_code == 200
-        alert = PriceAlertRead.parse_obj(response.json())
+        alert = PriceAlertRead.model_validate(response.json())
         assert alert.symbol == "005930"
         assert alert.user_id == user.id
+        del app.dependency_overrides[get_current_active_user] # Clean up after the POST request
 
-    def test_get_alert_by_user_and_symbol_not_found(self, client: TestClient, db: Session):
+    def test_get_alert_by_user_and_symbol_not_found(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
 
         # When
         response = client.get(f"/alerts/user/{user.id}/symbol/NONEXISTENT")
@@ -111,10 +154,17 @@ class TestPriceAlertRouter:
         assert response.status_code == 404
         assert response.json() == {"detail": "해당 종목에 대한 알림 설정을 찾을 수 없습니다."}
 
-    def test_update_alert_success(self, client: TestClient, db: Session):
+    def test_update_alert_success(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         headers = get_auth_headers(user)
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
         create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
         alert_id = create_response.json()["id"]
 
@@ -124,17 +174,28 @@ class TestPriceAlertRouter:
 
         # Then
         assert response.status_code == 200
-        updated_alert = PriceAlertRead.parse_obj(response.json())
+        updated_alert = PriceAlertRead.model_validate(response.json())
         assert updated_alert.id == alert_id
         assert updated_alert.target_price == 95000
         assert updated_alert.condition == "lte"
         assert updated_alert.is_active is False
+        del app.dependency_overrides[get_current_active_user]
 
-    def test_update_alert_unauthenticated(self, client: TestClient, db: Session):
+    def test_update_alert_unauthenticated(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
-        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user))
+        user = create_test_user(real_db)
+        headers = get_auth_headers(user) # For the initial creation
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
         alert_id = create_response.json()["id"]
+
+        del app.dependency_overrides[get_current_active_user] # Remove override for the unauthenticated PUT request
 
         # When
         update_payload = {"target_price": 95000}
@@ -143,10 +204,16 @@ class TestPriceAlertRouter:
         # Then
         assert response.status_code == 403
 
-    def test_update_alert_not_found(self, client: TestClient, db: Session):
+    def test_update_alert_not_found(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         headers = get_auth_headers(user)
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
         # When
         update_payload = {"target_price": 95000}
@@ -154,14 +221,27 @@ class TestPriceAlertRouter:
 
         # Then
         assert response.status_code == 404
+        del app.dependency_overrides[get_current_active_user]
 
-    def test_update_alert_forbidden(self, client: TestClient, db: Session):
+    def test_update_alert_forbidden(self, client: TestClient, real_db: Session):
         # Given
-        user1 = create_test_user(db)
-        user2 = create_test_user(db)
-        headers2 = get_auth_headers(user2)
-        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user1))
+        user1 = create_test_user(real_db)
+        user2 = create_test_user(real_db)
+        headers1 = get_auth_headers(user1) # Headers for user1 to create alert
+        headers2 = get_auth_headers(user2) # Headers for user2 to attempt update
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user_user1():
+            return user1
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user_user1
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers1)
         alert_id = create_response.json()["id"]
+        del app.dependency_overrides[get_current_active_user] # Remove override for user1
+
+        def override_get_current_active_user_user2():
+            return user2
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user_user2
 
         # When
         update_payload = {"target_price": 95000}
@@ -169,11 +249,19 @@ class TestPriceAlertRouter:
 
         # Then
         assert response.status_code == 403
+        del app.dependency_overrides[get_current_active_user]
 
-    def test_delete_alert_success(self, client: TestClient, db: Session):
+    def test_delete_alert_success(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         headers = get_auth_headers(user)
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
         create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
         alert_id = create_response.json()["id"]
 
@@ -184,13 +272,24 @@ class TestPriceAlertRouter:
         assert response.status_code == 200
         assert response.json() == {"result": True}
         # DB에서 실제로 삭제되었는지 확인
-        assert db.query(PriceAlert).filter_by(id=alert_id).first() is None
+        assert real_db.query(PriceAlert).filter_by(id=alert_id).first() is None
+        del app.dependency_overrides[get_current_active_user]
 
-    def test_delete_alert_unauthenticated(self, client: TestClient, db: Session):
+    def test_delete_alert_unauthenticated(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
-        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user))
+        user = create_test_user(real_db)
+        headers = get_auth_headers(user) # For the initial creation
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers)
         alert_id = create_response.json()["id"]
+
+        del app.dependency_overrides[get_current_active_user] # Remove override for the unauthenticated DELETE request
 
         # When
         response = client.delete(f"/alerts/{alert_id}")
@@ -198,30 +297,50 @@ class TestPriceAlertRouter:
         # Then
         assert response.status_code == 403
 
-    def test_delete_alert_not_found(self, client: TestClient, db: Session):
+    def test_delete_alert_not_found(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         headers = get_auth_headers(user)
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user():
+            return user
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
         # When
         response = client.delete(f"/alerts/99999", headers=headers)
 
         # Then
         assert response.status_code == 404
+        del app.dependency_overrides[get_current_active_user]
 
-    def test_delete_alert_forbidden(self, client: TestClient, db: Session):
+    def test_delete_alert_forbidden(self, client: TestClient, real_db: Session):
         # Given
-        user1 = create_test_user(db)
-        user2 = create_test_user(db)
-        headers2 = get_auth_headers(user2)
-        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=get_auth_headers(user1))
+        user1 = create_test_user(real_db)
+        user2 = create_test_user(real_db)
+        headers1 = get_auth_headers(user1) # Headers for user1 to create alert
+        headers2 = get_auth_headers(user2) # Headers for user2 to attempt delete
+
+        from src.api.auth.jwt_handler import get_current_active_user
+        from src.api.main import app
+        def override_get_current_active_user_user1():
+            return user1
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user_user1
+        create_response = client.post("/alerts/", json={"symbol": "005930", "target_price": 90000, "condition": "gte"}, headers=headers1)
         alert_id = create_response.json()["id"]
+        del app.dependency_overrides[get_current_active_user] # Remove override for user1
+
+        def override_get_current_active_user_user2():
+            return user2
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user_user2
 
         # When
         response = client.delete(f"/alerts/{alert_id}", headers=headers2)
 
         # Then
         assert response.status_code == 403
+        del app.dependency_overrides[get_current_active_user]
 
     @patch('src.api.routers.notification.send_telegram_message')
     def test_test_notify_api_success(self, mock_send_telegram_message, client: TestClient):

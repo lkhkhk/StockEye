@@ -10,10 +10,10 @@ def create_test_user(db):
     db.refresh(user)
     return user
 
-def test_simulate_trade_and_get_history(client: TestClient, db):
+def test_simulate_trade_and_get_history(client: TestClient, real_db):
     """모의 거래 및 이력 조회 엔드포인트 테스트"""
     # GIVEN: 테스트용 사용자 생성
-    user = create_test_user(db)
+    user = create_test_user(real_db)
     
     # WHEN: 모의 거래 실행
     trade_payload = {

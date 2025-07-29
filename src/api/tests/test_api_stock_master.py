@@ -7,26 +7,32 @@ from src.api.models.stock_master import StockMaster
 from src.api.services.stock_service import StockService
 
 
-def create_stock_master_data(db: Session):
+def create_stock_master_data(real_db: Session):
     """테스트용 종목 마스터 데이터를 생성합니다."""
     stocks = [
         StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="00126380"),
         StockMaster(symbol="035720", name="카카오", market="KOSPI", corp_code="00130000"),
         StockMaster(symbol="000660", name="SK하이닉스", market="KOSPI", corp_code="00164779"),
     ]
-    db.add_all(stocks)
-    db.commit()
+    real_db.add_all(stocks)
+    real_db.commit()
     for stock in stocks:
-        db.refresh(stock)
+        real_db.refresh(stock)
     return stocks
 
 
 class TestStockMasterRouter:
     """stock_master 라우터 테스트"""
 
-    def test_get_all_symbols(self, client: TestClient, db: Session):
+    @pytest.fixture(autouse=True)
+    def setup_method(self, real_db: Session):
+        # 각 테스트 메서드 실행 전에 StockMaster 테이블을 비웁니다.
+        real_db.query(StockMaster).delete()
+        real_db.commit()
+
+    def test_get_all_symbols(self, client: TestClient, real_db: Session):
         # Given
-        create_stock_master_data(db)
+        create_stock_master_data(real_db)
 
         # When
         response = client.get("/symbols/")
@@ -39,7 +45,7 @@ class TestStockMasterRouter:
         assert {"symbol": "005930", "name": "삼성전자", "market": "KOSPI"} in data
 
     def test_get_all_symbols_empty(self, client: TestClient):
-        # Given: DB에 종목이 없음
+        # Given: DB에 종목이 없음 (create_stock_master_data 호출 안 함)
 
         # When
         response = client.get("/symbols/")
@@ -48,9 +54,9 @@ class TestStockMasterRouter:
         assert response.status_code == 200
         assert response.json() == []
 
-    def test_search_symbols_by_name(self, client: TestClient, db: Session):
+    def test_search_symbols_by_name(self, client: TestClient, real_db: Session):
         # Given
-        create_stock_master_data(db)
+        create_stock_master_data(real_db)
 
         # When
         response = client.get("/symbols/search?query=삼성전자")
@@ -61,9 +67,9 @@ class TestStockMasterRouter:
         assert len(data) == 1
         assert data[0]["symbol"] == "005930"
 
-    def test_search_symbols_by_symbol(self, client: TestClient, db: Session):
+    def test_search_symbols_by_symbol(self, client: TestClient, real_db: Session):
         # Given
-        create_stock_master_data(db)
+        create_stock_master_data(real_db)
 
         # When
         response = client.get("/symbols/search?query=035720")
@@ -74,9 +80,9 @@ class TestStockMasterRouter:
         assert len(data) == 1
         assert data[0]["name"] == "카카오"
 
-    def test_search_symbols_case_insensitive(self, client: TestClient, db: Session):
+    def test_search_symbols_case_insensitive(self, client: TestClient, real_db: Session):
         # Given
-        create_stock_master_data(db)
+        create_stock_master_data(real_db)
 
         # When
         response = client.get("/symbols/search?query=sk하이닉스")
@@ -87,9 +93,8 @@ class TestStockMasterRouter:
         assert len(data) == 1
         assert data[0]["symbol"] == "000660"
 
-    def test_search_symbols_no_results(self, client: TestClient, db: Session):
-        # Given
-        create_stock_master_data(db)
+    def test_search_symbols_no_results(self, client: TestClient, real_db: Session):
+        # Given: DB에 종목이 없음 (create_stock_master_data 호출 안 함)
 
         # When
         response = client.get("/symbols/search?query=없는종목")
@@ -105,16 +110,16 @@ class TestStockMasterRouter:
         # Then
         assert response.status_code == 422  # FastAPI validation error for min_length=1
 
-    def test_get_current_price_and_change_success(self, client: TestClient, db: Session):
+    def test_get_current_price_and_change_success(self, client: TestClient, real_db: Session):
         # Given
         symbol = "005930"
         # StockService.get_current_price_and_change를 모의하여 특정 값을 반환하도록 설정
         mock_price_data = {"current_price": 75000, "change": 1000, "change_rate": 1.35}
-        
+    
         # StockService 의존성 오버라이드를 위한 mock
         mock_stock_service = MagicMock(spec=StockService)
         mock_stock_service.get_current_price_and_change.return_value = mock_price_data
-        
+    
         # FastAPI 앱의 의존성 주입 오버라이드
         from src.api.routers.stock_master import get_stock_service
         from src.api.main import app
@@ -126,12 +131,12 @@ class TestStockMasterRouter:
         # Then
         assert response.status_code == 200
         assert response.json() == mock_price_data
-        mock_stock_service.get_current_price_and_change.assert_called_once_with(symbol, db)
+        mock_stock_service.get_current_price_and_change.assert_called_once_with(symbol, real_db)
         
         # 오버라이드 해제
         del app.dependency_overrides[get_stock_service]
 
-    def test_get_current_price_and_change_not_found(self, client: TestClient, db: Session):
+    def test_get_current_price_and_change_not_found(self, client: TestClient, real_db: Session):
         # Given
         symbol = "NONEXISTENT"
         # StockService.get_current_price_and_change가 None을 반환하도록 모의
@@ -148,7 +153,7 @@ class TestStockMasterRouter:
         # Then
         assert response.status_code == 404
         assert response.json() == {"detail": "Stock price data not found"}
-        mock_stock_service.get_current_price_and_change.assert_called_once_with(symbol, db)
+        mock_stock_service.get_current_price_and_change.assert_called_once_with(symbol, real_db)
         
         # 오버라이드 해제
         del app.dependency_overrides[get_stock_service]

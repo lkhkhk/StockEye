@@ -6,8 +6,13 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 
+from src.api.models.user import User
+from src.api.services.user_service import UserService, get_user_service
+from src.common.db_connector import get_db
+from sqlalchemy.orm import Session
+
 # JWT 설정
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -34,13 +39,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, os.getenv("JWT_SECRET_KEY", "your-secret-key-here"), algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_token(token: str) -> dict:
     """토큰 검증"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, os.getenv("JWT_SECRET_KEY", "your-secret-key-here"), algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(
@@ -56,8 +61,25 @@ def verify_token(token: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """현재 사용자 정보 반환"""
+def get_current_active_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)):
+    """현재 활성 사용자 정보 반환"""
     token = credentials.credentials
     payload = verify_token(token)
-    return payload 
+    username: str = payload.get("sub")
+    user_id: int = payload.get("user_id") # user_id 추가
+    if username is None or user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = user_service.get_user_by_id(db, user_id) # user_id로 사용자 조회
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    return user
+
+def get_current_active_admin_user(current_user: User = Depends(get_current_active_user)):
+    """현재 활성 관리자 사용자 정보 반환"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
+    return current_user 

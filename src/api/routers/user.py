@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
 from src.api.schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate
 from src.api.services.auth_service import AuthService
-from src.api.auth.jwt_handler import get_current_user
+from src.api.auth.jwt_handler import get_current_active_user
 from src.api.models.user import User
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.models.prediction_history import PredictionHistory
@@ -37,9 +37,9 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db), auth_
     )
 
 @router.get("/me", response_model=UserRead, tags=["users"])
-def get_current_user_info(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), auth_service: AuthService = Depends(get_auth_service)):
+def get_current_user_info(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db), auth_service: AuthService = Depends(get_auth_service)):
     """현재 사용자 정보 조회"""
-    user = auth_service.get_user_by_id(db, current_user["user_id"])
+    user = auth_service.get_user_by_id(db, current_user.id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -50,12 +50,12 @@ def get_current_user_info(current_user: dict = Depends(get_current_user), db: Se
 @router.put("/me", response_model=UserRead, tags=["users"])
 def update_current_user(
     user_update: UserUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service)
 ):
     """현재 사용자 정보 업데이트"""
-    user = auth_service.get_user_by_id(db, current_user["user_id"])
+    user = auth_service.get_user_by_id(db, current_user.id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -127,12 +127,12 @@ def get_user_stats(user_id: int, db: Session = Depends(get_db), auth_service: Au
 def get_all_users(
     skip: int = 0,
     limit: int = 100,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """모든 사용자 조회 (관리자만)"""
     # 관리자 권한 확인
-    if current_user["role"] != "admin":
+    if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"

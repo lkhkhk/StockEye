@@ -10,10 +10,10 @@ def create_test_user(db):
     db.refresh(user)
     return user
 
-def test_add_and_get_watchlist(client: TestClient, db):
+def test_add_and_get_watchlist(client: TestClient, real_db):
     """관심 종목 추가 및 조회 테스트"""
     # GIVEN
-    user = create_test_user(db)
+    user = create_test_user(real_db)
     symbol = "005930"
     
     # WHEN: 관심 종목 추가

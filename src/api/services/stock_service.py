@@ -19,7 +19,7 @@ class StockService:
     def __init__(self):
         self.last_checked_rcept_no = None
 
-    def check_and_notify_new_disclosures(self, db: Session):
+    async def check_and_notify_new_disclosures(self, db: Session):
         """
         DART에서 최신 공시를 확인하고, 구독자에게 알림을 보낸 후 관리자에게 요약 리포트를 보냅니다.
         """
@@ -36,7 +36,7 @@ class StockService:
             # 2. 최신 공시 조회
             logger.info("DART에서 최신 공시 목록을 조회합니다.")
             try:
-                latest_disclosures = dart_get_disclosures(corp_code=None, max_count=15)
+                latest_disclosures = await dart_get_disclosures(corp_code=None, max_count=15)
                 logger.debug(f"DART에서 조회된 최신 공시 수: {len(latest_disclosures)}")
             except DartApiError as e:
                 if e.status_code == '020': # 사용한도 초과
@@ -231,14 +231,14 @@ class StockService:
             {"symbol": "373220", "name": "LG에너지솔루션", "market": "KOSPI"}
         ]
 
-    def update_stock_master(self, db: Session, use_dart: bool = True):
+    async def update_stock_master(self, db: Session, use_dart: bool = True):
         """DART API를 통해 전체 종목 마스터를 DB에 업데이트/삽입합니다."""
         logger.debug(f"update_stock_master 호출: use_dart={use_dart}")
         updated_count = 0
         try:
             if use_dart:
                 try:
-                    all_stocks = dart_get_all_stocks()
+                    all_stocks = await dart_get_all_stocks()
                     logger.debug(f"DART API에서 {len(all_stocks)}개 종목 데이터 가져옴.")
                 except DartApiError as e:
                     logger.error(f"DART API 연동 실패: {e}", exc_info=True)
@@ -278,7 +278,7 @@ class StockService:
             logger.error(f"종목마스터 갱신 실패: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    def update_daily_prices(self, db: Session):
+    async def update_daily_prices(self, db: Session):
         """30일치 일별시세 갱신 (모든 종목 대상)"""
         logger.debug("update_daily_prices 호출.")
         try:
@@ -338,7 +338,7 @@ class StockService:
         logger.debug(f"_update_prices_for_stocks 함수 종료. 총 {updated_count}개 데이터 처리.")
         return {"success": True, "updated_count": updated_count, "errors": error_stocks}
 
-    def update_disclosures(self, db: Session, corp_code: str = None, stock_code: str = None, stock_name: str = "", max_count: int = 10):
+    async def update_disclosures(self, db: Session, corp_code: str = None, stock_code: str = None, stock_name: str = "", max_count: int = 10):
         """
         DART API에서 해당 기업의 최근 공시를 조회하여 DB에 신규 공시만 저장(upsert)
         corp_code가 None이면 전체 공시를 조회합니다.
@@ -352,7 +352,7 @@ class StockService:
                 logger.info("전체 공시 조회를 위해 DART API를 호출합니다.")
                 # 최근 1일치 공시만 가져오도록 설정 (과도한 호출 방지)
                 today = datetime.datetime.now().strftime("%Y%m%d")
-                disclosures = dart_get_disclosures(corp_code=None, bgn_de=today, end_de=today, max_count=1000) # max_count 늘림
+                disclosures = await dart_get_disclosures(corp_code=None, bgn_de=today, end_de=today, max_count=1000) # max_count 늘림
                 logger.debug(f"DART에서 {len(disclosures)}개 전체 공시 데이터 가져옴.")
 
                 # 가져온 공시에 stock_code가 없는 경우 매핑
@@ -366,7 +366,7 @@ class StockService:
                             logger.warning(f"corp_code {item.get('corp_code')}에 해당하는 stock_code를 찾을 수 없습니다. 공시 건너뜀: {item.get('report_nm')}")
                             continue # stock_code를 찾을 수 없으면 건너뜀
             else: # 특정 종목 공시 조회
-                disclosures = dart_get_disclosures(corp_code, max_count=max_count)
+                disclosures = await dart_get_disclosures(corp_code, max_count=max_count)
                 logger.debug(f"DART에서 {len(disclosures)}개 특정 종목 공시 데이터 가져옴.")
             
             for item in disclosures:

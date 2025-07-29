@@ -27,8 +27,9 @@
 ├── scripts/           # 운영/관리용 쉘 스크립트
 ├── docs/              # 프로젝트 문서 (개발 계획, 요구사항 등)
 ├── logs/              # 서비스 운영 로그
-├── .env.dev           # 개발 환경 변수 파일
-├── settings.env.example # 환경 변수 예시
+├── .env.development   # 개발 환경 변수 파일 (APP_ENV=development)
+├── .env.production    # 운영 환경 변수 파일 (APP_ENV=production)
+├── settings.env.example # 환경 변수 예시 (템플릿)
 ├── requirements.txt   # Python 의존성 목록
 ├── docker-compose.yml # Docker 서비스 통합 관리
 └── README.md          # 프로젝트 개요 및 안내
@@ -46,25 +47,33 @@
    pip install -r requirements.txt
    ```
 4. 환경 변수 설정
-   - `settings.env.example` 파일을 복사해 `.env` 또는 `settings.env`로 사용하고 실제 값을 입력
-   - `.env.dev` 파일을 프로젝트 루트에 아래와 같이 생성
-     ```env
-     DB_HOST=db
-     DB_PORT=5432
-     DB_USER=postgres
-     DB_PASSWORD=postgres
-     DB_NAME=service_db
-     ```
-   - 운영 환경은 .env.prod 등 별도 파일로 관리 가능
+   - `settings.env.example` 파일을 복사하여 `.env.development` 또는 `.env.production`으로 사용하고 실제 값을 입력하세요.
+   - `APP_ENV` 변수를 `development` 또는 `production`으로 설정하여 환경을 구분합니다.
+
 5. Docker 기반 통합 실행
+   - `dev_ops.sh` 스크립트를 사용하여 빌드 및 실행할 수 있습니다.
    ```bash
-   docker compose --env-file .env.dev up -d
+   # 개발 환경으로 빌드 및 실행 (기본값)
+   ./dev_ops.sh build
+
+   # 또는 명시적으로 개발 환경 지정
+   ./dev_ops.sh build development
+
+   # 운영 환경으로 빌드 및 실행
+   ./dev_ops.sh build production
    ```
-   - 운영 환경은
-     ```bash
-     docker compose --env-file .env.prod up -d
-     ```
-   - 환경별로 env 파일만 바꿔주면 됩니다.
+
+   (참고: `docker compose up -d` 명령어를 직접 사용하는 경우, `APP_ENV` 환경 변수를 설정해야 합니다.)
+   ```bash
+   # 개발 환경으로 실행 (기본값)
+   docker compose up -d
+
+   # 또는 명시적으로 개발 환경 지정
+   APP_ENV=development docker compose up -d
+
+   # 운영 환경으로 실행
+   APP_ENV=production docker compose up -d
+   ```
 
 ## 주요 서비스 및 명령어
 - **API 서비스:** FastAPI 기반 RESTful 엔드포인트 제공
@@ -97,28 +106,30 @@
 
 ## 테스트 실행 방법
 
-### 1. 컨테이너 기반 전체 테스트 (권장)
-- API/봇 서비스 모두 Docker 컨테이너에서 자동화 테스트 가능
+### 1. 스크립트를 이용한 컨테이너 기반 전체 테스트 (권장)
+- `dev_ops.sh` 스크립트를 사용하여 API/봇 서비스의 테스트를 실행할 수 있습니다.
 
 ```bash
-# API 테스트 (컨테이너 내부)
-docker compose --env-file .env.dev run --rm api pytest -v --disable-warnings --capture=no src/api/tests/
+# API 테스트
+./dev_ops.sh api-test
 
-# 봇 테스트 (컨테이너 내부, 무한대기 방지 타임아웃 적용)
-docker compose --env-file .env.dev run --rm bot pytest -v --disable-warnings --capture=no src/bot/tests/
+# 봇 테스트
+./dev_ops.sh bot-test
+
+# 모든 테스트 실행
+./dev_ops.sh all-test
 ```
 
 ### 2. 로컬 환경에서 직접 테스트
 - 가상환경 활성화 후 아래 명령 실행
+- 로컬 환경 테스트 시에도 `APP_ENV` 환경 변수를 설정해야 합니다.
 
 ```bash
 # API 테스트
-PYTHONPATH=. pytest -v --disable-warnings src/api/tests/
+APP_ENV=development PYTHONPATH=. pytest -v --disable-warnings src/api/tests/
 
-# 봇 테스트 (환경변수 필요)
-export TELEGRAM_BOT_TOKEN=dummy
-export TELEGRAM_ADMIN_ID=dummy
-PYTHONPATH=. pytest -v --disable-warnings src/bot/tests/
+# 봇 테스트
+APP_ENV=development PYTHONPATH=. pytest -v --disable-warnings src/bot/tests/
 ```
 
 ### 3. 테스트 관련 참고사항

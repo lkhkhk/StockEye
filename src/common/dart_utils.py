@@ -1,10 +1,16 @@
+import os
+import logging
+import httpx
+import io
+import zipfile
+import lxml.etree as etree
 from typing import List, Dict, Optional
 from src.common.http_client import session
+from src.common.exceptions import DartApiError
 
-# 전역 세션 객체 생성 (모든 DART API 호출에 재사용)
-session = session
+logger = logging.getLogger(__name__)
 
-def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
+async def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
     """
     DART OpenAPI에서 CORPCODE.xml을 다운로드하여 전체 상장종목(6자리 종목코드 포함) 리스트 반환
     반환 예시: [{"symbol": "005930", "name": "삼성전자", "corp_code": "00126380"}, ...]
@@ -16,9 +22,9 @@ def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
     url = f"https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key={api_key}"
     try:
         # session 객체를 사용하여 요청
-        resp = session.get(url, timeout=60)
+        resp = await session.get(url, timeout=60)
         resp.raise_for_status()
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         logger.error(f"DART CORPCODE.xml 요청 실패: {e}", exc_info=True)
         raise DartApiError(f"DART API 요청 실패: {e}") from e
     zip_content = resp.content
@@ -44,7 +50,7 @@ def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, str]]:
                 corp_data.append(data)
     return corp_data
 
-def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bgn_de: Optional[str] = None, end_de: Optional[str] = None, max_count: int = 10) -> List[Dict[str, str]]:
+async def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bgn_de: Optional[str] = None, end_de: Optional[str] = None, max_count: int = 10) -> List[Dict[str, str]]:
     """
     DART OpenAPI에서 특정 기업의 공시(list.json)를 조회하여 최근 공시 목록을 반환
     반환 예시: [{"corp_name": ..., "report_nm": ..., "rcept_no": ..., "rcept_dt": ..., ...}, ...]
@@ -70,10 +76,10 @@ def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bgn_de: 
 
     try:
         # session 객체를 사용하여 요청
-        resp = session.get(url, params=params, timeout=10)
+        resp = await session.get(url, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         logger.error(f"DART 공시 조회 API 요청 실패 (corp_code: {corp_code}): {e}", exc_info=True)
         raise DartApiError(f"DART API 요청 실패: {e}") from e
 

@@ -10,28 +10,28 @@ class TestPredictionHistoryRouter:
     """예측 이력 라우터 테스트"""
 
     @pytest.fixture(autouse=True)
-    def setup_test_data(self, db: Session):
-        # 각 테스트 메서드 실행 전에 PredictionHistory 테이블을 비웁니다.
-        db.query(PredictionHistory).delete()
-        db.commit()
+    def setup_test_data(self, real_db: Session):
+        # 각 테스트 메서드 실행 전에 PredictionHistory 테이블을 비웁니다。
+        real_db.query(PredictionHistory).delete()
+        real_db.commit()
 
-    def _create_prediction_history(self, db: Session, user_id: int, symbol: str, prediction: str, created_at: datetime):
+    def _create_prediction_history(self, real_db: Session, user_id: int, symbol: str, prediction: str, created_at: datetime):
         history = PredictionHistory(
             user_id=user_id,
             symbol=symbol,
             prediction=prediction,
             created_at=created_at
         )
-        db.add(history)
-        db.flush() # commit 대신 flush 사용
-        db.refresh(history) # ID가 할당되었는지 확인
+        real_db.add(history)
+        real_db.flush() # commit 대신 flush 사용
+        real_db.refresh(history) # ID가 할당되었는지 확인
         return history
 
-    def test_get_prediction_history_success(self, client: TestClient, db: Session):
+    def test_get_prediction_history_success(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
-        self._create_prediction_history(db, user.id, "005930", "상승", datetime(2023, 1, 1, 10, 0, 0))
-        self._create_prediction_history(db, user.id, "035720", "하락", datetime(2023, 1, 2, 11, 0, 0))
+        user = create_test_user(real_db)
+        self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1, 10, 0, 0))
+        self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2, 11, 0, 0))
 
         # When
         response = client.get(f"/prediction/history/{user.id}")
@@ -53,9 +53,9 @@ class TestPredictionHistoryRouter:
         assert response.status_code == 200 # 현재 라우터는 user_id가 없어도 200을 반환하고 빈 리스트를 줍니다.
         assert response.json() == {"history": [], "total_count": 0, "page": 1, "page_size": 10}
 
-    def test_get_prediction_history_empty(self, client: TestClient, db: Session):
+    def test_get_prediction_history_empty(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
 
         # When
         response = client.get(f"/prediction/history/{user.id}")
@@ -64,11 +64,11 @@ class TestPredictionHistoryRouter:
         assert response.status_code == 200
         assert response.json() == {"history": [], "total_count": 0, "page": 1, "page_size": 10}
 
-    def test_get_prediction_history_pagination(self, client: TestClient, db: Session):
+    def test_get_prediction_history_pagination(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
+        user = create_test_user(real_db)
         for i in range(1, 15):
-            self._create_prediction_history(db, user.id, f"SYMBOL{i:02d}", "상승", datetime(2023, 1, i, 10, 0, 0))
+            self._create_prediction_history(real_db, user.id, f"SYMBOL{i:02d}", "상승", datetime(2023, 1, i, 10, 0, 0))
 
         # When: Page 1, size 5
         response = client.get(f"/prediction/history/{user.id}?page=1&page_size=5")
@@ -94,12 +94,12 @@ class TestPredictionHistoryRouter:
         assert len(data["history"]) == 5
         assert data["history"][0]["symbol"] == "SYMBOL09"
 
-    def test_get_prediction_history_filter_by_symbol(self, client: TestClient, db: Session):
+    def test_get_prediction_history_filter_by_symbol(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
-        self._create_prediction_history(db, user.id, "005930", "상승", datetime(2023, 1, 1))
-        self._create_prediction_history(db, user.id, "035720", "하락", datetime(2023, 1, 2))
-        self._create_prediction_history(db, user.id, "005930", "유지", datetime(2023, 1, 3))
+        user = create_test_user(real_db)
+        self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1))
+        self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2))
+        self._create_prediction_history(real_db, user.id, "005930", "유지", datetime(2023, 1, 3))
 
         # When
         response = client.get(f"/prediction/history/{user.id}?symbol=005930")
@@ -111,12 +111,12 @@ class TestPredictionHistoryRouter:
         assert len(data["history"]) == 2
         assert all(r["symbol"] == "005930" for r in data["history"])
 
-    def test_get_prediction_history_filter_by_prediction(self, client: TestClient, db: Session):
+    def test_get_prediction_history_filter_by_prediction(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
-        self._create_prediction_history(db, user.id, "005930", "상승", datetime(2023, 1, 1))
-        self._create_prediction_history(db, user.id, "035720", "하락", datetime(2023, 1, 2))
-        self._create_prediction_history(db, user.id, "005930", "유지", datetime(2023, 1, 3))
+        user = create_test_user(real_db)
+        self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1))
+        self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2))
+        self._create_prediction_history(real_db, user.id, "005930", "유지", datetime(2023, 1, 3))
 
         # When
         response = client.get(f"/prediction/history/{user.id}?prediction=상승")
@@ -128,12 +128,12 @@ class TestPredictionHistoryRouter:
         assert len(data["history"]) == 1
         assert data["history"][0]["prediction"] == "상승"
 
-    def test_get_prediction_history_filter_by_symbol_and_prediction(self, client: TestClient, db: Session):
+    def test_get_prediction_history_filter_by_symbol_and_prediction(self, client: TestClient, real_db: Session):
         # Given
-        user = create_test_user(db)
-        self._create_prediction_history(db, user.id, "005930", "상승", datetime(2023, 1, 1))
-        self._create_prediction_history(db, user.id, "035720", "하락", datetime(2023, 1, 2))
-        self._create_prediction_history(db, user.id, "005930", "유지", datetime(2023, 1, 3))
+        user = create_test_user(real_db)
+        self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1))
+        self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2))
+        self._create_prediction_history(real_db, user.id, "005930", "유지", datetime(2023, 1, 3))
 
         # When
         response = client.get(f"/prediction/history/{user.id}?symbol=005930&prediction=유지")

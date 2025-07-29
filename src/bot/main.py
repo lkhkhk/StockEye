@@ -50,12 +50,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"메시지 수신: {update.message.text}")
 
+APP_ENV = os.getenv("APP_ENV", "development")
+
+# 로깅 레벨 설정
+if APP_ENV == "production":
+    LOGGING_LEVEL = logging.INFO
+elif APP_ENV == "test":
+    LOGGING_LEVEL = logging.DEBUG # 테스트 환경에서도 상세 로그를 위해 DEBUG 유지
+else: # development
+    LOGGING_LEVEL = logging.DEBUG
+
 # 로깅 설정 (stdout + 파일)
 LOG_DIR = "/logs"
 LOG_FILE = os.path.join(LOG_DIR, "bot.log")
 os.makedirs(LOG_DIR, exist_ok=True)
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=LOGGING_LEVEL, # APP_ENV에 따라 동적으로 설정
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),

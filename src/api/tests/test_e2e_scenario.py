@@ -13,7 +13,7 @@ from src.api.models.prediction_history import PredictionHistory
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.models.system_config import SystemConfig
 
-def test_e2e_scenario(client: TestClient, db):
+def test_e2e_scenario(client: TestClient, real_db):
     """
     사용자 생성부터 watchlist 추가, 알림 설정, 예측, 거래까지 이어지는 E2E 시나리오
     """
@@ -40,7 +40,7 @@ def test_e2e_scenario(client: TestClient, db):
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # 사용자 정보 가져오기
-    db_user = db.query(User).filter(User.username == username).first()
+    db_user = real_db.query(User).filter(User.username == username).first()
     assert db_user is not None
     user_id = db_user.id
     

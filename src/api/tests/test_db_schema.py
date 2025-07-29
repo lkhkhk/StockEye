@@ -15,11 +15,11 @@ def import_all_models():
 import_all_models()
 
 @pytest.fixture(scope="function")
-def db_inspector(db: Session):
-    return inspect(db.bind)
+def db_inspector(real_db: Session):
+    return inspect(real_db.bind)
 
 @pytest.mark.parametrize("model_class", [mapper.class_ for mapper in Base.registry.mappers])
-def test_model_and_db_schema_match(db: Session, db_inspector, model_class):
+def test_model_and_db_schema_match(real_db: Session, db_inspector, model_class):
     if not hasattr(model_class, "__tablename__"):
         pytest.skip(f"Skipping {model_class.__name__}: Not a SQLAlchemy model with a __tablename__.")
         return

@@ -1,5 +1,8 @@
+from src.api.models.user import User
+from passlib.hash import bcrypt
 import pytest
 from fastapi.testclient import TestClient
+from fastapi import HTTPException, status # 추가
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from src.api.main import app
@@ -10,6 +13,10 @@ import os
 import psycopg2 # Import psycopg2
 from src.api.services.user_service import UserService
 from src.api.services.price_alert_service import PriceAlertService
+from src.api.auth.jwt_handler import get_current_active_admin_user # 추가
+from src.api.tests.helpers import create_test_user # 추가
+
+from src.api.tests import helpers
 
 # 환경 변수 로드
 DB_USER = os.getenv("DB_USER", "postgres")
@@ -73,6 +80,9 @@ def setup_test_database():
     Base.metadata.create_all(bind=engine)
     print("All tables created successfully.")
 
+    # Set JWT_SECRET_KEY for testing
+    os.environ["JWT_SECRET_KEY"] = "test-secret-key"
+
     # 다음번 call 될 때까지 대기상태로 있다가 call 되면 계속 실행된다.
     print("Test database setup complete. Ready to run tests.")
     yield # Run tests
@@ -100,34 +110,47 @@ def setup_test_database():
         if conn:
             conn.close()
 
+from unittest.mock import MagicMock
+
 @pytest.fixture(scope="function")
 def db():
-    """함수 범위의 DB 세션을 생성하고, 각 테스트 종료 후 데이터를 롤백합니다."""
-    connection = engine.connect()
-    transaction = connection.begin()
-    db = TestingSessionLocal(bind=connection)
-
-    # 각 테스트 시작 전에 테이블을 재생성
-    Base.metadata.drop_all(bind=connection)
-    Base.metadata.create_all(bind=connection)
-
-    yield db
-
-    db.close()
-    transaction.rollback() # 트랜잭션 롤백 (데이터 삭제는 유지)
-    connection.close()
-
+    mock_db = MagicMock(spec=Session)
+    mock_db.query.return_value.filter.return_value.first.return_value = None
+    mock_db.query.return_value.filter.return_value.all.return_value = []
+    mock_db.query.return_value.all.return_value = []
+    mock_db.query.return_value.count.return_value = 0
+    return mock_db
 
 @pytest.fixture(scope="function")
-def client(db):
+def real_db():
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+from src.api.tests.helpers import create_test_user # 추가
+
+from src.api.auth.jwt_handler import get_current_active_user, get_current_active_admin_user # 추가
+
+@pytest.fixture(scope="function")
+def client(real_db, test_user, admin_test_user):
     """함수 범위의 TestClient를 생성하고, get_db 의존성을 오버라이드합니다."""
     def override_get_db():
-        yield db
+        yield real_db
 
     app.dependency_overrides[get_db] = override_get_db
+
     with TestClient(app) as c:
         yield c
-    del app.dependency_overrides[get_db]
+    try:
+        del app.dependency_overrides[get_db]
+        del app.dependency_overrides[get_current_active_user]
+        del app.dependency_overrides[get_current_active_admin_user]
+    except KeyError:
+        pass
+
 
 @pytest.fixture(scope="function")
 def user_service():
@@ -136,7 +159,7 @@ def user_service():
 import random
 
 @pytest.fixture(name="test_user")
-def test_user_fixture(db: Session):
+def test_user_fixture(real_db: Session):
     user_service = UserService()
     telegram_id = random.randint(1000000000, 9999999999) # 고유한 텔레그램 ID 생성
     user_data = {
@@ -145,7 +168,12 @@ def test_user_fixture(db: Session):
         "first_name": "Test",
         "last_name": "User"
     }
-    user = user_service.create_user_from_telegram(db, **user_data)
+    user = user_service.create_user_from_telegram(real_db, **user_data)
+    yield user
+
+@pytest.fixture(name="admin_test_user")
+def admin_test_user_fixture(real_db: Session):
+    user = create_test_user(real_db, role="admin")
     yield user
 
 @pytest.fixture(scope="function")
