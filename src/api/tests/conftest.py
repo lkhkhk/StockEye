@@ -161,6 +161,20 @@ def user_service():
     return UserService()
 
 import random
+from src.api.models.stock_master import StockMaster # StockMaster 모델 임포트
+
+@pytest.fixture(name="test_stock_master")
+def test_stock_master_fixture(real_db: Session):
+    stock_data = [
+        {"symbol": "005930", "name": "삼성전자", "market": "KOSPI", "corp_code": "0012345"},
+        {"symbol": "035720", "name": "카카오", "market": "KOSPI", "corp_code": "0067890"},
+        {"symbol": "000660", "name": "SK하이닉스", "market": "KOSPI", "corp_code": "0013456"},
+    ]
+    for data in stock_data:
+        stock = StockMaster(**data)
+        real_db.add(stock)
+    real_db.commit()
+    yield
 
 @pytest.fixture(name="test_user")
 def test_user_fixture(real_db: Session):
