@@ -8,6 +8,8 @@ from src.api.schemas.watchlist import WatchlistCreate, Watchlist as WatchlistSch
 from pydantic import BaseModel
 from typing import List
 import logging
+from src.api.services.user_service import UserService # UserService 임포트
+from src.api.services.stock_service import StockService # StockService 임포트
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +19,25 @@ class WatchListItem(BaseModel):
     user_id: int
     symbol: str
 
+def get_user_service():
+    return UserService()
+
+def get_stock_service():
+    return StockService()
+
 @router.post("/add", tags=["watchlist"])
-def add_to_watchlist(item: WatchListItem, db: Session = Depends(get_db)):
+def add_to_watchlist(item: WatchListItem, db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), stock_service: StockService = Depends(get_stock_service)):
     logger.debug(f"관심 종목 추가 시도: user_id={item.user_id}, symbol={item.symbol}")
+    # 사용자 존재 여부 확인
+    user = user_service.get_user_by_id(db, item.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 종목 존재 여부 확인
+    stock = stock_service.get_stock_by_symbol(item.symbol, db)
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not found")
+
     exists = db.query(Watchlist).filter(Watchlist.user_id == item.user_id, Watchlist.symbol == item.symbol).first()
     if exists:
         logger.info(f"관심 종목 이미 존재: user_id={item.user_id}, symbol={item.symbol}")
@@ -35,16 +53,26 @@ def add_to_watchlist(item: WatchListItem, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"관심 종목 추가 실패: {e}")
 
 @router.get("/get/{user_id}", tags=["watchlist"])
-def get_watchlist(user_id: int, db: Session = Depends(get_db)):
+def get_watchlist(user_id: int, db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)):
     logger.debug(f"관심 종목 조회 시도: user_id={user_id}")
+    # 사용자 존재 여부 확인
+    user = user_service.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     rows = db.query(Watchlist).filter(Watchlist.user_id == user_id).all()
     watchlist_symbols = [row.symbol for row in rows]
     logger.debug(f"관심 종목 조회 성공: user_id={user_id}, {len(watchlist_symbols)}개 종목.")
     return {"watchlist": watchlist_symbols}
 
 @router.post("/remove", tags=["watchlist"])
-def remove_from_watchlist(item: WatchListItem, db: Session = Depends(get_db)):
+def remove_from_watchlist(item: WatchListItem, db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)):
     logger.debug(f"관심 종목 제거 시도: user_id={item.user_id}, symbol={item.symbol}")
+    # 사용자 존재 여부 확인
+    user = user_service.get_user_by_id(db, item.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     row = db.query(Watchlist).filter(Watchlist.user_id == item.user_id, Watchlist.symbol == item.symbol).first()
     if not row:
         logger.info(f"관심 목록에 없는 종목: user_id={item.user_id}, symbol={item.symbol}")
