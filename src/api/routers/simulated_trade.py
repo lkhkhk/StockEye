@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from src.api.schemas.simulated_trade import SimulatedTradeItem
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.services.stock_service import StockService
+from src.api.services.user_service import UserService # UserService 임포트
 from src.common.db_connector import get_db
 from datetime import datetime
 import logging
@@ -16,11 +17,19 @@ router = APIRouter(prefix="/trade", tags=["simulated_trade"])
 def get_stock_service():
     return StockService()
 
+def get_user_service(): # UserService 의존성 주입 함수 추가
+    return UserService()
+
 @router.post("/simulate", tags=["simulated_trade"])
-def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service)):
+def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service), user_service: UserService = Depends(get_user_service)): # user_service 추가
     """모의매매 기록"""
     logger.debug(f"simulate_trade 호출: user_id={trade.user_id}, symbol={trade.symbol}, trade_type={trade.trade_type}")
     try:
+        # 사용자 존재 여부 확인
+        user = user_service.get_user_by_id(db, trade.user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
         # 현재가 조회 (실제로는 외부 API에서 가져옴)
         current_price = stock_service.get_current_price_and_change(trade.symbol, db)['current_price']
         logger.debug(f"종목 {trade.symbol}의 현재가: {current_price}")
@@ -55,15 +64,22 @@ def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db), sto
         db.commit()
         logger.info(f"모의매매 기록 완료: user_id={trade.user_id}, symbol={trade.symbol}, trade_type={trade.trade_type}")
         return {"message": "모의매매 기록 완료"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
         db.rollback()
         logger.error(f"모의매매 기록 실패: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"모의매매 기록 실패: {str(e)}")
 
 @router.get("/history/{user_id}", tags=["simulated_trade"])
-def get_trade_history(user_id: int, db: Session = Depends(get_db)):
+def get_trade_history(user_id: int, db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)): # user_service 추가
     """사용자의 모의매매 이력 조회"""
     logger.debug(f"get_trade_history 호출: user_id={user_id}")
+    # 사용자 존재 여부 확인
+    user = user_service.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     trades = db.query(SimulatedTrade).filter(
         SimulatedTrade.user_id == user_id
     ).order_by(SimulatedTrade.trade_time.desc()).all()

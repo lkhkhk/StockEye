@@ -1,11 +1,11 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
 
 class SimulatedTradeItem(BaseModel):
     user_id: int
     symbol: str
-    trade_type: str  # 'buy' or 'sell'
+    trade_type: Literal["buy", "sell"]  # 'buy' or 'sell'
     price: float
     quantity: int
 
