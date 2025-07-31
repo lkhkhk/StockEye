@@ -53,10 +53,10 @@ def delete_alert(alert_id: int, current_user: User = Depends(get_current_active_
     return {"result": True}
 
 @router.post("/test_notify")
-def test_notify_api(chat_id: int = Body(...), text: str = Body("[API 테스트] 공시 알림 테스트 메시지입니다.")):
+async def test_notify_api(chat_id: int = Body(...), text: str = Body("[API 테스트] 공시 알림 테스트 메시지입니다.")):
     """(관리자 테스트용) chat_id로 텔레그램 메시지 전송 테스트"""
     try:
-        send_telegram_message(chat_id, text)
+        await send_telegram_message(chat_id, text)
         return {"result": True, "message": "메시지 전송 성공"}
     except Exception as e:
         return {"result": False, "error": str(e)} 
