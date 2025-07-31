@@ -2,9 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from uuid import uuid4
+import random # random 임포트 추가
 
 from src.api.tests.helpers import create_test_user, get_auth_headers
 from src.api.schemas.user import UserRead, Token
+from src.api.services.user_service import UserService # UserService 임포트
 
 # --- Registration Tests ---
 
@@ -104,7 +106,8 @@ def test_update_me_success(client: TestClient, real_db: Session):
 
 def test_telegram_register_new_user(client: TestClient, real_db: Session):
     # Given
-    telegram_id = 123456789012345678 # A large integer within BIGINT range
+    telegram_id = random.randint(1000000000, 9999999999) # 고유한 텔레그램 ID 생성
+    user_service = UserService() # UserService 인스턴스 생성
 
     # When
     response = client.put("/users/telegram_register", json={"telegram_id": telegram_id, "is_active": True})
@@ -114,22 +117,29 @@ def test_telegram_register_new_user(client: TestClient, real_db: Session):
     data = response.json()
     assert data["result"] == "registered"
     assert data["is_active"] is True
+    # DB에서 사용자 조회하여 telegram_id가 올바르게 설정되었는지 확인
+    registered_user = user_service.get_user_by_telegram_id(real_db, telegram_id)
+    assert registered_user is not None
+    assert registered_user.telegram_id == telegram_id
 
 def test_telegram_register_update_user(client: TestClient, real_db: Session):
     # Given
-    user = create_test_user(real_db)
-    new_telegram_id = 987654321098765432 # Another large integer within BIGINT range
-    user.telegram_id = new_telegram_id
-    real_db.commit()
+    telegram_id = random.randint(1000000000, 9999999999) # 고유한 텔레그램 ID 생성
+    user = create_test_user(real_db, telegram_id=telegram_id) # telegram_id를 가진 사용자 생성
+    user_service = UserService() # UserService 인스턴스 생성
 
     # When
-    response = client.put("/users/telegram_register", json={"telegram_id": new_telegram_id, "is_active": False})
+    response = client.put("/users/telegram_register", json={"telegram_id": telegram_id, "is_active": False})
 
     # Then
     assert response.status_code == 200
     data = response.json()
     assert data["result"] == "updated"
     assert data["is_active"] is False
+    # DB에서 사용자 조회하여 is_active가 올바르게 업데이트되었는지 확인
+    updated_user = user_service.get_user_by_telegram_id(real_db, telegram_id)
+    assert updated_user is not None
+    assert updated_user.is_active is False
 
 # --- Stats and Admin Tests ---
 
@@ -144,9 +154,9 @@ def test_get_user_stats_success(client: TestClient, real_db: Session):
     assert response.status_code == 200
     data = response.json()
     assert data["user_id"] == user.id
-    assert "trade_count" in data
+    assert data["trade_count"] == 0 # 초기에는 0
 
-def test_get_user_stats_not_found(client: TestClient, real_db: Session): # Add real_db fixture
+def test_get_user_stats_not_found(client: TestClient):
     # When
     response = client.get("/users/stats/99999")
     # Then
