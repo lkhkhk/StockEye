@@ -465,7 +465,7 @@ class TestAdminRouter:
 
         # Mock job object
         mock_job = MagicMock(id="test_job", args=(), kwargs={})
-        mock_job.func.side_effect = Exception("Job execution failed")  # 예외 발생 설정
+        mock_job.func = MagicMock(side_effect=Exception("Job execution failed"))  # 예외 발생 설정
         mock_scheduler.get_job.return_value = mock_job  # get_job이 mock_job 반환
 
         # WHEN
@@ -522,12 +522,6 @@ class TestAdminRouter:
         """관리자로 공시 확인 잡 실행 중 오류 발생 시 500 Internal Server Error 응답 테스트"""
         admin_user, headers = admin_user_and_headers
         mock_get_current_active_admin_user.return_value = admin_user
-
-        # get_current_active_admin_user 의존성을 Mocking된 관리자 사용자로 오버라이드
-        def override_get_current_active_admin_user():
-            return admin_user
-
-        app.dependency_overrides[get_current_active_admin_user] = override_get_current_active_admin_user
 
         mock_check_and_notify.side_effect = Exception("Disclosure check failed")
         response = client.post("/admin/trigger/check_disclosures", headers=headers)

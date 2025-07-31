@@ -7,7 +7,7 @@ from src.api.auth.jwt_handler import create_access_token, get_password_hash
 from datetime import timedelta
 
 
-def create_test_user(db: Session, role: str = "user", is_active: bool = True) -> User:
+def create_test_user(db: Session, role: str = "user", is_active: bool = True, telegram_id: int = None) -> User:
     """테스트용 사용자를 생성하고 DB에 저장합니다."""
     unique_id = uuid4().hex
     hashed_password = get_password_hash("password123") # 테스트용 비밀번호 해싱
@@ -16,7 +16,8 @@ def create_test_user(db: Session, role: str = "user", is_active: bool = True) ->
         email=f"test_{unique_id}@example.com",
         password_hash=hashed_password,
         role=role,
-        is_active=is_active
+        is_active=is_active,
+        telegram_id=telegram_id
     )
     db.add(user)
     db.commit()

@@ -80,6 +80,15 @@ class PriceAlertService:
             logger.debug(f"가격 알림 없음: user_id={user_id}, symbol={symbol}")
         return alert
 
+    def get_alert_by_id(self, db: Session, alert_id: int) -> Optional[PriceAlert]:
+        logger.debug(f"ID({alert_id})로 가격 알림 조회 시도.")
+        alert = db.query(PriceAlert).filter(PriceAlert.id == alert_id).first()
+        if alert:
+            logger.debug(f"가격 알림 발견: alert_id={alert.id}")
+        else:
+            logger.debug(f"가격 알림 없음: alert_id={alert_id}")
+        return alert
+
     def get_all_active_alerts(self, db: Session) -> List[PriceAlert]:
         """모든 활성화된 가격 알림을 조회합니다."""
         logger.debug("모든 활성화된 가격 알림 조회 시도.")

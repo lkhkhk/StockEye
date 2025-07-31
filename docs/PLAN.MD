@@ -76,6 +76,7 @@
     -   [x] **테스트 환경 안정화**: `test_toggle_disclosure_alert_existing_alert_on_to_off` 테스트 실패 문제 해결 (서비스 의존성 모의를 통한 테스트 격리 확보)
     -   [x] **봇 서비스 테스트 안정화**: `bot` 핸들러의 비동기 함수 호출 시 `await` 키워드 누락 문제 해결 (`src/bot/tests/test_bot_natural.py` 테스트 통과)
 -   [x] **`GEMINI.md` 지침 업데이트**: `replace` 도구 사용 지침 및 `docker compose exec` 문제 해결 지침 보강
+-   [x] **`api` 서비스 `bot_router` 엔드포인트 구현 및 테스트**: `alert/list`, `alert/remove`, `alert/deactivate` 엔드포인트 구현 및 테스트 완료
 -   [ ] **(TODO)** `api` 서비스의 모든 라우터에 대한 테스트 코드 작성
     -   [ ] **(TODO)** `bot` 서비스의 모든 핸들러에 대한 테스트 코드 작성
     -   [ ] **(TODO)** `common` 모듈에 대한 단위 테스트 코드 작성

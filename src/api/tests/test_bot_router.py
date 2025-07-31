@@ -6,6 +6,8 @@ from src.api.models.price_alert import PriceAlert
 from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate
 from src.api.services.user_service import UserService
 from src.api.services.price_alert_service import PriceAlertService
+from src.common.db_connector import get_db # get_db 임포트 추가
+from src.api.routers.bot_router import get_user_service, get_price_alert_service # 의존성 주입 함수 임포트
 import pytest
 from unittest.mock import patch
 from datetime import datetime
@@ -13,7 +15,7 @@ from datetime import datetime
 client = TestClient(app)
 
 @pytest.fixture(name="test_price_alert")
-def test_price_alert_fixture(db: Session, test_user: User):
+def test_price_alert_fixture(real_db: Session, test_user: User):
     price_alert_service = PriceAlertService()
     alert_data = PriceAlertCreate(
         symbol="AAPL",
@@ -21,10 +23,32 @@ def test_price_alert_fixture(db: Session, test_user: User):
         condition="above",
         notify_on_disclosure=False
     )
-    alert = price_alert_service.create_alert(db, user_id=test_user.id, alert=alert_data)
+    alert = price_alert_service.create_alert(real_db, user_id=test_user.id, alert=alert_data)
     yield alert
 
-def test_toggle_disclosure_alert_new_user_and_alert(db: Session, test_user: User):
+@pytest.fixture(scope="function", autouse=True)
+def override_bot_router_dependencies(real_db: Session):
+    def override_get_db():
+        yield real_db
+
+    def override_get_user_service():
+        return UserService()
+
+    def override_get_price_alert_service():
+        return PriceAlertService()
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_user_service] = override_get_user_service
+    app.dependency_overrides[get_price_alert_service] = override_get_price_alert_service
+
+    yield
+
+    del app.dependency_overrides[get_db]
+    del app.dependency_overrides[get_user_service]
+    del app.dependency_overrides[get_price_alert_service]
+
+
+def test_toggle_disclosure_alert_new_user_and_alert(real_db: Session, test_user: User):
     telegram_id = test_user.telegram_id
     symbol = "GOOG"
     response = client.post(
@@ -38,7 +62,7 @@ def test_toggle_disclosure_alert_new_user_and_alert(db: Session, test_user: User
     assert data["target_price"] is None
     assert data["condition"] is None
 
-def test_toggle_disclosure_alert_existing_user_new_alert(db: Session, test_user: User):
+def test_toggle_disclosure_alert_existing_user_new_alert(real_db: Session, test_user: User):
     symbol = "MSFT"
     response = client.post(
         "/bot/alert/disclosure-toggle",
@@ -53,18 +77,22 @@ def test_toggle_disclosure_alert_existing_user_new_alert(db: Session, test_user:
 @patch('src.api.services.price_alert_service.PriceAlertService.get_alert_by_user_and_symbol')
 @patch('src.api.services.price_alert_service.PriceAlertService.update_alert')
 def test_toggle_disclosure_alert_existing_alert_on_to_off(
-    mock_update_alert, mock_get_alert_by_user_and_symbol, mock_get_user_by_telegram_id, db: Session, test_user: User
+    mock_update_alert, mock_get_alert_by_user_and_symbol, mock_get_user_by_telegram_id, real_db: Session, test_user: User
 ):
-    # Create an initial alert with notify_on_disclosure=True directly in DB
-    initial_alert = PriceAlert(
-            user_id=test_user.id,
+    # Create an initial alert with notify_on_disclosure=True using the service
+    price_alert_service = PriceAlertService()
+    initial_alert = price_alert_service.create_alert(
+        real_db,
+        user_id=test_user.id,
+        alert=PriceAlertCreate(
             symbol="AMZN",
-            is_active=True,
-            notify_on_disclosure=True
+            notify_on_disclosure=True,
+            is_active=True
         )
-    db.add(initial_alert)
-    db.flush()
-    db.refresh(initial_alert)
+    )
+    # db.add(initial_alert)
+    # db.flush()
+    # db.refresh(initial_alert)
     assert initial_alert.notify_on_disclosure is True
 
     # Mock the service calls
@@ -89,19 +117,23 @@ def test_toggle_disclosure_alert_existing_alert_on_to_off(
     assert data["symbol"] == initial_alert.symbol
     assert data["notify_on_disclosure"] is False
 
-def test_toggle_disclosure_alert_existing_alert_off_to_on(db: Session, test_user: User):
-    # Create an initial alert with notify_on_disclosure=False directly in DB
-    initial_alert = PriceAlert(
+def test_toggle_disclosure_alert_existing_alert_off_to_on(real_db: Session, test_user: User):
+    # Create an initial alert with notify_on_disclosure=False using the service
+    price_alert_service = PriceAlertService()
+    initial_alert = price_alert_service.create_alert(
+        real_db,
         user_id=test_user.id,
-        symbol="NFLX",
-        target_price=10.0,
-        condition="above",
-        notify_on_disclosure=False,
-        is_active=True
+        alert=PriceAlertCreate(
+            symbol="NFLX",
+            target_price=10.0,
+            condition="above",
+            notify_on_disclosure=False,
+            is_active=True
+        )
     )
-    db.add(initial_alert)
-    db.flush()
-    db.refresh(initial_alert)
+    # db.add(initial_alert)
+    # db.flush()
+    # db.refresh(initial_alert)
     assert initial_alert.notify_on_disclosure is False
 
     response = client.post(
@@ -114,7 +146,7 @@ def test_toggle_disclosure_alert_existing_alert_off_to_on(db: Session, test_user
     assert data["notify_on_disclosure"] is True
     assert data["is_active"] is True
 
-def test_set_price_alert_existing_user_new_alert(db: Session, test_user: User):
+def test_set_price_alert_existing_user_new_alert(real_db: Session, test_user: User):
     symbol = "NVDA"
     target_price = 1000.0
     condition = "below"
@@ -135,18 +167,22 @@ def test_set_price_alert_existing_user_new_alert(db: Session, test_user: User):
     assert data["condition"] == condition
     assert data["is_active"] is True
 
-def test_set_price_alert_existing_alert_update(db: Session, test_user: User):
-    # Create an initial price alert directly in DB
-    initial_alert = PriceAlert(
+def test_set_price_alert_existing_alert_update(real_db: Session, test_user: User):
+    # Create an initial price alert using the service
+    price_alert_service = PriceAlertService()
+    initial_alert = price_alert_service.create_alert(
+        real_db,
         user_id=test_user.id,
-        symbol="GOOGL",
-        target_price=100.0,
-        condition="above",
-        is_active=False
+        alert=PriceAlertCreate(
+            symbol="GOOGL",
+            target_price=100.0,
+            condition="above",
+            is_active=False
+        )
     )
-    db.add(initial_alert)
-    db.flush()
-    db.refresh(initial_alert)
+    # db.add(initial_alert)
+    # db.flush()
+    # db.refresh(initial_alert)
     assert initial_alert.target_price == 100.0
     assert initial_alert.condition == "above"
     assert initial_alert.is_active is False
@@ -173,17 +209,21 @@ def test_set_price_alert_existing_alert_update(db: Session, test_user: User):
     assert data["repeat_interval"] == new_repeat_interval
     assert data["is_active"] is True # Should become active
 
-def test_set_price_alert_only_updates_price_related_fields(db: Session, test_user: User):
-    # Create an initial alert with disclosure notification enabled directly in DB
-    initial_alert = PriceAlert(
+def test_set_price_alert_only_updates_price_related_fields(real_db: Session, test_user: User):
+    # Create an initial alert with disclosure notification enabled using the service
+    price_alert_service = PriceAlertService()
+    initial_alert = price_alert_service.create_alert(
+        real_db,
         user_id=test_user.id,
-        symbol="FB",
-        notify_on_disclosure=True,
-        is_active=True
+        alert=PriceAlertCreate(
+            symbol="FB",
+            notify_on_disclosure=True,
+            is_active=True
+        )
     )
-    db.add(initial_alert)
-    db.flush()
-    db.refresh(initial_alert)
+    # db.add(initial_alert)
+    # db.flush()
+    # db.refresh(initial_alert)
     assert initial_alert.notify_on_disclosure is True
     assert initial_alert.target_price is None
 
@@ -205,3 +245,118 @@ def test_set_price_alert_only_updates_price_related_fields(db: Session, test_use
     assert data["target_price"] == new_target_price
     assert data["condition"] == new_condition
     assert data["notify_on_disclosure"] is True # Should remain True
+
+def test_list_alerts_for_bot(real_db: Session, test_user: User):
+    # Create some alerts for the test user
+    price_alert_service = PriceAlertService()
+    alert1 = price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="AAPL", target_price=150.0, condition="above"))
+    alert2 = price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="GOOG", notify_on_disclosure=True))
+
+    response = client.post(
+        "/bot/alert/list",
+        json={"telegram_user_id": test_user.telegram_id}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert any(a["symbol"] == "AAPL" for a in data)
+    assert any(a["symbol"] == "GOOG" for a in data)
+
+def test_list_alerts_for_bot_no_alerts(real_db: Session, test_user: User):
+    response = client.post(
+        "/bot/alert/list",
+        json={"telegram_user_id": test_user.telegram_id}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 0
+
+def test_list_alerts_for_bot_user_not_found(real_db: Session):
+    response = client.post(
+        "/bot/alert/list",
+        json={"telegram_user_id": 99999, "alert_id": 0}
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+def test_remove_alert_for_bot_success(real_db: Session, test_user: User):
+    price_alert_service = PriceAlertService()
+    alert = price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="TEST", target_price=100.0, condition="above"))
+
+    response = client.post(
+        "/bot/alert/remove",
+        json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id}
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == f"Alert {alert.id} removed successfully"
+
+    # Verify alert is deleted from DB
+    deleted_alert = price_alert_service.get_alert_by_id(real_db, alert.id)
+    assert deleted_alert is None
+
+def test_remove_alert_for_bot_not_found(real_db: Session, test_user: User):
+    response = client.post(
+        "/bot/alert/remove",
+        json={"telegram_user_id": test_user.telegram_id, "alert_id": 99999}
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Alert not found or not authorized"
+
+def test_remove_alert_for_bot_unauthorized(real_db: Session, test_user: User):
+    # Create an alert for a different user
+    other_user = User(telegram_id=9876543210, username="other_user", password_hash="hashed_password")
+    real_db.add(other_user)
+    real_db.commit()
+    real_db.refresh(other_user)
+
+    price_alert_service = PriceAlertService()
+    alert = price_alert_service.create_alert(real_db, user_id=other_user.id, alert=PriceAlertCreate(symbol="OTHER", target_price=50.0, condition="below"))
+
+    response = client.post(
+        "/bot/alert/remove",
+        json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id}
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Alert not found or not authorized"
+
+def test_deactivate_alert_for_bot_success(real_db: Session, test_user: User):
+    price_alert_service = PriceAlertService()
+    alert = price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="DEACT", target_price=200.0, condition="above", is_active=True))
+
+    response = client.post(
+        "/bot/alert/deactivate",
+        json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == alert.id
+    assert data["is_active"] is False
+
+    # Verify alert is deactivated in DB
+    deactivated_alert = price_alert_service.get_alert_by_id(real_db, alert.id)
+    assert deactivated_alert.is_active is False
+
+def test_deactivate_alert_for_bot_not_found(real_db: Session, test_user: User):
+    response = client.post(
+        "/bot/alert/deactivate",
+        json={"telegram_user_id": test_user.telegram_id, "alert_id": 99999}
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Alert not found or not authorized"
+
+def test_deactivate_alert_for_bot_unauthorized(real_db: Session, test_user: User):
+    # Create an alert for a different user
+    other_user = User(telegram_id=1234567890, username="another_user", password_hash="hashed_password")
+    real_db.add(other_user)
+    real_db.commit()
+    real_db.refresh(other_user)
+
+    price_alert_service = PriceAlertService()
+    alert = price_alert_service.create_alert(real_db, user_id=other_user.id, alert=PriceAlertCreate(symbol="ANOTHER", target_price=300.0, condition="below", is_active=True))
+
+    response = client.post(
+        "/bot/alert/deactivate",
+        json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id}
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Alert not found or not authorized"

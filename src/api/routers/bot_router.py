@@ -111,4 +111,48 @@ def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db: Sessi
         )
         return price_alert_service.create_alert(db, user_id=user.id, alert=create_data)
 
-# (manage_alert_for_bot 함수는 가격 알림 설정 시 재사용 예정) 
+class BotAlertIdRequest(BaseModel):
+    telegram_user_id: int
+    alert_id: int
+
+class BotListAlertsRequest(BaseModel):
+    telegram_user_id: int
+
+@router.post("/alert/list", response_model=list[PriceAlertRead])
+def list_alerts_for_bot(request: BotListAlertsRequest = Body(...), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), price_alert_service: PriceAlertService = Depends(get_price_alert_service)):
+    """(봇 전용) 사용자의 모든 알림 목록을 조회합니다."""
+    user = user_service.get_user_by_telegram_id(db, request.telegram_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    alerts = price_alert_service.get_alerts(db, user_id=user.id)
+    return alerts
+
+@router.post("/alert/remove", response_model=dict)
+def remove_alert_for_bot(request: BotAlertIdRequest = Body(...), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), price_alert_service: PriceAlertService = Depends(get_price_alert_service)):
+    """(봇 전용) 특정 알림을 삭제합니다."""
+    user = user_service.get_user_by_telegram_id(db, request.telegram_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    alert = price_alert_service.get_alert_by_id(db, request.alert_id)
+    if not alert or alert.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Alert not found or not authorized")
+    
+    price_alert_service.delete_alert(db, request.alert_id)
+    return {"message": f"Alert {request.alert_id} removed successfully"}
+
+@router.post("/alert/deactivate", response_model=PriceAlertRead)
+def deactivate_alert_for_bot(request: BotAlertIdRequest = Body(...), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), price_alert_service: PriceAlertService = Depends(get_price_alert_service)):
+    """(봇 전용) 특정 알림을 비활성화합니다."""
+    user = user_service.get_user_by_telegram_id(db, request.telegram_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    alert = price_alert_service.get_alert_by_id(db, request.alert_id)
+    if not alert or alert.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Alert not found or not authorized")
+    
+    update_data = PriceAlertUpdate(is_active=False)
+    updated_alert = price_alert_service.update_alert(db, request.alert_id, update_data)
+    return updated_alert 
