@@ -162,19 +162,36 @@ def user_service():
 
 import random
 from src.api.models.stock_master import StockMaster # StockMaster 모델 임포트
+from src.api.services.stock_service import StockService # StockService 임포트
 
-@pytest.fixture(name="test_stock_master")
-def test_stock_master_fixture(real_db: Session):
-    stock_data = [
-        {"symbol": "005930", "name": "삼성전자", "market": "KOSPI", "corp_code": "0012345"},
-        {"symbol": "035720", "name": "카카오", "market": "KOSPI", "corp_code": "0067890"},
-        {"symbol": "000660", "name": "SK하이닉스", "market": "KOSPI", "corp_code": "0013456"},
+@pytest.fixture(name="test_stock_master_data")
+def test_stock_master_data_fixture(real_db: Session):
+    """테스트용 종목 마스터 데이터를 생성하고 DB에 저장합니다."""
+    stocks = [
+        StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="00126380"),
+        StockMaster(symbol="035720", name="카카오", market="KOSPI", corp_code="00130000"),
+        StockMaster(symbol="000660", name="SK하이닉스", market="KOSPI", corp_code="00164779"),
     ]
-    for data in stock_data:
-        stock = StockMaster(**data)
-        real_db.add(stock)
+    real_db.add_all(stocks)
     real_db.commit()
-    yield
+    for stock in stocks:
+        real_db.refresh(stock)
+    yield stocks
+
+@pytest.fixture(scope="function", autouse=True)
+def override_stock_service_dependencies():
+    """StockService 의존성을 오버라이드하여 테스트용 Mock 객체를 주입합니다."""
+    mock_stock_service = MagicMock(spec=StockService)
+    # 필요한 메서드들을 Mocking
+    mock_stock_service.get_current_price_and_change.return_value = {"current_price": 100000, "change": 1000, "change_rate": 1.0}
+
+    from src.api.routers.stock_master import get_stock_service
+    from src.api.main import app
+    app.dependency_overrides[get_stock_service] = lambda: mock_stock_service
+
+    yield mock_stock_service
+
+    del app.dependency_overrides[get_stock_service]
 
 @pytest.fixture(name="test_user")
 def test_user_fixture(real_db: Session):
