@@ -82,7 +82,8 @@
 -   [x] **`api` 서비스 `bot_router` 엔드포인트 구현 및 테스트**: `alert/list`, `alert/remove`, `alert/deactivate` 엔드포인트 구현 및 테스트 완료
 -   [ ] **(TODO)** `api` 서비스의 모든 라우터에 대한 테스트 코드 작성
     -   [ ] **(TODO)** `bot` 서비스의 모든 핸들러에 대한 테스트 코드 작성
-    -   [ ] **(TODO)** `common` 모듈에 대한 단위 테스트 코드 작성
+    -   [x] **`common` 모듈에 대한 단위 테스트 코드 작성**
+    -   [x] `src/common/db_connector.py` 테스트 커버리지 개선
 -   [ ] **(TODO) CI/CD 파이프라인 구축**
     -   [ ] GitHub Actions 연동
     -   [ ] `main` 브랜치 push 시 자동 테스트 및 Docker 이미지 빌드/배포

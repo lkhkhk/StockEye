@@ -23,6 +23,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+import contextlib # contextlib 임포트 추가
+
+@contextlib.contextmanager # 데코레이터 추가
 def get_db():
     db = SessionLocal()
     try:
