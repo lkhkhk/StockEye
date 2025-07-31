@@ -12,6 +12,9 @@ def test_predict_price(client: TestClient):
     assert response.status_code == 200 
     assert "symbol" in response.json()
     assert "prediction" in response.json()
+    assert "confidence" in response.json()
+    assert isinstance(response.json()["confidence"], int)
+    assert 0 <= response.json()["confidence"] <= 100
 
 
 def test_predict_invalid_symbol(client: TestClient):
@@ -20,6 +23,8 @@ def test_predict_invalid_symbol(client: TestClient):
     assert response.status_code == 200
     data = response.json()
     assert data["prediction"] == "예측 불가"
+    assert "confidence" in data
+    assert data["confidence"] == 0
 
 
 def test_predict_missing_symbol(client: TestClient):

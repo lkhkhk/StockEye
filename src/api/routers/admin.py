@@ -1,13 +1,14 @@
 # 각 엔드포인트에 tags를 명시적으로 지정해야 Swagger UI에서 그룹화가 100% 보장됩니다.
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
 from src.api.models.user import User
 from src.api.auth.jwt_handler import get_current_active_admin_user
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.models.prediction_history import PredictionHistory
+from src.api.models.stock_master import StockMaster
 from src.api.services.stock_service import StockService
 from datetime import datetime
 # from src.api.main import scheduler # scheduler 객체 직접 import
@@ -65,76 +66,50 @@ async def update_daily_price(db: Session = Depends(get_db), stock_service: Stock
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
 
 @router.post("/update_disclosure", tags=["admin"])
-async def update_disclosure(db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service), code_or_name: str = '', user: User = Depends(get_current_active_admin_user)):
-    """종목코드(6자리), 종목명, 또는 corp_code(8자리)로 공시 이력 수동 갱신. 미입력시 전체."""
+async def update_disclosure(db: Session = Depends(get_db), 
+                          stock_service: StockService = Depends(get_stock_service), 
+                          code_or_name: str = Query(default=None, description="종목코드(6자리), 종목명, 또는 corp_code(8자리)로 공시 이력 수동 갱신. 미입력시 전체."), 
+                          user: User = Depends(get_current_active_admin_user)):
+    """공시 이력 수동 갱신. 미입력 시 전체 최신 공시를 갱신합니다."""
     try:
-        # Debugging: 인증된 사용자 정보 출력
-        logger.info(f"Authenticated User: {user}")
-        logger.info(f"User Role: {user.role}")
-
-        print("Authenticated User: ", user)
-        print("User Role: ", user.role)
-
-        results = []
-        from src.api.models.stock_master import StockMaster
+        # 전체 종목 최신 공시 갱신
         if not code_or_name:
-            # 전체 종목 대상
-            stocks = db.query(StockMaster).filter(StockMaster.corp_code != None, StockMaster.corp_code != '').all()
-            for stock in stocks:
-                try:
-                    res = await stock_service.update_disclosures(db, corp_code=stock.corp_code, stock_code=stock.symbol, stock_name=stock.name)
-                    results.append({"stock_code": stock.symbol, "corp_code": stock.corp_code, **res})
-                except Exception as e:
-                    results.append({"stock_code": stock.symbol, "corp_code": stock.corp_code, "success": False, "error": str(e)})
-            total_inserted = sum(r.get('inserted', 0) for r in results if r.get('success'))
-            total_skipped = sum(r.get('skipped', 0) for r in results if r.get('success'))
-            total_errors = [r.get('error') for r in results if not r.get('success')]
-            return {
-                "message": f"전체 종목 공시 이력 갱신 완료: {total_inserted}건 추가, {total_skipped}건 중복, {len(total_errors)}건 에러",
-                "inserted": total_inserted,
-                "skipped": total_skipped,
-                "errors": total_errors
-            }
+            logger.info(f"관리자({user.username}) 요청: 전체 종목 공시 이력 갱신 시작")
+            result = await stock_service.update_disclosures_for_all_stocks(db)
+            if result["success"]:
+                return {
+                    "message": f"전체 종목 공시 이력 갱신 완료: {result.get('inserted', 0)}건 추가, {result.get('skipped', 0)}건 중복",
+                    "inserted": result.get('inserted', 0),
+                    "skipped": result.get('skipped', 0),
+                    "errors": result.get('errors', [])
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"전체 공시 갱신 실패: {result['errors']}")
+
         # 단일 종목 처리
-        code = code_or_name.strip()
-        corp_code = None
-        stock_code = None
-        stock_name = None
-        # 8자리 숫자면 corp_code로 간주
-        if code.isdigit() and len(code) == 8:
-            corp_code = code
-            stock = db.query(StockMaster).filter(StockMaster.corp_code == corp_code).first()
-            if stock:
-                stock_code = stock.symbol
-                stock_name = stock.name
-        # 6자리 숫자면 종목코드
-        elif code.isdigit() and len(code) == 6:
-            stock = db.query(StockMaster).filter(StockMaster.symbol == code).first()
-            if stock:
-                corp_code = stock.corp_code
-                stock_code = stock.symbol
-                stock_name = stock.name
-        # 그 외는 종목명(부분일치)
-        else:
-            stock = db.query(StockMaster).filter(StockMaster.name.like(f"%{code}%")).first()
-            if stock:
-                corp_code = stock.corp_code
-                stock_code = stock.symbol
-                stock_name = stock.name
-        if not corp_code:
-            raise HTTPException(status_code=404, detail="해당 입력에 대한 corp_code(고유번호)를 찾을 수 없습니다. 마스터 갱신 후 다시 시도하세요.")
-        result = await stock_service.update_disclosures(db, corp_code=corp_code, stock_code=stock_code or '', stock_name=stock_name or '')
+        logger.info(f"관리자({user.username}) 요청: 단일 종목({code_or_name}) 공시 이력 갱신 시작")
+        stock_to_update = db.query(StockMaster).filter(
+            (StockMaster.symbol == code_or_name) | 
+            (StockMaster.name.like(f"%{code_or_name}%")) | 
+            (StockMaster.corp_code == code_or_name)
+        ).first()
+
+        if not stock_to_update or not stock_to_update.corp_code:
+            raise HTTPException(status_code=404, detail=f"'{code_or_name}'에 해당하는 종목을 찾을 수 없거나 DART 고유번호(corp_code)가 없습니다.")
+
+        result = await stock_service.update_disclosures(db, corp_code=stock_to_update.corp_code, stock_code=stock_to_update.symbol, stock_name=stock_to_update.name)
         if result['success']:
             return {
-                "message": f"공시 이력 갱신 완료: {result['inserted']}건 추가, {result['skipped']}건 중복",
+                "message": f"'{stock_to_update.name}' 공시 이력 갱신 완료: {result['inserted']}건 추가, {result['skipped']}건 중복",
                 "inserted": result['inserted'],
                 "skipped": result['skipped'],
                 "errors": result['errors']
             }
         else:
             raise HTTPException(status_code=500, detail=f"공시 갱신 실패: {result['errors']}")
-    except HTTPException as e: # Catch HTTPException specifically
-        raise e # Re-raise HTTPException
+
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"/admin/update_disclosure 서버 오류: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")

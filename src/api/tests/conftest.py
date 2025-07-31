@@ -124,6 +124,10 @@ def db():
 @pytest.fixture(scope="function")
 def real_db():
     session = TestingSessionLocal()
+    # 각 테스트 시작 전에 모든 테이블의 데이터 삭제
+    for table in reversed(Base.metadata.sorted_tables):
+        session.execute(table.delete())
+    session.commit()
     try:
         yield session
     finally:

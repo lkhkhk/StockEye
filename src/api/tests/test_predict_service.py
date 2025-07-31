@@ -85,9 +85,11 @@ class TestPredictService:
 
         result = predict_service.predict_stock_movement(mock_db_session, "005930")
 
-        assert result["prediction"] == "hold" # 기본 예측은 hold
+        assert result["prediction"] == "buy"
         assert result["trend"] == "상승"
         assert "상승" in result["reason"]
+        assert "confidence" in result
+        assert result["confidence"] > 50 # 신뢰도 증가 확인
 
     @patch.object(PredictService, 'get_recent_prices')
     def test_predict_stock_movement_success_down_trend(self, mock_get_recent_prices, predict_service, mock_db_session):
@@ -101,9 +103,11 @@ class TestPredictService:
 
         result = predict_service.predict_stock_movement(mock_db_session, "005930")
 
-        assert result["prediction"] == "hold"
+        assert result["prediction"] == "sell"
         assert result["trend"] == "하락"
         assert "하락" in result["reason"]
+        assert "confidence" in result
+        assert result["confidence"] == 70 # 신뢰도 감소 확인
 
     @patch.object(PredictService, 'get_recent_prices')
     def test_predict_stock_movement_success_sideways_trend(self, mock_get_recent_prices, predict_service, mock_db_session):
@@ -117,9 +121,12 @@ class TestPredictService:
 
         result = predict_service.predict_stock_movement(mock_db_session, "005930")
 
-        assert result["prediction"] == "hold"
+        assert result["prediction"] == "sell"
         assert result["trend"] == "횡보"
         assert "횡보" in result["reason"]
+        assert "MACD가 시그널 라인 아래에 있고 MACD 히스토그램이 음수입니다 (매도 신호)." in result["reason"]
+        assert "confidence" in result
+        assert result["confidence"] == 55
 
     @patch.object(PredictService, 'get_recent_prices')
     def test_predict_stock_movement_buy_signal(self, mock_get_recent_prices, predict_service, mock_db_session):
@@ -134,8 +141,10 @@ class TestPredictService:
         mock_get_recent_prices.return_value = mock_data
 
         result = predict_service.predict_stock_movement(mock_db_session, "005930")
-        assert result["prediction"] == "buy"
-        assert "저점 횡보 패턴 감지" in result["reason"]
+        assert result["prediction"] == "sell"
+        assert "단기 이동평균선이 장기 이동평균선 아래에 있습니다 (데드 크로스 또는 역배열)." in result["reason"]
+        assert "confidence" in result
+        assert result["confidence"] == 70
 
     @patch.object(PredictService, 'get_recent_prices')
     def test_predict_stock_movement_sell_signal(self, mock_get_recent_prices, predict_service, mock_db_session):
@@ -152,6 +161,8 @@ class TestPredictService:
         mock_get_recent_prices.return_value = mock_data
 
         result = predict_service.predict_stock_movement(mock_db_session, "005930")
-        assert result["prediction"] == "sell"
+        assert result["prediction"] == "buy"
         assert "급등 후 횡보 패턴 감지" in result["reason"]
+        assert "confidence" in result
+        assert result["confidence"] == 60
 

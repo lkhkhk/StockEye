@@ -8,7 +8,11 @@ from src.api.models.system_config import SystemConfig
 from src.api.models.stock_master import StockMaster
 from src.api.models.user import User
 from src.api.models.price_alert import PriceAlert
+from src.api.models.daily_price import DailyPrice
 import os
+from pandas_datareader import data
+import pandas as pd
+from unittest.mock import ANY
 
 class TestStockService:
     @pytest.fixture
@@ -215,4 +219,156 @@ class TestStockService:
                     mock_dart_get_disclosures.assert_called_once()
                     mock_send_telegram_message.assert_not_called()
                     assert "신규 공시 확인 및 알림 작업 중 예상치 못한 오류 발생" in caplog.text
-                    mock_real_db_rollback.assert_called_once() # 롤백이 호출되어야 함 
+                    assert real_db.rollback.called # 롤백이 호출되어야 함 
+
+    @pytest.mark.asyncio
+    @patch('src.api.services.stock_service.data.get_data_yahoo')
+    async def test_update_daily_prices_success(self, mock_get_data_yahoo, stock_service, real_db):
+        """일별시세 갱신 성공 테스트"""
+        # GIVEN
+        # StockMaster에 테스트용 종목 추가
+        stock1 = StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="0012345")
+        stock2 = StockMaster(symbol="000660", name="SK하이닉스", market="KOSPI", corp_code="0012346")
+        real_db.add_all([stock1, stock2])
+        real_db.commit()
+
+        # pandas_datareader.data.get_data_yahoo 모의
+        mock_df_samsung = pd.DataFrame({
+            'Open': [70000, 71000],
+            'High': [72000, 73000],
+            'Low': [69000, 70000],
+            'Close': [71500, 72500],
+            'Volume': [1000000, 1200000]
+        }, index=pd.to_datetime(['2025-07-29', '2025-07-28']))
+        mock_df_skhynix = pd.DataFrame({
+            'Open': [100000, 101000],
+            'High': [102000, 103000],
+            'Low': [99000, 100000],
+            'Close': [101500, 102500],
+            'Volume': [500000, 600000]
+        }, index=pd.to_datetime(['2025-07-29', '2025-07-28']))
+
+        mock_get_data_yahoo.side_effect = [mock_df_samsung, mock_df_skhynix]
+
+        # WHEN
+        result = await stock_service.update_daily_prices(real_db)
+
+        # THEN
+        assert result["success"] == True
+        assert result["updated_count"] == 4 # 각 종목당 2일치 데이터
+        assert len(result["errors"]) == 0
+
+        # DB에 데이터가 올바르게 저장되었는지 확인
+        daily_prices = real_db.query(DailyPrice).all()
+        assert len(daily_prices) == 4
+
+        samsung_prices = [p for p in daily_prices if p.symbol == "005930"]
+        assert len(samsung_prices) == 2
+        assert samsung_prices[0].close == 71500 # 최신 날짜 데이터
+        assert samsung_prices[1].close == 72500
+
+        skhynix_prices = [p for p in daily_prices if p.symbol == "000660"]
+        assert len(skhynix_prices) == 2
+        assert skhynix_prices[0].close == 101500
+        assert skhynix_prices[1].close == 102500
+
+        mock_get_data_yahoo.assert_any_call("005930.KS", start=ANY, end=ANY)
+        mock_get_data_yahoo.assert_any_call("000660.KS", start=ANY, end=ANY)
+
+    @pytest.mark.asyncio
+    @patch('src.api.services.stock_service.data.get_data_yahoo')
+    async def test_update_daily_prices_no_data(self, mock_get_data_yahoo, stock_service, real_db):
+        """일별시세 갱신 시 데이터가 없는 경우 테스트"""
+        # GIVEN
+        stock1 = StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="0012345")
+        real_db.add(stock1)
+        real_db.commit()
+
+        mock_get_data_yahoo.return_value = pd.DataFrame() # 빈 DataFrame 반환
+
+        # WHEN
+        result = await stock_service.update_daily_prices(real_db)
+
+        # THEN
+        assert result["success"] == True
+        assert result["updated_count"] == 0
+        assert "005930" in result["errors"] # 에러 종목에 포함되는지 확인
+
+        daily_prices = real_db.query(DailyPrice).all()
+        assert len(daily_prices) == 0 # 데이터가 추가되지 않아야 함
+
+    @pytest.mark.asyncio
+    @patch('src.api.services.stock_service.data.get_data_yahoo')
+    async def test_update_daily_prices_api_error(self, mock_get_data_yahoo, stock_service, real_db):
+        """일별시세 갱신 시 API 오류 발생 테스트"""
+        # GIVEN
+        stock1 = StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="0012345")
+        real_db.add(stock1)
+        real_db.commit()
+
+        mock_get_data_yahoo.side_effect = Exception("API Error")
+
+        # WHEN
+        result = await stock_service.update_daily_prices(real_db)
+
+        # THEN
+        assert result["success"] == True # 개별 종목 오류는 전체 성공으로 처리
+        assert result["updated_count"] == 0
+        assert "005930" in result["errors"] # 에러 종목에 포함되는지 확인
+
+        daily_prices = real_db.query(DailyPrice).all()
+        assert len(daily_prices) == 0 # 데이터가 추가되지 않아야 함
+
+    @pytest.mark.asyncio
+    async def test_get_current_price_and_change(self, stock_service, real_db):
+        """현재가 및 등락률 조회 테스트"""
+        # GIVEN
+        # 테스트용 DailyPrice 데이터 추가
+        stock_symbol = "005930"
+        today = datetime.now().date()
+        yesterday = today - timedelta(days=1)
+
+        price_today = DailyPrice(symbol=stock_symbol, date=today, open=70000, high=71000, low=69000, close=71500, volume=1000000)
+        price_yesterday = DailyPrice(symbol=stock_symbol, date=yesterday, open=69000, high=70000, low=68000, close=70500, volume=900000)
+        real_db.add_all([price_today, price_yesterday])
+        real_db.commit()
+
+        # WHEN
+        result = stock_service.get_current_price_and_change(stock_symbol, real_db)
+
+        # THEN
+        assert result["current_price"] == 71500
+        assert result["change"] == 1000
+        assert abs(result["change_rate"] - (1000 / 70500) * 100) < 0.001 # 부동소수점 비교
+
+    @pytest.mark.asyncio
+    async def test_get_current_price_and_change_no_data(self, stock_service, real_db):
+        """현재가 및 등락률 조회 시 데이터가 없는 경우 테스트"""
+        # GIVEN: 데이터 없음
+
+        # WHEN
+        result = stock_service.get_current_price_and_change("NONEXIST", real_db)
+
+        # THEN
+        assert result["current_price"] is None
+        assert result["change"] is None
+        assert result["change_rate"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_price_and_change_only_one_day_data(self, stock_service, real_db):
+        """현재가 및 등락률 조회 시 하루치 데이터만 있는 경우 테스트"""
+        # GIVEN
+        stock_symbol = "005930"
+        today = datetime.now().date()
+
+        price_today = DailyPrice(symbol=stock_symbol, date=today, open=70000, high=71000, low=69000, close=71500, volume=1000000)
+        real_db.add(price_today)
+        real_db.commit()
+
+        # WHEN
+        result = stock_service.get_current_price_and_change(stock_symbol, real_db)
+
+        # THEN
+        assert result["current_price"] == 71500
+        assert result["change"] is None
+        assert result["change_rate"] is None 

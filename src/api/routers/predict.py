@@ -43,5 +43,6 @@ def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db)
     return StockPredictionResponse(
         symbol=symbol,
         prediction=result["prediction"],
+        confidence=result["confidence"],
         reason=result["reason"]
     ) 

@@ -8,4 +8,5 @@ class StockPredictionRequest(BaseModel):
 class StockPredictionResponse(BaseModel):
     symbol: str
     prediction: str
+    confidence: int
     reason: str 

@@ -14,3 +14,4 @@ pytest
 pytest-asyncio
 python-multipart
 lxml
+pandas_datareader

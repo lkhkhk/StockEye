@@ -65,6 +65,9 @@ def test_e2e_scenario(client: TestClient, real_db):
     response = client.post("/predict", json={"symbol": symbol, "user_id": user_id}, headers=headers)
     assert response.status_code == 200
     assert response.json()["symbol"] == symbol
+    assert "confidence" in response.json()
+    assert isinstance(response.json()["confidence"], int)
+    assert 0 <= response.json()["confidence"] <= 100
 
     # 5. 모의 거래
     response = client.post("/trade/simulate", json={

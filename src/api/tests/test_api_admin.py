@@ -180,42 +180,29 @@ class TestAdminRouter:
         assert response.status_code == 403
         del app.dependency_overrides[get_current_active_admin_user]
 
-    @patch('src.api.routers.admin.StockService.update_disclosures')
-    def test_update_disclosure_all_success_as_admin(self, mock_update_disclosures, client: TestClient, admin_user_and_headers, db: Session):
+    @patch('src.api.services.stock_service.StockService.update_disclosures_for_all_stocks')
+    def test_update_disclosure_all_success_as_admin(self, mock_update_all_disclosures, client: TestClient, admin_user_and_headers, db: Session):
         """관리자로 전체 종목 공시 갱신 성공 테스트"""
-        admin_user, _ = admin_user_and_headers
-        
-        def override_get_current_active_admin_user():
-            return admin_user
+        admin_user, headers = admin_user_and_headers
+        app.dependency_overrides[get_current_active_admin_user] = lambda: admin_user
 
-        app.dependency_overrides[get_current_active_admin_user] = override_get_current_active_admin_user
+        # Mock the service call
+        mock_update_all_disclosures.return_value = {"success": True, "inserted": 8, "skipped": 3, "errors": []}
 
-        mock_stock1 = MagicMock(symbol="005930", name="삼성전자", corp_code="0012345")
-        mock_stock2 = MagicMock(symbol="035720", name="카카오", corp_code="0067890")
+        # Make the request
+        response = client.post("/admin/update_disclosure", headers=headers)
 
-        def mock_get_db():
-            mock_db_session = MagicMock(spec=Session)
-            mock_db_session.query.return_value.filter.return_value.all.return_value = [mock_stock1, mock_stock2]
-            yield mock_db_session
-
-        app.dependency_overrides[get_db] = mock_get_db
-
-        mock_update_disclosures.side_effect = [
-            {"success": True, "inserted": 5, "skipped": 2, "errors": []},
-            {"success": True, "inserted": 3, "skipped": 1, "errors": []}
-        ]
-        response = client.post("/admin/update_disclosure")
+        # Assert the response
         assert response.status_code == 200
         data = response.json()
         assert data["message"].startswith("전체 종목 공시 이력 갱신 완료")
         assert data["inserted"] == 8
         assert data["skipped"] == 3
         assert data["errors"] == []
-        assert mock_update_disclosures.call_count == 2
-        
-        # Clean up the override
+        mock_update_all_disclosures.assert_called_once()
+
+        # Clean up
         del app.dependency_overrides[get_current_active_admin_user]
-        del app.dependency_overrides[get_db]
 
     @patch('src.api.routers.admin.StockService.update_disclosures')
     def test_update_disclosure_single_by_symbol_success_as_admin(self, mock_update_disclosures, client: TestClient, admin_user_and_headers, db: Session):
@@ -242,7 +229,7 @@ class TestAdminRouter:
         response = client.post("/admin/update_disclosure", params={"code_or_name": "005930"})
         assert response.status_code == 200
         data = response.json()
-        assert data["message"].startswith("공시 이력 갱신 완료")
+        assert data["message"] == "'삼성전자' 공시 이력 갱신 완료: 10건 추가, 3건 중복"
         assert data["inserted"] == 10
         assert data["skipped"] == 3
         from unittest.mock import ANY
@@ -276,7 +263,7 @@ class TestAdminRouter:
         response = client.post("/admin/update_disclosure", params={"code_or_name": "카카오"})
         assert response.status_code == 200
         data = response.json()
-        assert data["message"].startswith("공시 이력 갱신 완료")
+        assert data["message"] == "'카카오' 공시 이력 갱신 완료: 7건 추가, 1건 중복"
         assert data["inserted"] == 7
         assert data["skipped"] == 1
         from unittest.mock import ANY
@@ -307,7 +294,7 @@ class TestAdminRouter:
         response = client.post("/admin/update_disclosure", params={"code_or_name": "0013456"}, headers=headers)
         assert response.status_code == 200
         data = response.json()
-        assert data["message"].startswith("공시 이력 갱신 완료")
+        assert data["message"] == "'SK하이닉스' 공시 이력 갱신 완료: 12건 추가, 0건 중복"
         assert data["inserted"] == 12
         assert data["skipped"] == 0
         from unittest.mock import ANY
@@ -330,7 +317,7 @@ class TestAdminRouter:
 
         response = client.post("/admin/update_disclosure", params={"code_or_name": "NONEXIST"}, headers=headers)
         assert response.status_code == 404
-        assert "해당 입력에 대한 corp_code(고유번호)를 찾을 수 없습니다." in response.json()["detail"]
+        assert "'NONEXIST'에 해당하는 종목을 찾을 수 없거나 DART 고유번호(corp_code)가 없습니다." in response.json()["detail"]
 
         del app.dependency_overrides[get_db]
         del app.dependency_overrides[get_current_active_admin_user]

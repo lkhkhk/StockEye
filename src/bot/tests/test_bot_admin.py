@@ -14,7 +14,8 @@ from src.bot.handlers.admin import (
     admin_show_schedules, 
     admin_trigger_job, 
     admin_stats,
-    API_URL
+    API_URL,
+    ADMIN_ID  # ADMIN_ID import 추가
 )
 
 class TestBotAdmin:
@@ -36,6 +37,10 @@ class TestBotAdmin:
         # effective_chat.id 모의
         self.update.effective_chat = MagicMock(spec=Chat)
         self.update.effective_chat.id = 12345 # 테스트용 chat_id
+
+        # effective_user.id 모의 (관리자 권한 테스트용)
+        self.update.effective_user = MagicMock(spec=User)
+        self.update.effective_user.id = ADMIN_ID
 
     @pytest.mark.asyncio
     @patch('src.bot.handlers.admin.run_update_master_and_notify')
@@ -72,13 +77,15 @@ class TestBotAdmin:
         """스케줄러 상태 조회 성공 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = [ # API 응답이 리스트 형태
-            {
-                "id": "sample_job",
-                "next_run_time": "2025-01-20T10:01:00",
-                "trigger": "interval[0:01:00]"
-            }
-        ]
+        mock_response.json.return_value = { # API 응답이 딕셔너리 형태
+            "jobs": [
+                {
+                    "id": "sample_job",
+                    "next_run_time": "2025-01-20T10:01:00",
+                    "trigger": "interval[0:01:00]"
+                }
+            ]
+        }
         mock_get.return_value = mock_response
         
         await admin_show_schedules(self.update, self.context)
@@ -108,7 +115,7 @@ class TestBotAdmin:
         self.update.message.reply_text.assert_called_once()
         call_args = self.update.message.reply_text.call_args[0][0]
         assert "✅ 잡 실행 완료!" in call_args
-        assert "🔧 잡 ID: Job 'update_master_job'가 수동으로 실행되었습니다." in call_args
+        assert "💬 메시지: Job 'update_master_job'가 수동으로 실행되었습니다." in call_args
     
     @pytest.mark.asyncio
     @patch('src.bot.handlers.admin.session.post')

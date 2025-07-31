@@ -4,6 +4,34 @@
 
 ## 1. 작업 원칙 및 워크플로우
 
+### 1.1. 안정성 강화를 위한 개발 워크플로우
+
+모든 코드 수정 작업은 다음의 5단계 워크플로우를 **반드시** 준수하여 안정성을 최우선으로 확보합니다.
+
+1.  **사전 분석 및 영향도 평가 (Pre-analysis & Impact Assessment)**
+    *   코드 수정 전, `read_file`, `search_file_content` 등을 통해 변경할 코드와 관련된 모든 부분을 파악합니다.
+    *   특히, 해당 코드를 호출하는 다른 함수나 클래스, 관련 테스트 코드를 모두 확인하여 변경으로 인해 영향을 받을 수 있는 범위를 명확히 정의합니다.
+
+2.  **테스트 주도 변경 (Test-Driven Modification)**
+    *   변경 사항을 검증할 수 있는 테스트 코드가 존재하는지 확인합니다.
+    *   만약 테스트 코드가 없다면, **기능 수정 전에 테스트 코드를 먼저 작성**하여 안전장치를 확보합니다.
+    *   기존 테스트가 있다면, 변경 후에도 해당 테스트가 통과되어야 함을 인지하고, 필요시 테스트 코드도 함께 수정합니다.
+
+3.  **코드 수정 (Code Modification)**
+    *   사전 분석과 테스트 계획에 따라 코드를 수정합니다.
+    *   `replace` 도구 사용 시, `old_string`과 `new_string`의 정확성에 만전을 기하고, 의도치 않은 변경이 발생하지 않도록 최소한의 범위로, 하지만 명확하게 수정합니다.
+
+4.  **단계적 검증 (Staged Verification) - 중요**
+    *   **4.1. 단위 테스트:** 코드 수정 직후, `docker compose exec [service] pytest [수정한 파일의 테스트 경로]` 명령으로 **수정된 부분과 직접적으로 관련된 테스트만 먼저 실행**하여 1차 검증을 수행합니다. (예: `pytest tests/test_api_admin.py`)
+    *   **4.2. 전체 테스트:** 단위 테스트가 통과하면, `docker compose exec [service] pytest` 명령으로 해당 서비스의 **전체 테스트**를 실행하여 수정 사항이 다른 기능에 예기치 않은 문제를 일으키지 않았는지(회귀 오류) 확인합니다.
+    *   **4.3. 서비스 재기동 및 로그 확인:** 전체 테스트를 통과하면, `docker compose up -d --build`로 서비스를 재시작하고, **즉시 `docker compose logs [service]`를 실행**하여 기동 중 에러가 없는지 반드시 확인합니다.
+
+5.  **최종 확인 및 보고 (Final Confirmation & Reporting)**
+    *   모든 검증 절차가 성공적으로 완료되었을 때, 비로소 작업이 완료된 것으로 간주합니다.
+    *   `docs/PLAN.MD`에 진행 상황을 업데이트하고 사용자에게 결과를 보고합니다.
+
+### 1.2. 기존 작업 원칙
+
 *   **선행 테스트:** 모든 신규 작업 착수 전, 전체 테스트를 먼저 실행하여 현 시스템의 안정성을 확인합니다.
 *   **계획 수립 및 관리:**
     *   진행할 과제에 대한 상세 계획을 수립합니다.
@@ -28,6 +56,7 @@
     *   `src/common` 파일 변경 시, 해당 변경이 영향을 미치는 모든 `api` 및 `bot` 서비스의 관련 파일을 **동시에, 그리고 일관되게 수정**해야 합니다.
 *   **실행 환경:**
     *   `docker compose` 명령어를 사용합니다.
+    *   **`docker compose` 명령어에는 컨테이너 이름(`api_service`, `bot_service` 등)이 아닌 서비스 이름(`api`, `bot`)을 사용해야 합니다.**
     *   테스트 코드 작성 및 실행은 각 서비스(`api`, `bot`)의 `tests` 폴더 내에서, 컨테이너 안에서 수행합니다.
     *   파일 삭제 등 권한 문제가 발생할 수 있는 작업은 반드시 컨테이너 내부에서 실행합니다.
 *   **커뮤니케이션:**
@@ -124,7 +153,7 @@
 ### 2.5. 테스트 환경 안정화 및 API 테스트 오류 수정 (2025-07-30)
 
 *   **목표:** `api` 및 `bot` 서비스의 전체 테스트를 성공적으로 실행하고, 테스트 과정에서 발생한 오류를 해결하여 테스트 환경의 안정성을 확보.
-*   **발생 오류 및 해결 과정:**
+*   **수행 내용:**
     1.  **`docker compose exec` 명령 오류 (`service "api_service" is not running`)**:
         *   **원인:** `docker compose exec` 명령이 `api_service` 컨테이너를 찾지 못하는 알 수 없는 문제 발생. `docker compose ps`에서는 컨테이너가 `Up` 상태로 보였으나, `exec`, `stop`, `restart`, `logs` 등 대부분의 `docker compose` 명령에서 동일한 오류 발생. 이는 `docker compose` 클라이언트와 Docker 데몬 간의 통신 문제 또는 Docker 환경 자체의 문제로 추정.
         *   **해결:** `docker compose down --remove-orphans` 명령으로 모든 컨테이너를 완전히 제거하고, `docker compose up -d --build`로 재빌드 및 재실행. 이후에도 `docker compose exec` 문제가 지속되어, `docker exec <container_name> <command>` 형식으로 직접 `docker exec` 명령을 사용하여 컨테이너 내부에서 테스트를 실행.
@@ -138,3 +167,26 @@
         *   **원인 4: `real_db.rollback.called` `AttributeError`**: `test_check_and_notify_new_disclosures_dart_api_limit_exceeded`, `test_check_and_notify_new_disclosures_other_dart_api_error`, `test_check_and_notify_new_disclosures_unexpected_error` 테스트에서 `real_db.rollback`이 메서드이므로 `called` 속성을 직접 가질 수 없어 발생.
         *   **해결 4:** 각 테스트 함수 내에서 `patch.object(real_db, 'rollback')`를 사용하여 `real_db.rollback`을 목(mock) 처리하고, `mock_real_db_rollback.assert_called_once()` 또는 `mock_real_db_rollback.assert_not_called()`로 검증.
 *   **테스트 결과:** `api` 서비스의 모든 테스트 (129개 통과, 1개 스킵, 7개 경고) 및 `bot` 서비스의 모든 테스트 (22개 통과)가 성공적으로 완료.
+
+### 2.6. 관리자 기능 강화 및 예측 모델 개선 (2025-07-30)
+
+*   **목표:** 텔레그램 봇을 통한 관리자 기능 강화 및 주식 예측 모델 고도화.
+*   **수행 내용:**
+    *   `src/bot/handlers/admin.py`에서 API 엔드포인트 호출 및 통계 필드명 불일치 문제 해결.
+    *   `requirements.txt`에 `pandas_datareader` 추가.
+    *   `src/api/services/stock_service.py`에서 `update_daily_prices` 함수를 `pandas_datareader`를 사용하여 실제 일별 시세 데이터를 가져오도록 수정.
+    *   `src/api/services/stock_service.py`에서 `get_current_price_and_change` 함수를 실제 `DailyPrice` 데이터를 사용하도록 수정.
+    *   `src/api/services/predict_service.py`에서 RSI 및 MACD 계산 로직을 `calculate_analysis_items` 함수에 추가.
+    *   `src/api/services/predict_service.py`에서 예측 로직을 고도화하고 신뢰도/확률 점수를 제공하도록 `calculate_analysis_items` 함수 수정.
+    *   `src/api/schemas/predict.py`의 `StockPredictionResponse` 스키마에 `confidence` 필드 추가.
+    *   `src/api/routers/predict.py`에서 예측 결과에 `confidence` 필드를 포함하도록 변경.
+    *   `src/api/tests/conftest.py`의 `real_db` fixture를 수정하여 각 테스트 함수 시작 전에 모든 테이블의 데이터를 삭제하도록 함.
+    *   `src/api/tests/test_stock_service.py`에서 `update_daily_prices` 및 `get_current_price_and_change` 관련 테스트 수정.
+    *   `src/api/tests/test_api_predict.py`, `src/api/tests/test_e2e_scenario.py`, `src/api/tests/test_predict_service.py` 테스트 수정.
+*   **발생 오류 및 해결 과정:**
+    *   `ModuleNotFoundError: No module named 'pandas_datareader'` 오류 발생 및 `docker compose up -d --build` 재실행으로 해결.
+    *   `psycopg2.ProgrammingError: can't adapt type 'numpy.int64'` 오류 발생 및 `src/api/services/stock_service.py`에서 명시적 형변환 추가로 해결.
+    *   `UniqueViolation` 오류 발생 및 `src/api/tests/conftest.py`의 `real_db` fixture 수정으로 해결.
+    *   `KeyError: 'confidence'` 오류 발생 및 `predict_stock_movement` 함수에서 `confidence` 필드 포함하도록 수정으로 해결.
+    *   `AssertionError` (예측 결과 불일치) 오류 발생 및 `src/api/services/predict_service.py`의 예측 로직 및 `src/api/tests/test_predict_service.py`의 예상 값 조정으로 해결.
+*   **테스트 결과:** `api` 및 `bot` 서비스의 모든 테스트 성공적으로 통과.

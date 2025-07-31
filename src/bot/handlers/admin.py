@@ -2,6 +2,7 @@ import os
 import requests
 import logging
 import asyncio
+from functools import wraps
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 from src.common.http_client import session # Import the session object directly
@@ -11,6 +12,16 @@ logger = logging.getLogger(__name__)
 API_URL = os.getenv("API_URL", "http://api_service:8000")
 
 ADMIN_ID = os.getenv("TELEGRAM_ADMIN_ID", "")
+
+def admin_only(func):
+    @wraps(func)
+    async def wrapped(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        user_id = str(update.effective_user.id)
+        if user_id != ADMIN_ID:
+            await update.message.reply_text("관리자 전용 명령어입니다.")
+            return
+        return await func(update, context, *args, **kwargs)
+    return wrapped
 
 ADMIN_COMMANDS_TEXT = (
     "[관리자 전용 명령어 안내]\n"
@@ -30,12 +41,9 @@ ADMIN_COMMANDS_TEXT = (
     "관리자 외 사용자는 접근할 수 없습니다."
 )
 
+@admin_only
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    if user_id == ADMIN_ID:
-        await update.message.reply_text(ADMIN_COMMANDS_TEXT)
-    else:
-        await update.message.reply_text("관리자 전용 명령어입니다.")
+    await update.message.reply_text(ADMIN_COMMANDS_TEXT)
 
 async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -102,6 +110,7 @@ async def run_update_price_and_notify(context, chat_id):
         logger.error(f"일별시세 갱신(비동기) 중 오류: {str(e)}")
         await context.bot.send_message(chat_id=chat_id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
+@admin_only
 async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """스케줄러 상태 조회 명령어"""
     import re
@@ -111,12 +120,13 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
         
         if response.status_code == 200:
             result = await response.json()
+            jobs = result.get('jobs', [])
             
             message = "⏰ **스케줄러 잡 목록**\n\n"
-            if not result:
+            if not jobs:
                 message += "실행 중인 잡이 없습니다."
             else:
-                for job in result:
+                for job in jobs:
                     message += f"- **ID:** `{job['id']}`\n"
                     message += f"  **다음 실행:** `{job['next_run_time']}`\n"
                     message += f"  **트리거:** `{job['trigger']}`\n"
@@ -129,6 +139,7 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.error(f"스케줄러 상태 조회 중 오류: {str(e)}")
         await update.message.reply_text(f"스케줄러 상태 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", parse_mode=None)
 
+@admin_only
 async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """특정 잡 수동 실행 명령어"""
     try:
@@ -152,7 +163,8 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = await response.json()
             await update.message.reply_text(
                 f"✅ 잡 실행 완료!\n"
-                f"🔧 잡 ID: {result['message']}\n" # message 필드에 잡 ID가 포함됨
+                f"🔧 잡 ID: {result.get('job_id', 'N/A')}\n"
+                f"💬 메시지: {result.get('message', '-')}"
             )
         elif response.status_code == 404:
             await update.message.reply_text(f"❌ 잡을 찾을 수 없습니다: {job_id}")
@@ -182,7 +194,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         logger.error(f"통계 조회 중 오류: {str(e)}")
-        await update.message.reply_text(f"잡 수동 실행 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") 
+        await update.message.reply_text(f"통계 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") 
 
 async def admin_update_disclosure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """공시 이력 수동 갱신 명령어 (/update_disclosure [code_or_name])"""
@@ -268,13 +280,10 @@ async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAU
                 await query.edit_message_text(f"공시 이력 갱신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
     except Exception as e:
         logger.error(f"공시 이력 갱신(버튼) 중 오류: {str(e)}")
-        await update.message.reply_text(f"통계 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+        await query.edit_message_text(f"공시 이력 갱신(버튼) 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
+@admin_only
 async def test_notify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    if user_id != ADMIN_ID:
-        await update.message.reply_text("관리자 전용 명령어입니다.")
-        return
     chat_id = update.effective_chat.id
     try:
         await context.bot.send_message(chat_id=chat_id, text="[테스트 알림] 공시 알림 테스트 메시지입니다.\n\n(이 메시지가 즉시 도착하면 실시간 알림 전송이 정상 동작함을 의미합니다.)")
