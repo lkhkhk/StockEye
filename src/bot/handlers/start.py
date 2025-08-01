@@ -5,25 +5,13 @@ import os
 ADMIN_ID = os.getenv("TELEGRAM_ADMIN_ID", "")
 
 START_TEXT_USER = (
-    "StocksBot에 오신 것을 환영합니다!\n"
+    "안녕하세요! StocksEye 봇입니다.\n"
+    "주식 정보 조회, 예측, 알림, 모의 거래 등 다양한 기능을 제공합니다.\n"
     "\n"
-    "먼저 /register 명령어로 알림 수신 동의를 해주세요.\n"
-    "\n"
-    "- /register : 알림 수신 동의(ON, 텔레그램 알림 활성화)\n"
-    "- /unregister : 알림 수신 동의 해제(OFF, 텔레그램 알림 비활성화)\n"
-    "- /alert_add [종목코드 또는 종목명] : 종목 검색 후 가격/공시 알림 설정 (예: /alert_add 삼성전자)\n"
-    "- /set_price [종목코드] [가격] [이상|이하] : 특정 종목 가격 알림 설정 (예: /set_price 005930 75000 이상)\n"
-    "- /alert_list : 내 알림 목록 조회\n"
-    "- /alert_remove [알림 번호] : 알림 삭제 (알림 목록에서 확인)\n"
-    "\n"
-    "예시: /register\n"
-    "예시: /alert_add 삼성전자\n"
-    "예시: /set_price 005930 75000 이상\n"
-    "\n"
-    "자세한 명령어는 /help 를 입력하세요."
+    "자세한 사용법과 전체 명령어 목록은 /help 를 입력해주세요."
 )
 
-START_TEXT_ADMIN = START_TEXT_USER + "\n\n[관리자 전용 명령어 안내]\n- /admin : 관리자 명령어 전체 안내"
+START_TEXT_ADMIN = START_TEXT_USER + "\n\n[관리자 전용]\n관리자 명령어는 /admin 을 입력하세요."
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
