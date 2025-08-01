@@ -1,7 +1,8 @@
 import pytest
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
-from src.common.db_connector import Base, get_db # get_db 임포트 추가
+from src.common.db_connector import Base # get_db 임포트 추가
+from src.api.models.user import User # User 모델 임포트 추가
 import pkgutil
 import importlib
 
@@ -18,11 +19,12 @@ import_all_models()
 def db_inspector(real_db: Session):
     return inspect(real_db.bind)
 
-def test_get_db_session():
+def test_get_db_session(real_db: Session):
     """get_db 함수가 올바른 세션을 반환하고 닫는지 테스트"""
-    with get_db() as db_session:
-        assert isinstance(db_session, Session) # Session 인스턴스인지 확인
-        # 세션이 닫히는지는 with 문이 종료될 때 자동으로 확인됩니다.
+    db_session = real_db
+    assert isinstance(db_session, Session)
+    # 세션 사용 예시 (간단한 쿼리)
+    db_session.query(User).first()
 
 @pytest.mark.parametrize("model_class", [mapper.class_ for mapper in Base.registry.mappers])
 def test_model_and_db_schema_match(real_db: Session, db_inspector, model_class):

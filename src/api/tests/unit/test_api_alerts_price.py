@@ -12,9 +12,13 @@ def client():
         yield c
 
 @pytest.fixture(scope="function")
-def db_session():
-    with get_db() as db:
+def db_session(real_db):
+    db = real_db
+    try:
         yield db
+    finally:
+        # real_db fixture가 세션을 닫으므로 여기서는 닫지 않음
+        pass
 
 @pytest.fixture(scope="function", autouse=True)
 def override_get_db_dependency(db_session: Session):

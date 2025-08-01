@@ -87,7 +87,7 @@
     -   [x] **`common` 모듈에 대한 단위 테스트 코드 작성**
     -   [x] `src/common/db_connector.py` 테스트 커버리지 개선
     -   [x] `src/common/notify_service.py` 테스트 커버리지 개선
--   [ ] **(TODO) CI/CD 파이프라인 구축**
+-   [x] **스케줄러 잡 DB 세션 관리 개선**: `src/api/main.py` 내 스케줄러 잡에서 `get_db()` 사용 방식 (`db = next(db_gen)`)을 올바른 세션 관리 방식으로 변경 (`db = get_db()` 및 `db.close()`).
     -   [ ] GitHub Actions 연동
     -   [ ] `main` 브랜치 push 시 자동 테스트 및 Docker 이미지 빌드/배포
 -   [ ] **(TODO) 성능 튜닝 및 최적화**

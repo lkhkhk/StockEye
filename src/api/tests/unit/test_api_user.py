@@ -110,7 +110,7 @@ def test_telegram_register_new_user(client: TestClient, real_db: Session):
     user_service = UserService() # UserService 인스턴스 생성
 
     # When
-    response = client.put("/users/telegram_register", json={"telegram_id": telegram_id, "is_active": True})
+    response = client.put("/users/telegram_register", json={"telegram_id": str(telegram_id), "is_active": True})
 
     # Then
     assert response.status_code == 200
@@ -129,7 +129,7 @@ def test_telegram_register_update_user(client: TestClient, real_db: Session):
     user_service = UserService() # UserService 인스턴스 생성
 
     # When
-    response = client.put("/users/telegram_register", json={"telegram_id": telegram_id, "is_active": False})
+    response = client.put("/users/telegram_register", json={"telegram_id": str(telegram_id), "is_active": False})
 
     # Then
     assert response.status_code == 200

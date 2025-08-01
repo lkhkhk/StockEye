@@ -14,7 +14,7 @@ def test_check_price_alerts_job_continues_on_error(mock_get_price_alert_service,
     # GIVEN
     # Mock DB와 Service
     mock_db = MagicMock()
-    mock_get_db.return_value = iter([mock_db])
+    mock_get_db.return_value = mock_db
     
     # Mock PriceAlert 객체들
     alert1 = MagicMock(user_id=1, symbol='정상종목', condition='gte', target_price=100)

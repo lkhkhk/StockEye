@@ -1,0 +1,59 @@
+# 텔레그램 봇 `/register`, `/unregister` 명령어 `Internal Server Error` 해결 과정
+
+## 1. 문제 현상
+텔레그램 봇에서 `/register` 또는 `/unregister` 명령어를 실행했을 때, 사용자에게 "[알림 동의 실패: Internal Server Error]" 메시지가 반환됨.
+
+## 2. 초기 진단 및 로그 분석
+초기 로그 분석 결과, `bot_service`에서 `api_service`로의 `PUT /users/telegram_register` 요청이 `500 Internal Server Error`로 실패하는 것을 확인.
+
+**API 서비스 로그에서 발견된 주요 오류:**
+```
+api_service  | AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+api_service  |   File "/app/src/api/routers/user.py", line 85, in telegram_register
+api_service  |     user = db.query(User).filter(User.telegram_id == telegram_id_int).first()
+```
+
+## 3. 원인 분석
+
+### 3.1. `AttributeError: '_GeneratorContextManager' object has no attribute 'query'`
+이 오류는 `src/api/routers/user.py`의 `telegram_register` 함수에서 `db.query()`를 호출할 때 발생했다. 이는 `db` 객체가 SQLAlchemy `Session` 객체가 아니라 `_GeneratorContextManager` 타입의 객체였기 때문이다.
+
+**근본 원인:** `src/common/db_connector.py` 파일의 `get_db` 함수에 `@contextlib.contextmanager` 데코레이터가 사용되고 있었다. FastAPI의 `Depends`는 `yield`를 사용하는 함수를 직접 지원하지만, `@contextlib.contextmanager`는 함수를 제너레이터 컨텍스트 매니저 객체로 변환하여 FastAPI가 예상하는 `Session` 객체가 직접 주입되지 않았다.
+
+### 3.2. `telegram_id` 타입 불일치 (초기 오진단)
+초기에는 `src/api/routers/user.py`에서 `telegram_id`를 `int`로 받는데 `src/bot/handlers/register.py`에서 `str`로 보내는 타입 불일치가 원인일 수 있다고 판단했다.
+- `src/api/schemas/user.py`에 `TelegramRegister` 스키마를 추가하고, `src/api/routers/user.py`에서 이를 사용하도록 수정했다.
+- `src/api/tests/unit/test_api_user.py`에서 `telegram_id`를 문자열로 전달하도록 테스트 코드를 수정했다.
+하지만 이 수정 후에도 `422 Unprocessable Entity` 오류가 발생했으며, 이는 `Body(...)`의 `embed=True` (기본 동작) 때문이었다. `embed=True`를 제거했으나 여전히 422 오류가 발생하여, 최종적으로 Pydantic 모델을 사용하는 방식으로 전환했다.
+결과적으로 이 부분은 `AttributeError`의 직접적인 원인은 아니었으나, API 요청/응답의 유효성 검증을 개선하는 데 기여했다.
+
+## 4. 해결 과정
+
+### 4.1. `get_db` 함수 수정
+`src/common/db_connector.py` 파일에서 `get_db` 함수에 적용된 `@contextlib.contextmanager` 데코레이터와 `import contextlib` 라인을 제거했다.
+이로써 `get_db` 함수는 이제 직접 SQLAlchemy `Session` 객체를 `yield`하게 되어, FastAPI의 `Depends`가 올바른 `Session` 객체를 주입할 수 있게 되었다.
+
+### 4.2. `telegram_id` 처리 로직 개선 (이전 수정 포함)
+- `src/api/schemas/user.py`에 `TelegramRegister(BaseModel)` 스키마를 정의하여 `telegram_id: str`과 `is_active: bool`을 명시했다.
+- `src/api/routers/user.py`의 `telegram_register` 엔드포인트에서 `register_data: TelegramRegister`를 인자로 받도록 변경하고, `register_data.telegram_id`를 `int()`로 변환하여 데이터베이스 작업에 사용하도록 했다.
+- `src/api/tests/unit/test_api_user.py`의 관련 테스트에서 `telegram_id`를 `str()`로 변환하여 `json` 페이로드에 포함하도록 수정했다.
+
+## 5. 영향 분석 및 테스트 환경 설명
+
+### 5.1. `get_db` 변경의 영향
+`src/common/db_connector.py`의 `get_db` 함수에서 `@contextlib.contextmanager` 데코레이터를 제거한 것은 `db` 객체의 타입이 `_GeneratorContextManager`에서 실제 SQLAlchemy `Session` 객체로 변경되는 핵심적인 수정이다. 이 변경은 `db` 객체를 SQLAlchemy `Session`으로 가정하고 `query`, `add`, `commit`, `rollback` 등의 메서드를 호출하는 모든 코드(라우터, 서비스, 인증 관련 파일, 테스트 파일 등)에 긍정적인 영향을 미친다. 이전에 발생했던 `AttributeError`는 이 수정으로 인해 해결된다.
+
+### 5.2. 테스트 환경과 실제 DB 연결
+- **단위 테스트 (Unit Test):** `src/api/tests/conftest.py`의 `db` 픽스처는 `MagicMock(spec=Session)`을 사용하여 실제 DB 연결 없이 `Session` 객체의 동작을 흉내 낸다. 이는 특정 함수/클래스의 로직을 빠르게 테스트하는 데 사용된다.
+- **통합 테스트 (Integration Test):** `src/api/tests/conftest.py`의 `real_db` 픽스처는 `TestingSessionLocal()`을 통해 **별도의 테스트용 PostgreSQL 데이터베이스**에 연결된 실제 `Session` 객체를 생성한다. 각 테스트 시작 전에 데이터를 초기화하여 테스트 간 격리를 보장한다. 이는 여러 구성 요소의 통합을 검증하는 데 사용된다.
+
+### 5.3. `dependency_overrides`를 통한 테스트와 실제 서비스 구분
+FastAPI는 `app.dependency_overrides` 기능을 제공하여 테스트 시 의존성 주입을 오버라이드할 수 있다.
+`src/api/tests/conftest.py`의 `client` 픽스처는 `app.dependency_overrides[get_db] = override_get_db`를 통해 `get_db` 의존성을 오버라이드한다. `override_get_db`는 `real_db` 픽스처가 제공하는 실제 `Session` 객체를 `yield`한다.
+따라서 테스트를 실행할 때는 `src/common/db_connector.py`의 `get_db` 함수가 직접 실행되는 것이 아니라, `conftest.py`에 정의된 테스트용 DB 세션(Mock 또는 실제 테스트 DB)이 주입된다.
+
+### 5.4. 이번 변경이 기존 테스트에 미치는 영향
+이번 `get_db` 함수 수정은 실제 `get_db` 함수가 테스트 환경의 `real_db` 픽스처처럼 **직접 SQLAlchemy `Session` 객체를 `yield`하도록 변경한 것**이다. 기존 테스트는 이미 `dependency_overrides` 덕분에 올바른 `Session` 객체를 주입받아 성공하고 있었으므로, 이번 변경은 테스트에 부정적인 영향을 주지 않는다. 오히려 실제 코드의 동작을 테스트 환경의 성공적인 동작 방식과 일치시켜 시스템의 일관성과 안정성을 높인다.
+
+## 6. 결론
+`get_db` 함수의 `@contextlib.contextmanager` 데코레이터 제거 및 `telegram_id` 처리 로직 개선을 통해 `/register`, `/unregister` 명령어의 `Internal Server Error`가 해결될 것으로 예상된다. 이 변경은 기존 테스트에 부정적인 영향을 주지 않으며, 시스템의 안정성을 향상시킨다.

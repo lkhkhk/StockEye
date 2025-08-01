@@ -6,7 +6,7 @@ from fastapi import HTTPException, status # 추가
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from src.api.main import app
-from src.common.db_connector import get_db, Base
+from src.common.db_connector import Base, get_db
 import pkgutil
 import importlib
 import os

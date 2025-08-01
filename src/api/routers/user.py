@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
-from src.api.schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate
+from src.api.schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate, TelegramRegister
 from src.api.services.auth_service import AuthService
 from src.api.auth.jwt_handler import get_current_active_user
 from src.api.models.user import User
@@ -76,29 +76,30 @@ def update_current_user(
 
 @router.put("/telegram_register", tags=["users"])
 def telegram_register(
-    telegram_id: int = Body(...),
-    is_active: bool = Body(...),
+    register_data: TelegramRegister,
     db: Session = Depends(get_db)
 ):
     """텔레그램 알림 동의/해제 (telegram_id로만 처리, 인증 없음)"""
-    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    # telegram_id를 int로 변환하여 사용
+    telegram_id_int = int(register_data.telegram_id)
+    user = db.query(User).filter(User.telegram_id == telegram_id_int).first()
     if not user:
         # 신규 등록: 임시 사용자 생성 (실제 서비스에서는 인증 필요)
         user = User(
-            username=f"tg_{telegram_id}",
-            email=f"tg_{telegram_id}@example.com",
+            username=f"tg_{register_data.telegram_id}",
+            email=f"tg_{register_data.telegram_id}@example.com",
             password_hash="dummy",
-            telegram_id=telegram_id,
-            is_active=is_active
+            telegram_id=telegram_id_int, # int로 변환된 값 사용
+            is_active=register_data.is_active
         )
         db.add(user)
         db.commit()
         db.refresh(user)
-        return {"result": "registered", "is_active": is_active}
+        return {"result": "registered", "is_active": register_data.is_active}
     else:
-        user.is_active = is_active
+        user.is_active = register_data.is_active
         db.commit()
-        return {"result": "updated", "is_active": is_active}
+        return {"result": "updated", "is_active": register_data.is_active}
 
 @router.get("/stats/{user_id}", tags=["users"])
 def get_user_stats(user_id: int, db: Session = Depends(get_db), auth_service: AuthService = Depends(get_auth_service)):
