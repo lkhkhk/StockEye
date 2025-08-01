@@ -18,7 +18,7 @@ def admin_only(func):
     async def wrapped(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user_id = str(update.effective_user.id)
         if user_id != ADMIN_ID:
-            await update.message.reply_text("관리자 전용 명령어입니다.")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="관리자 전용 명령어입니다.")
             return
         return await func(update, context, *args, **kwargs)
     return wrapped
@@ -131,7 +131,7 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
                     message += f"  **다음 실행:** `{job['next_run_time']}`\n"
                     message += f"  **트리거:** `{job['trigger']}`\n"
             
-            await update.message.reply_text(message, parse_mode='Markdown')
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='Markdown')
         else:
             await update.message.reply_text(f"조회 실패: {response.status_code}", parse_mode=None)
             
@@ -148,10 +148,7 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parts = text.split()
         
         if len(parts) < 2:
-            await update.message.reply_text(
-                "❌ 사용법: /trigger_job job_id\n"
-                "예시: /trigger_job update_master_job"
-            )
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 사용법: /trigger_job job_id\n예시: /trigger_job update_master_job")
             return
         
         job_id = parts[1]
@@ -161,15 +158,11 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if response.status_code == 200:
             result = await response.json()
-            await update.message.reply_text(
-                f"✅ 잡 실행 완료!\n"
-                f"🔧 잡 ID: {result.get('job_id', 'N/A')}\n"
-                f"💬 메시지: {result.get('message', '-')}"
-            )
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ 잡 실행 완료!\n🔧 잡 ID: {result.get('job_id', 'N/A')}\n💬 메시지: {result.get('message', '-')}")
         elif response.status_code == 404:
-            await update.message.reply_text(f"❌ 잡을 찾을 수 없습니다: {job_id}")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 잡을 찾을 수 없습니다: {job_id}")
         else:
-            await update.message.reply_text(f"❌ 실행 실패: {response.status_code}")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 실행 실패: {response.status_code}")
             
     except Exception as e:
         logger.error(f"잡 실행 중 오류: {str(e)}")
@@ -183,12 +176,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if response.status_code == 200:
             stats = await response.json()
-            await update.message.reply_text(
-                f"📊 **시스템 통계**\n\n"
-                f"👥 사용자 수: {stats['user_count']}명\n"
-                f"💰 모의매매 기록: {stats['trade_count']}건\n"
-                f"🔮 예측 기록: {stats['prediction_count']}건"
-            , parse_mode='Markdown')
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"📊 **시스템 통계**\n\n👥 사용자 수: {stats['user_count']}명\n💰 모의매매 기록: {stats['trade_count']}건\n🔮 예측 기록: {stats['prediction_count']}건", parse_mode='Markdown')
         else:
             await update.message.reply_text(f"❌ 조회 실패: {response.status_code}")
             

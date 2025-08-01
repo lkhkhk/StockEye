@@ -8,16 +8,20 @@ API_URL = os.getenv("API_URL", "http://api_service:8000")
 
 async def symbols_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        response = session.get(f"{API_URL}/symbols/", timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        if not data:
-            await update.message.reply_text("등록된 종목이 없습니다.")
-            return
-        msg = "[종목 목록]\n" + "\n".join([f"{item['symbol']} {item['name']} ({item.get('market','')})" for item in data])
-        await update.message.reply_text(msg)
+        response = await session.get(f"{API_URL}/symbols/", timeout=10)
+        if response.ok:
+            data = response.json()
+            if not data:
+                await update.message.reply_text("등록된 종목이 없습니다.")
+                return
+            msg = "[종목 목록]\n" + "\n".join([f"{item['symbol']} {item['name']} ({item.get('market','')})" for item in data])
+            await update.message.reply_text(msg)
+        else:
+            await update.message.reply_text(f"종목 목록 조회 실패: API 응답 코드 {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        await update.message.reply_text(f"종목 목록 조회 실패: API 요청 오류가 발생했습니다.")
     except Exception as e:
-        await update.message.reply_text(f"종목 목록 조회 실패: {e}")
+        await update.message.reply_text(f"종목 목록 조회 실패: 알 수 없는 오류가 발생했습니다.")
 
 async def symbols_search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -25,16 +29,20 @@ async def symbols_search_command(update: Update, context: ContextTypes.DEFAULT_T
         return
     query = context.args[0]
     try:
-        response = session.get(f"{API_URL}/symbols/search", params={"query": query}, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        if not data:
-            await update.message.reply_text("검색 결과가 없습니다.")
-            return
-        msg = "[종목 검색 결과]\n" + "\n".join([f"{item['symbol']} {item['name']} ({item.get('market','')})" for item in data])
-        await update.message.reply_text(msg)
+        response = await session.get(f"{API_URL}/symbols/search", params={"query": query}, timeout=10)
+        if response.ok:
+            data = response.json()
+            if not data:
+                await update.message.reply_text("검색 결과가 없습니다.")
+                return
+            msg = "[종목 검색 결과]\n" + "\n".join([f"{item['symbol']} {item['name']} ({item.get('market','')})" for item in data])
+            await update.message.reply_text(msg)
+        else:
+            await update.message.reply_text(f"종목 검색 실패: API 응답 코드 {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        await update.message.reply_text(f"종목 검색 실패: API 요청 오류가 발생했습니다.")
     except Exception as e:
-        await update.message.reply_text(f"종목 검색 실패: {e}")
+        await update.message.reply_text(f"종목 검색 실패: 알 수 없는 오류가 발생했습니다.")
 
 async def symbol_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -42,14 +50,18 @@ async def symbol_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     symbol = context.args[0]
     try:
-        response = session.get(f"{API_URL}/symbols/search", params={"query": symbol}, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        if not data:
-            await update.message.reply_text("해당 종목을 찾을 수 없습니다.")
-            return
-        info = data[0]
-        msg = f"[종목 상세]\n코드: {info['symbol']}\n이름: {info['name']}\n시장: {info.get('market','')}"
-        await update.message.reply_text(msg)
+        response = await session.get(f"{API_URL}/symbols/search", params={"query": symbol}, timeout=10)
+        if response.ok:
+            data = response.json()
+            if not data:
+                await update.message.reply_text("해당 종목을 찾을 수 없습니다.")
+                return
+            info = data[0]
+            msg = f"[종목 상세]\n코드: {info['symbol']}\n이름: {info['name']}\n시장: {info.get('market','')}"
+            await update.message.reply_text(msg)
+        else:
+            await update.message.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (API 응답 코드: {response.status_code})")
+    except requests.exceptions.RequestException as e:
+        await update.message.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (API 요청 오류)")
     except Exception as e:
-        await update.message.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") 
+        await update.message.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (알 수 없는 오류)") 

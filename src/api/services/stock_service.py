@@ -2,10 +2,10 @@ from sqlalchemy.orm import Session
 from src.api.models.stock_master import StockMaster
 from src.api.models.daily_price import DailyPrice
 from src.common.db_connector import get_db
+import yfinance as yf
 import logging
 from datetime import datetime, timedelta
 
-from pandas_datareader import data
 from src.common.dart_utils import dart_get_all_stocks
 from src.api.models.disclosure import Disclosure
 from src.common.dart_utils import dart_get_disclosures
@@ -288,17 +288,18 @@ class StockService:
             for stock in stocks:
                 logger.debug(f"종목 {stock.symbol} ({stock.name}) 일별시세 갱신 시작.")
                 try:
-                    # KRX에서 최근 30일간의 일별시세 데이터 가져오기
-                    # pandas_datareader는 '005930.KS'와 같은 형태로 종목 코드를 요구할 수 있음
-                    # 여기서는 간단히 symbol만 사용하며, 실제 연동 시에는 정확한 티커를 사용해야 함
-                    df = data.get_data_yahoo(f"{stock.symbol}.KS", start=datetime.now() - timedelta(days=30), end=datetime.now())
+                    # yfinance를 사용하여 일별 시세 데이터 가져오기
+                    # 한국 주식의 경우 종목코드 뒤에 .KS (코스피) 또는 .KQ (코스닥)를 붙여야 함
+                    # 여기서는 간단히 .KS를 붙이는 것으로 가정
+                    ticker = f"{stock.symbol}.KS"
+                    data = yf.download(ticker, start=datetime.now() - timedelta(days=30), end=datetime.now())
                     
-                    if df.empty:
-                        logger.warning(f"종목 {stock.symbol}에 대한 일별시세 데이터가 없습니다.")
+                    if data.empty:
+                        logger.warning(f"종목 {stock.symbol} ({ticker})에 대한 일별시세 데이터가 없습니다.")
                         error_stocks.append(stock.symbol)
                         continue
 
-                    for index, row in df.iterrows():
+                    for index, row in data.iterrows():
                         target_date = index.date()
                         
                         existing_price = db.query(DailyPrice).filter(
@@ -311,10 +312,10 @@ class StockService:
                                 symbol=stock.symbol,
                                 date=target_date,
                                 open=float(row['Open']),
-                            high=float(row['High']),
-                            low=float(row['Low']),
-                            close=float(row['Close']),
-                            volume=int(row['Volume']),
+                                high=float(row['High']),
+                                low=float(row['Low']),
+                                close=float(row['Close']),
+                                volume=int(row['Volume']),
                                 created_at=datetime.now()
                             )
                             db.add(new_price)

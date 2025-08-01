@@ -13,13 +13,8 @@ def client():
 
 @pytest.fixture(scope="function")
 def db_session():
-    # 테스트용 DB 세션을 얻기 위해 의존성 오버라이드
-    # 각 테스트 함수가 독립적인 DB 세션을 사용하도록 함
-    db = next(get_db())
-    try:
+    with get_db() as db:
         yield db
-    finally:
-        db.close()
 
 @pytest.fixture(scope="function", autouse=True)
 def override_get_db_dependency(db_session: Session):

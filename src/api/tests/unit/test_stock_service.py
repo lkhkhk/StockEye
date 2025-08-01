@@ -10,7 +10,7 @@ from src.api.models.user import User
 from src.api.models.price_alert import PriceAlert
 from src.api.models.daily_price import DailyPrice
 import os
-from pandas_datareader import data
+import yfinance as yf
 import pandas as pd
 from unittest.mock import ANY
 
@@ -222,8 +222,8 @@ class TestStockService:
                     assert real_db.rollback.called # 롤백이 호출되어야 함 
 
     @pytest.mark.asyncio
-    @patch('src.api.services.stock_service.data.get_data_yahoo')
-    async def test_update_daily_prices_success(self, mock_get_data_yahoo, stock_service, real_db):
+    @patch('yfinance.download')
+    async def test_update_daily_prices_success(self, mock_yfinance_download, stock_service, real_db):
         """일별시세 갱신 성공 테스트"""
         # GIVEN
         # StockMaster에 테스트용 종목 추가
@@ -248,7 +248,7 @@ class TestStockService:
             'Volume': [500000, 600000]
         }, index=pd.to_datetime(['2025-07-29', '2025-07-28']))
 
-        mock_get_data_yahoo.side_effect = [mock_df_samsung, mock_df_skhynix]
+        mock_yfinance_download.side_effect = [mock_df_samsung, mock_df_skhynix]
 
         # WHEN
         result = await stock_service.update_daily_prices(real_db)
@@ -272,19 +272,19 @@ class TestStockService:
         assert skhynix_prices[0].close == 101500
         assert skhynix_prices[1].close == 102500
 
-        mock_get_data_yahoo.assert_any_call("005930.KS", start=ANY, end=ANY)
-        mock_get_data_yahoo.assert_any_call("000660.KS", start=ANY, end=ANY)
+        mock_yfinance_download.assert_any_call("005930.KS", start=ANY, end=ANY)
+        mock_yfinance_download.assert_any_call("000660.KS", start=ANY, end=ANY)
 
     @pytest.mark.asyncio
-    @patch('src.api.services.stock_service.data.get_data_yahoo')
-    async def test_update_daily_prices_no_data(self, mock_get_data_yahoo, stock_service, real_db):
+    @patch('yfinance.download')
+    async def test_update_daily_prices_no_data(self, mock_yfinance_download, stock_service, real_db):
         """일별시세 갱신 시 데이터가 없는 경우 테스트"""
         # GIVEN
         stock1 = StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="0012345")
         real_db.add(stock1)
         real_db.commit()
 
-        mock_get_data_yahoo.return_value = pd.DataFrame() # 빈 DataFrame 반환
+        mock_yfinance_download.return_value = pd.DataFrame() # 빈 DataFrame 반환
 
         # WHEN
         result = await stock_service.update_daily_prices(real_db)
@@ -298,15 +298,15 @@ class TestStockService:
         assert len(daily_prices) == 0 # 데이터가 추가되지 않아야 함
 
     @pytest.mark.asyncio
-    @patch('src.api.services.stock_service.data.get_data_yahoo')
-    async def test_update_daily_prices_api_error(self, mock_get_data_yahoo, stock_service, real_db):
+    @patch('yfinance.download')
+    async def test_update_daily_prices_api_error(self, mock_yfinance_download, stock_service, real_db):
         """일별시세 갱신 시 API 오류 발생 테스트"""
         # GIVEN
         stock1 = StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="0012345")
         real_db.add(stock1)
         real_db.commit()
 
-        mock_get_data_yahoo.side_effect = Exception("API Error")
+        mock_yfinance_download.side_effect = Exception("API Error")
 
         # WHEN
         result = await stock_service.update_daily_prices(real_db)

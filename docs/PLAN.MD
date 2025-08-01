@@ -60,7 +60,7 @@
     -   [x] 전체 공시 갱신 로직을 단일 API 호출로 개선하여 효율성 및 안정성 확보
 -   [x] **외부 API 연동 안정성 강화**
     -   [x] `requests` 사용 시 `timeout` 및 `retries` 로직 추가 (DART API, 봇 핸들러)
-    -   [ ] **(TODO)** 실제 주식 시세 API 연동 (현재 임시 데이터 -> 실 데이터)
+    -   [x] **(TODO)** 실제 주식 시세 API 연동 (현재 임시 데이터 -> 실 데이터)
 -   [x] **(TODO) 예측 모델 개선**
     -   [x] 더 다양한 기술적 지표(RSI, MACD 등)를 사용한 예측 로직 고도화
     -   [x] 예측 결과에 대한 신뢰도 또는 확률 점수 제공 (`src/api/routers/predict.py` 테스트 커버리지 개선)
@@ -78,10 +78,12 @@
     -   [x] `bot` 핸들러에 대한 단위/통합 테스트 코드 보강 (`/set_price` 명령어 테스트 추가)
     -   [x] **테스트 환경 안정화**: `test_toggle_disclosure_alert_existing_alert_on_to_off` 테스트 실패 문제 해결 (서비스 의존성 모의를 통한 테스트 격리 확보)
     -   [x] **봇 서비스 테스트 안정화**: `bot` 핸들러의 비동기 함수 호출 시 `await` 키워드 누락 문제 해결 (`src/bot/tests/test_bot_natural.py` 테스트 통과)
+    -   [x] **테스트 파일 구조 개선**: `test_bot_alert_price.py`를 `test_api_alerts_price.py`로 이름 변경, `src/common` 모듈 테스트를 `src/common/tests`로 이동, `test_e2e_scenario.py`를 `src/api/tests/e2e`로 이동 및 `pytest.ini` 업데이트
+    -   [x] **API 단위 테스트 폴더 분리**: `src/api/tests` 내의 단위 테스트 파일들을 `src/api/tests/unit`으로 이동 및 `pytest.ini` 업데이트
 -   [x] **`GEMINI.md` 지침 업데이트**: `replace` 도구 사용 지침 및 `docker compose exec` 문제 해결 지침 보강
 -   [x] **`api` 서비스 `bot_router` 엔드포인트 구현 및 테스트**: `alert/list`, `alert/remove`, `alert/deactivate` 엔드포인트 구현 및 테스트 완료
 -   [x] **(TODO)** `api` 서비스의 모든 라우터에 대한 테스트 코드 작성
-    -   [ ] **(TODO)** `bot` 서비스의 모든 핸들러에 대한 테스트 코드 작성
+    -   [x] **(TODO)** `bot` 서비스의 모든 핸들러에 대한 테스트 코드 작성
     -   [x] **`common` 모듈에 대한 단위 테스트 코드 작성**
     -   [x] `src/common/db_connector.py` 테스트 커버리지 개선
     -   [x] `src/common/notify_service.py` 테스트 커버리지 개선

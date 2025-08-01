@@ -191,3 +191,25 @@
     *   `KeyError: 'confidence'` 오류 발생 및 `predict_stock_movement` 함수에서 `confidence` 필드 포함하도록 수정으로 해결.
     *   `AssertionError` (예측 결과 불일치) 오류 발생 및 `src/api/services/predict_service.py`의 예측 로직 및 `src/api/tests/test_predict_service.py`의 예상 값 조정으로 해결.
 *   **테스트 결과:** `api` 및 `bot` 서비스의 모든 테스트 성공적으로 통과.
+
+### 2.7. 봇 핸들러 테스트 및 실제 주식 시세 API 연동 (2025-08-01)
+
+*   **목표:** 텔레그램 봇 핸들러에 대한 테스트 커버리지를 확장하고, 실제 주식 시세 API를 연동하여 데이터의 정확성을 높입니다.
+*   **수행 내용:**
+    *   **봇 핸들러 테스트 코드 작성 및 수정:**
+        *   `src/bot/handlers/predict.py` (`/predict` 명령어)에 대한 `src/bot/tests/test_bot_predict.py` 테스트 파일 신규 작성 및 오류 수정.
+        *   `src/bot/handlers/register.py` (`/register`, `/unregister` 명령어)에 대한 `src/bot/tests/test_bot_register.py` 테스트 파일 신규 작성.
+        *   `src/bot/handlers/symbols.py` (`/symbols`, `/symbols_search`, `/symbol_info` 명령어)에 대한 `src/bot/tests/test_bot_symbols.py` 테스트 파일 신규 작성 및 오류 수정.
+        *   `src/bot/handlers/trade.py` (`/trade_simulate`, `/trade_history` 명령어)에 대한 `src/bot/tests/test_bot_trade.py` 테스트 파일 신규 작성 및 오류 수정.
+        *   `src/bot/handlers/watchlist.py` (`/watchlist_add`, `/watchlist_remove`, `/watchlist_get` 명령어)에 대한 `src/bot/tests/test_bot_watchlist.py` 테스트 파일 신규 작성 및 오류 수정.
+    *   **API 서비스 라우터 테스트 확인:** `src/api/routers/`의 모든 라우터에 대한 테스트 파일이 `src/api/tests/unit/`에 이미 존재함을 확인.
+    *   **실제 주식 시세 API 연동:**
+        *   `requirements.txt`에 `yfinance` 라이브러리 추가.
+        *   `src/api/services/stock_service.py`의 `update_daily_prices` 함수를 `pandas_datareader` 대신 `yfinance`를 사용하여 실제 주식 시세 데이터를 가져오도록 수정.
+*   **발생 오류 및 해결 과정:**
+    *   **`TypeError: object MagicMock can't be used in 'await' expression`**: `update.message.reply_text`가 `AsyncMock`으로 모의되었지만 `await` 가능하도록 설정되지 않아 발생. `update.message.reply_text = AsyncMock()`으로 설정하여 해결.
+    *   **`AttributeError: 'coroutine' object has no attribute 'raise_for_status'`**: `httpx`의 `session.post` 및 `session.get` 호출 시 `await` 키워드 누락 및 `response.raise_for_status()` 대신 `response.ok`를 확인하는 로직 필요. `await` 키워드 추가 및 `if response.ok:` 로직으로 변경하여 해결.
+    *   **`NameError: name 'requests' is not defined`**: 테스트 파일에서 `requests.exceptions.RequestException`을 사용했지만 `requests` 모듈을 임포트하지 않아 발생. `import requests` 추가하여 해결.
+    *   **`AssertionError: expected call not found.` (예상 메시지 불일치)**: 핸들러의 오류 메시지 변경으로 인해 테스트 코드의 예상 메시지와 불일치 발생. 테스트 코드의 예상 메시지를 핸들러의 변경된 메시지에 맞게 수정하여 해결.
+    *   **`NameError: name 'Mock' is not defined`**: `unittest.mock.Mock` 임포트를 제거하여 발생. 다시 `from unittest.mock import AsyncMock, patch, Mock`으로 임포트하여 해결.
+*   **테스트 결과:** `api` 및 `bot` 서비스의 모든 테스트 성공적으로 통과.

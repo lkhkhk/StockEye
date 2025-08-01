@@ -60,29 +60,22 @@ class TestAdminScheduler:
         # 의존성 오버라이드 설정
         app.dependency_overrides[get_current_active_admin_user] = lambda: admin_user
         
-        # 실제 스케줄러가 실행 중인지 확인
-        health_response = client.get("/health")
-        if health_response.status_code == 200:
-            health_data = health_response.json()
-            if health_data.get("scheduler_running", False):
-                response = client.post("/admin/schedule/trigger/sample_job", headers=headers)
-                # 스케줄러가 실행 중이면 200 또는 500 (실행 중인 잡이므로)
-                assert response.status_code in [200, 500]
-                if response.status_code == 200:
-                    data = response.json()
-                    assert "message" in data
-                    assert "job_id" in data
-                    assert "timestamp" in data
-                    assert data["job_id"] == "sample_job"
-                else:
-                    # 500 오류인 경우 오류 메시지 확인
-                    data = response.json()
-                    assert "detail" in data
-            else:
-                # 스케줄러가 실행되지 않은 경우 테스트 스킵
-                pytest.skip("스케줄러가 실행되지 않음")
-        else:
-            pytest.skip("헬스체크 실패")
+        # 스케줄러 Mocking
+        mock_scheduler = MagicMock()
+        mock_job = MagicMock(id="sample_job", args=(), kwargs={})
+        mock_scheduler.get_job.return_value = mock_job
+        
+        # app.state.scheduler를 Mocking
+        with patch('src.api.main.app.state.scheduler', new=mock_scheduler):
+            response = client.post("/admin/schedule/trigger/sample_job", headers=headers)
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+            assert "job_id" in data
+            assert "timestamp" in data
+            assert data["job_id"] == "sample_job"
+            mock_scheduler.get_job.assert_called_once_with("sample_job")
+            mock_job.func.assert_called_once() # 잡 함수가 호출되었는지 확인
             
         # 의존성 오버라이드 정리
         app.dependency_overrides.clear()
@@ -94,11 +87,17 @@ class TestAdminScheduler:
         # 의존성 오버라이드 설정
         app.dependency_overrides[get_current_active_admin_user] = lambda: admin_user
         
-        response = client.post("/admin/schedule/trigger/nonexistent_job", headers=headers)
-        # 404 또는 500 (스케줄러 접근 오류)
-        assert response.status_code in [404, 500]
-        data = response.json()
-        assert "detail" in data
+        # 스케줄러 Mocking
+        mock_scheduler = MagicMock()
+        mock_scheduler.get_job.return_value = None # 잡이 없음을 모의
         
+        with patch('src.api.main.app.state.scheduler', new=mock_scheduler):
+            response = client.post("/admin/schedule/trigger/nonexistent_job", headers=headers)
+            assert response.status_code == 404 # 404 Not Found 예상
+            data = response.json()
+            assert "detail" in data
+            assert data["detail"] == "잡을 찾을 수 없습니다: nonexistent_job"
+            mock_scheduler.get_job.assert_called_once_with("nonexistent_job")
+            
         # 의존성 오버라이드 정리
         app.dependency_overrides.clear()

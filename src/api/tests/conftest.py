@@ -16,7 +16,7 @@ from src.api.services.price_alert_service import PriceAlertService
 from src.api.auth.jwt_handler import get_current_active_admin_user # 추가
 from src.api.tests.helpers import create_test_user # 추가
 
-from src.api.tests import helpers
+
 
 # 환경 변수 로드
 DB_USER = os.getenv("DB_USER", "postgres")
@@ -178,12 +178,10 @@ def test_stock_master_data_fixture(real_db: Session):
         real_db.refresh(stock)
     yield stocks
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def override_stock_service_dependencies():
     """StockService 의존성을 오버라이드하여 테스트용 Mock 객체를 주입합니다."""
     mock_stock_service = MagicMock(spec=StockService)
-    # 필요한 메서드들을 Mocking
-    mock_stock_service.get_current_price_and_change.return_value = {"current_price": 100000, "change": 1000, "change_rate": 1.0}
 
     from src.api.routers.stock_master import get_stock_service
     from src.api.main import app

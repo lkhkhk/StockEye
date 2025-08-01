@@ -99,7 +99,7 @@ class TestStockMasterRouter:
     def test_get_current_price_and_change_success(self, client: TestClient, override_stock_service_dependencies, real_db: Session):
         # Given
         symbol = "005930"
-        mock_price_data = {"current_price": 100000, "change": 1000, "change_rate": 1.0}
+        mock_price_data = {"current_price": 75000, "change": 1000, "change_rate": 1.35}
         override_stock_service_dependencies.get_current_price_and_change.return_value = mock_price_data
 
         # When
@@ -113,7 +113,6 @@ class TestStockMasterRouter:
     def test_get_current_price_and_change_not_found(self, client: TestClient, override_stock_service_dependencies, real_db: Session):
         # Given
         symbol = "NONEXISTENT"
-        # StockService.get_current_price_and_change가 None을 반환하도록 모의
         override_stock_service_dependencies.get_current_price_and_change.return_value = None
 
         # When

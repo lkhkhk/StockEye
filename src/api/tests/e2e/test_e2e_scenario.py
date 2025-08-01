@@ -13,7 +13,7 @@ from src.api.models.prediction_history import PredictionHistory
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.models.system_config import SystemConfig
 
-def test_e2e_scenario(client: TestClient, real_db):
+def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     """
     사용자 생성부터 watchlist 추가, 알림 설정, 예측, 거래까지 이어지는 E2E 시나리오
     """

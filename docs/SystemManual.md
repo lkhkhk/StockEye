@@ -63,6 +63,103 @@
 
 ---
 
+## 8. 운영 서버 서비스 기동 절차 (dev_ops.sh 활용)
+
+이 절차는 `dev_ops.sh` 스크립트를 활용하여 StocksEye 서비스를 운영 서버에 배포하고 기동하는 방법을 설명합니다.
+
+#### 1. 사전 준비 (운영 서버)
+
+*   **Git 설치**: 소스 코드 관리를 위해 Git이 설치되어 있어야 합니다.
+*   **Docker 및 Docker Compose 설치**: 컨테이너 기반 서비스 배포를 위해 Docker와 Docker Compose가 설치되어 있어야 합니다.
+    *   Docker 설치: `sudo apt-get update && sudo apt-get install docker-ce docker-ce-cli containerd.io`
+    *   Docker Compose 설치: `sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose` (최신 안정 버전 확인 후 조정)
+
+#### 2. 소스 코드 클론
+
+운영 서버의 적절한 디렉토리(예: `/opt/StocksEye`)에 Git 저장소를 클론합니다.
+
+```bash
+cd /opt
+git clone https://github.com/lkhkhk/StockEye.git
+cd StocksEye
+```
+
+#### 3. 환경 변수 파일 생성 및 설정
+
+`docker-compose.yml`은 `APP_ENV` 환경 변수에 따라 `.env.production` 파일을 로드합니다. 운영 환경에 맞는 `.env.production` 파일을 생성하고 필요한 환경 변수를 설정합니다.
+
+```bash
+# .env.production 파일 생성 (settings.env.example을 참고)
+cp settings.env.example .env.production
+```
+
+`.env.production` 파일의 주요 설정 항목:
+
+*   `TELEGRAM_ADMIN_ID=YOUR_TELEGRAM_ADMIN_ID`
+*   `DART_API_KEY=YOUR_DART_API_KEY`
+*   `JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY` (강력하고 긴 문자열 사용)
+*   `DB_HOST=db` (Docker Compose 내부 네트워크에서 DB 서비스 이름)
+*   `DB_USER=stocks_user` (PostgreSQL 사용자명)
+*   `DB_PASSWORD=stocks_password` (PostgreSQL 비밀번호)
+*   `DB_NAME=stocks_db` (PostgreSQL 데이터베이스명)
+*   `DB_PORT=5432` (PostgreSQL 포트)
+
+**주의**: `DB_HOST`는 Docker Compose 내부 네트워크에서 서비스 이름인 `db`로 설정해야 합니다.
+
+#### 4. 서비스 빌드 및 기동 (`dev_ops.sh` 활용)
+
+`dev_ops.sh` 스크립트의 `build` 명령을 `production` 환경으로 지정하여 실행합니다.
+
+```bash
+./dev_ops.sh build production
+```
+
+*   `production`: `dev_ops.sh` 스크립트에게 `build_and_restart` 함수를 `production` 환경으로 실행하도록 지시합니다.
+
+#### 5. 데이터베이스 초기화 및 마이그레이션 (최초 배포 시)
+
+StocksEye 서비스는 API 서비스 기동 시 SQLAlchemy 모델을 기반으로 테이블을 자동으로 생성합니다. 따라서 별도의 수동 마이그레이션 명령은 필요하지 않습니다.
+
+#### 6. 서비스 상태 확인
+
+서비스가 정상적으로 기동되었는지 확인합니다.
+
+*   **컨테이너 상태 확인**:
+    ```bash
+    docker compose ps
+    ```
+    `db` 서비스의 컨테이너 이름은 `postgres_db`로 표시되지만, `STATUS`가 `Up` 상태여야 합니다. `postgres_db` 컨테이너는 `(healthy)` 상태여야 합니다.
+
+*   **서비스 로그 확인**:
+    ```bash
+    docker compose logs api
+    docker compose logs bot
+    docker compose logs db # DB 서비스 로그 확인 시에도 서비스 이름 'db' 사용
+    ```
+    로그를 통해 오류 메시지가 없는지 확인합니다.
+
+*   **API 헬스 체크 (선택 사항)**:
+    ```bash
+    curl http://localhost:8000/health
+    ```
+    API 서비스가 정상적으로 응답하는지 확인합니다.
+
+#### 7. 서비스 업데이트 (향후 변경사항 배포 시)
+
+소스 코드 변경사항이 있을 경우, 다음 절차로 업데이트합니다.
+
+```bash
+cd /opt/StocksEye
+git pull origin main # 또는 develop 등 작업 브랜치
+./dev_ops.sh build production
+```
+
+#### 8. 문제 해결 및 디버깅
+
+*   **로그 확인**: 문제가 발생하면 가장 먼저 `docker compose logs <service_name>` 명령으로 해당 서비스의 로그를 확인합니다.
+*   **컨테이너 내부 접속**: `docker compose exec <service_name> bash` 명령으로 컨테이너 내부에 접속하여 직접 디버깅할 수 있습니다. (여기서 `<service_name>`은 `api`, `bot`, `db`와 같은 서비스 이름입니다.)
+*   **환경 정리**: `APP_ENV=production ./dev_ops.sh clean` 명령은 모든 Docker 컨테이너, 네트워크, 볼륨을 삭제합니다. **운영 환경에서는 데이터 손실 위험이 매우 크므로, 이 명령은 극히 주의하여 사용해야 합니다.**
+
 # FAQ (2025-07-21 기준)
 - Q: Alembic 마이그레이션을 다시 사용하려면?
   - A: alembic.ini, migrations 폴더를 복구 후 환경설정 및 마이그레이션 생성/적용 절차를 따르면 됩니다.

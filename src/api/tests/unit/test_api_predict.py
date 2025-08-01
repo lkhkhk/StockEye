@@ -4,7 +4,7 @@ from unittest.mock import patch, AsyncMock
 from src.api.services.predict_service import PredictService
 
 @patch('src.api.routers.predict.PredictService.predict_stock_movement')
-def test_predict_price(mock_predict_stock_movement, client: TestClient, test_stock_master):
+def test_predict_price(mock_predict_stock_movement, client: TestClient, test_stock_master_data):
     """주가 예측 엔드포인트 테스트"""
     # Mock the predict_stock_movement method
     mock_predict_stock_movement.return_value = {
