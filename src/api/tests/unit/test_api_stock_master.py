@@ -26,9 +26,13 @@ class TestStockMasterRouter:
         # Then
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 3
-        assert {"symbol": "005930", "name": "삼성전자", "market": "KOSPI"} in data
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total_count" in data
+        assert isinstance(data["items"], list)
+        assert data["total_count"] == 5 # 예상 값을 5로 변경
+        assert len(data["items"]) == 5 # 예상 값을 5로 변경
+        assert {"symbol": "005930", "name": "삼성전자", "market": "KOSPI"} in data["items"]
 
     def test_get_all_symbols_empty(self, client: TestClient):
         # Given: DB에 종목이 없음 (setup_method에서 비워짐)
@@ -38,7 +42,12 @@ class TestStockMasterRouter:
 
         # Then
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total_count" in data
+        assert data["items"] == []
+        assert data["total_count"] == 0
 
     def test_search_symbols_by_name(self, client: TestClient, test_stock_master_data):
         # Given
@@ -50,8 +59,12 @@ class TestStockMasterRouter:
         # Then
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["symbol"] == "005930"
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total_count" in data
+        assert data["total_count"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["symbol"] == "005930"
 
     def test_search_symbols_by_symbol(self, client: TestClient, test_stock_master_data):
         # Given
@@ -63,8 +76,12 @@ class TestStockMasterRouter:
         # Then
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["name"] == "카카오"
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total_count" in data
+        assert data["total_count"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["name"] == "카카오"
 
     def test_search_symbols_case_insensitive(self, client: TestClient, test_stock_master_data):
         # Given
@@ -76,8 +93,12 @@ class TestStockMasterRouter:
         # Then
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["symbol"] == "000660"
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total_count" in data
+        assert data["total_count"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["symbol"] == "000660"
 
     def test_search_symbols_no_results(self, client: TestClient):
         # Given: DB에 종목이 없음 (setup_method에서 비워짐)
@@ -87,7 +108,12 @@ class TestStockMasterRouter:
 
         # Then
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total_count" in data
+        assert data["items"] == []
+        assert data["total_count"] == 0
 
     def test_search_symbols_empty_query(self, client: TestClient):
         # When
@@ -122,3 +148,19 @@ class TestStockMasterRouter:
         assert response.status_code == 404
         assert response.json() == {"detail": "Stock price data not found"}
         override_stock_service_dependencies.get_current_price_and_change.assert_called_once_with(symbol, real_db)
+
+    def test_search_symbols_korean_query(self, client: TestClient, test_stock_master_data):
+        # Given
+        # test_stock_master_data 픽스처가 데이터를 생성함 (한화, 한화생명 등 한글 종목 포함)
+
+        # When
+        response = client.get("/symbols/search?query=한화")
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total_count" in data
+        assert data["total_count"] >= 1
+        assert any(item["name"] == "한화" for item in data["items"]) or any(item["name"] == "한화생명" for item in data["items"])

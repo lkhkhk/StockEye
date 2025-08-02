@@ -63,3 +63,66 @@ graph TD
 ├── docker-compose.yml # Docker 서비스 통합 관리
 └── README.md          # 프로젝트 개요 및 안내
 ```
+
+## 5. 시스템 구성도
+
+```mermaid
+graph TD
+    subgraph "사용자 영역"
+        User["👤 사용자 (Telegram)"]
+    end
+
+    subgraph "외부 서비스"
+        DartApi["🛰️ DART API"]
+        StockPriceApi["💹 주식 시세 API"]
+        TelegramApi["💬 Telegram API"]
+    end
+
+    subgraph "StocksEye 시스템 (Docker)"
+        BotService["🤖 텔레그램 봇 (bot)"]
+        ApiService["⚙️ API 서버 (api)"]
+        Database[("🐘 PostgreSQL DB")]
+        
+        subgraph "API 서버 내부"
+            direction LR
+            Router["🌐 라우터"]
+            Services["🛠️ 서비스 로직"]
+            Scheduler["⏰ 스케줄러 (APScheduler)"]
+        end
+    end
+
+    %% 사용자 상호작용 흐름
+    User -- "명령어 전송" --> TelegramApi
+    TelegramApi -- "Webhook/Polling" --> BotService
+    BotService -- "API 요청 (HTTP)" --> ApiService
+    ApiService -- "API 응답" --> BotService
+    BotService -- "메시지 응답" --> TelegramApi
+    TelegramApi -- "메시지 전달" --> User
+
+    %% API 서버 내부 흐름
+    ApiService -- "라우터/서비스" --> Services
+    Services -- "데이터 CRUD" --> Database
+
+    %% 스케줄러 데이터 수집 흐름
+    Scheduler -- "주기적 실행" --> Services
+    Services -- "공시정보 요청" --> DartApi
+    Services -- "주가정보 요청" --> StockPriceApi
+    DartApi -- "공시정보 응답" --> Services
+    StockPriceApi -- "주가정보 응답" --> Services
+    Services -- "수집 데이터 저장" --> Database
+
+    %% 알림 흐름
+    Services -- "신규 공시/가격 도달 확인" --> Database
+    Services -- "알림 발송 요청" --> TelegramApi
+    TelegramApi -- "실시간 알림 전달" --> User
+
+    %% 스타일링
+    classDef user fill:#c9d,stroke:#333,stroke-width:2px;
+    classDef system fill:#d9f,stroke:#333,stroke-width:2px;
+    classDef external fill:#f9d,stroke:#333,stroke-width:2px;
+
+    class User user;
+    class BotService,ApiService,Database system;
+    class DartApi,StockPriceApi,TelegramApi external;
+
+```

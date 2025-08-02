@@ -171,6 +171,9 @@ def test_stock_master_data_fixture(real_db: Session):
         StockMaster(symbol="005930", name="삼성전자", market="KOSPI", corp_code="00126380"),
         StockMaster(symbol="035720", name="카카오", market="KOSPI", corp_code="00130000"),
         StockMaster(symbol="000660", name="SK하이닉스", market="KOSPI", corp_code="00164779"),
+        # 한화 관련 종목 추가
+        StockMaster(symbol="000880", name="한화", market="KOSPI", corp_code="00032800"),
+        StockMaster(symbol="000730", name="한화생명", market="KOSPI", corp_code="00008000"),
     ]
     real_db.add_all(stocks)
     real_db.commit()

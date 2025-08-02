@@ -19,10 +19,15 @@ def get_all_symbols(limit: int = Query(10, ge=1, le=100), offset: int = Query(0,
         "total_count": total_count
     }
 
-@router.get("/search", response_model=List[dict])
-def search_symbols(query: str = Query(..., min_length=1), db: Session = Depends(get_db)):
-    rows = db.query(StockMaster).filter(StockMaster.name.ilike(f"%{query}%") | StockMaster.symbol.ilike(f"%{query}%")).all()
-    return [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in rows]
+@router.get("/search", response_model=dict)
+def search_symbols(query: str = Query(..., min_length=1), limit: int = Query(10, ge=1, le=100), offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
+    base_query = db.query(StockMaster).filter(StockMaster.name.ilike(f"%{query}%") | StockMaster.symbol.ilike(f"%{query}%"))
+    total_count = base_query.count()
+    rows = base_query.offset(offset).limit(limit).all()
+    return {
+        "items": [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in rows],
+        "total_count": total_count
+    }
 
 @router.get("/{symbol}/current_price_and_change", response_model=dict)
 def get_current_price_and_change_api(symbol: str, db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service)):
