@@ -77,24 +77,29 @@ scheduler = BackgroundScheduler(timezone='Asia/Seoul')
 
 # --- Scheduler Jobs ---
 
-def update_stock_master_job():
+async def update_stock_master_job():
     """종목마스터 정보 갱신 잡"""
     logger.info(f"[APScheduler] 종목마스터 갱신 잡 실행: {datetime.now()}")
-    db = get_db()
+    db_gen = get_db()
+    db = next(db_gen)
     stock_service = get_stock_service()
     try:
         logger.debug("종목마스터 갱신 시작...") # DEBUG 로깅 추가
-        stock_service.update_stock_master(db)
+        await stock_service.update_stock_master(db)
         logger.debug("종목마스터 갱신 완료.") # DEBUG 로깅 추가
     except Exception as e:
         logger.error(f"종목마스터 갱신 잡 실행 중 오류: {e}", exc_info=True)
     finally:
-        db.close()
+        try:
+            next(db_gen, None)
+        except StopIteration:
+            pass
 
 def update_daily_price_job():
     """일별시세 갱신 잡"""
     logger.info(f"[APScheduler] 일별시세 갱신 잡 실행: {datetime.now()}")
-    db = get_db()
+    db_gen = get_db()
+    db = next(db_gen)
     stock_service = get_stock_service()
     try:
         logger.debug("일별시세 갱신 시작...") # DEBUG 로깅 추가
@@ -103,12 +108,16 @@ def update_daily_price_job():
     except Exception as e:
         logger.error(f"일별시세 갱신 잡 실행 중 오류: {e}", exc_info=True)
     finally:
-        db.close()
+        try:
+            next(db_gen, None)
+        except StopIteration:
+            pass
 
 def check_disclosures_job():
     """최신 공시 확인 및 알림 잡"""
     logger.info(f"[APScheduler] 최신 공시 확인 잡 실행: {datetime.now()}")
-    db = get_db()
+    db_gen = get_db()
+    db = next(db_gen)
     stock_service = get_stock_service()
     try:
         logger.debug("최신 공시 확인 시작...") # DEBUG 로깅 추가
@@ -117,12 +126,16 @@ def check_disclosures_job():
     except Exception as e:
         logger.error(f"최신 공시 확인 잡 실행 중 오류: {e}", exc_info=True)
     finally:
-        db.close()
+        try:
+            next(db_gen, None)
+        except StopIteration:
+            pass
 
 def check_price_alerts_job():
     """가격 알림 조건 확인 및 알림 잡"""
     logger.info(f"[APScheduler] 가격 알림 체크 잡 실행: {datetime.now()}")
-    db = get_db()
+    db_gen = get_db()
+    db = next(db_gen)
     alert_service = get_price_alert_service()
     stock_service = get_stock_service()
     try:
@@ -183,7 +196,10 @@ def check_price_alerts_job():
         logger.error(f"가격 알림 체크 잡 실행 중 상위 레벨 오류: {e}", exc_info=True)
         db.rollback()
     finally:
-        db.close()
+        try:
+            next(db_gen, None)
+        except StopIteration:
+            pass
 
 # --- Scheduler Setup ---
 

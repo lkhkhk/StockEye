@@ -1,25 +1,3 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from src.api.models.stock_master import StockMaster
-from src.common.db_connector import get_db
-from typing import List
-from src.api.services.stock_service import StockService
-
-router = APIRouter(prefix="/symbols", tags=["symbols"])
-
-def get_stock_service():
-    return StockService()
-
-@router.get("/", response_model=List[dict])
-def get_all_symbols(db: Session = Depends(get_db)):
-    rows = db.query(StockMaster).all()
-    return [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in rows]
-
-@router.get("/search", response_model=List[dict])
-def search_symbols(query: str = Query(..., min_length=1), db: Session = Depends(get_db)):
-    rows = db.query(StockMaster).filter(StockMaster.name.ilike(f"%{query}%") | StockMaster.symbol.ilike(f"%{query}%")).all()
-    return [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in rows]
-
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from src.api.models.stock_master import StockMaster
@@ -32,10 +10,14 @@ router = APIRouter(prefix="/symbols", tags=["symbols"])
 def get_stock_service():
     return StockService()
 
-@router.get("/", response_model=List[dict])
-def get_all_symbols(db: Session = Depends(get_db)):
-    rows = db.query(StockMaster).all()
-    return [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in rows]
+@router.get("/", response_model=dict)
+def get_all_symbols(limit: int = Query(10, ge=1, le=100), offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
+    total_count = db.query(StockMaster).count()
+    rows = db.query(StockMaster).offset(offset).limit(limit).all()
+    return {
+        "items": [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in rows],
+        "total_count": total_count
+    }
 
 @router.get("/search", response_model=List[dict])
 def search_symbols(query: str = Query(..., min_length=1), db: Session = Depends(get_db)):

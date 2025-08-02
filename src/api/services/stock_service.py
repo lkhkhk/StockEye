@@ -214,6 +214,7 @@ class StockService:
         logger.debug(f"일별 시세 발견: {symbol} - {len(prices)}개 데이터.")
         return prices
 
+    @staticmethod
     def get_sample_stocks_for_test():
         logger.debug("get_sample_stocks_for_test 호출.")
         return [
