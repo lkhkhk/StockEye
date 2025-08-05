@@ -5,7 +5,8 @@ from telegram.ext import ContextTypes
 from src.common.http_client import session
 import httpx
 
-API_URL = os.getenv("API_URL", "http://api_service:8000")
+API_HOST = os.getenv("API_HOST", "localhost")
+API_URL = f"http://{API_HOST}:8000"
 PAGE_SIZE = 10
 
 logging.basicConfig(level=logging.INFO)

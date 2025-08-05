@@ -18,7 +18,7 @@ async def test_register_success():
         await register(update, context)
 
         mock_put.assert_called_once_with(
-            "http://api_service:8000/users/telegram_register",
+            "http://stockseye-api:8000/users/telegram_register",
             json={"telegram_id": "12345", "is_active": True},
             timeout=10
         )
@@ -39,7 +39,7 @@ async def test_register_api_error():
         await register(update, context)
 
         mock_put.assert_called_once_with(
-            "http://api_service:8000/users/telegram_register",
+            "http://stockseye-api:8000/users/telegram_register",
             json={"telegram_id": "12345", "is_active": True},
             timeout=10
         )
@@ -60,7 +60,7 @@ async def test_unregister_success():
         await unregister(update, context)
 
         mock_put.assert_called_once_with(
-            "http://api_service:8000/users/telegram_register",
+            "http://stockseye-api:8000/users/telegram_register",
             json={"telegram_id": "12345", "is_active": False},
             timeout=10
         )
@@ -81,7 +81,7 @@ async def test_unregister_api_error():
         await unregister(update, context)
 
         mock_put.assert_called_once_with(
-            "http://api_service:8000/users/telegram_register",
+            "http://stockseye-api:8000/users/telegram_register",
             json={"telegram_id": "12345", "is_active": False},
             timeout=10
         )

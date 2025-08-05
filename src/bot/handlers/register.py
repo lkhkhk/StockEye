@@ -4,7 +4,8 @@ import os
 from src.common.http_client import session
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    api_url = os.getenv("API_URL", "http://api_service:8000")
+    API_HOST = os.getenv("API_HOST", "localhost")
+api_url = f"http://{API_HOST}:8000"
     telegram_id = str(update.effective_chat.id)
     # 알림 수신 동의 (is_active=True)
     payload = {"telegram_id": telegram_id, "is_active": True}
@@ -19,7 +20,8 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"알림 해제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def unregister(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    api_url = os.getenv("API_URL", "http://api_service:8000")
+    API_HOST = os.getenv("API_HOST", "localhost")
+api_url = f"http://{API_HOST}:8000"
     telegram_id = str(update.effective_chat.id)
     # 알림 수신 해제 (is_active=False)
     payload = {"telegram_id": telegram_id, "is_active": False}

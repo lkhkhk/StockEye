@@ -4,6 +4,7 @@ from src.common.db_connector import get_db
 from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertRead, PriceAlertUpdate
 from src.api.services.price_alert_service import PriceAlertService
 from src.api.auth.jwt_handler import get_current_active_user
+from src.api.services.user_service import UserService
 from typing import List
 from src.api.models.price_alert import PriceAlert
 from src.api.models.user import User # User 모델 임포트 추가
@@ -14,16 +15,38 @@ router = APIRouter(prefix="/alerts", tags=["notification"])
 def get_price_alert_service():
     return PriceAlertService()
 
+from src.api.services.user_service import UserService
+
+# ... (기존 임포트)
+
+def get_user_service():
+    return UserService()
+
 @router.post("/", response_model=PriceAlertRead)
-def create_alert(alert: PriceAlertCreate, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
-    """가격 알림 생성"""
-    result = alert_service.create_alert(db, user_id=current_user.id, alert=alert)
+def create_alert(alert: PriceAlertCreate, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
+    """가격 알림 생성 (봇 내부용)"""
+    user = user_service.get_user_by_telegram_id(db, alert.telegram_id)
+    if not user:
+        # 사용자가 없으면 생성
+        user = user_service.create_user_from_telegram(
+            db,
+            telegram_id=alert.telegram_id,
+            username=f"tg_{alert.telegram_id}",
+            first_name="Telegram",
+            last_name="User"
+        )
+
+    result = alert_service.create_alert(db, user_id=user.id, alert=alert)
     return PriceAlertRead.model_validate(result)
 
-@router.get("/", response_model=List[PriceAlertRead])
-def get_my_alerts(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
-    """내 가격 알림 목록 조회"""
-    results = alert_service.get_alerts(db, user_id=current_user.id)
+@router.get("/{telegram_id}", response_model=List[PriceAlertRead])
+def get_my_alerts(telegram_id: int, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
+    """내 가격 알림 목록 조회 (봇 내부용)"""
+    user = user_service.get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        return [] # 사용자가 없으면 빈 목록 반환
+
+    results = alert_service.get_alerts(db, user_id=user.id)
     return [PriceAlertRead.model_validate(r) for r in results]
 
 @router.get("/user/{user_id}/symbol/{symbol}", response_model=PriceAlertRead)
@@ -35,21 +58,32 @@ def get_alert_by_user_and_symbol(user_id: int, symbol: str, db: Session = Depend
     return alert
 
 
-@router.put("/{alert_id}", response_model=PriceAlertRead)
-def update_alert(alert_id: int, alert_update: PriceAlertUpdate, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
-    """가격 알림 수정"""
-    alert = alert_service.update_alert(db, alert_id, alert_update)
-    if alert.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="권한 없음")
-    return PriceAlertRead.model_validate(alert)
+@router.put("/{telegram_id}/{symbol}", response_model=PriceAlertRead)
+def update_alert(telegram_id: int, symbol: str, alert_update: PriceAlertUpdate, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
+    """가격 알림 수정 (봇 내부용)"""
+    user = user_service.get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-@router.delete("/{alert_id}")
-def delete_alert(alert_id: int, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):
-    """가격 알림 삭제"""
-    alert = db.query(PriceAlert).filter_by(id=alert_id).first()
-    if alert and alert.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="권한 없음")
-    alert_service.delete_alert(db, alert_id)
+    alert = alert_service.get_alert_by_user_and_symbol(db, user_id=user.id, symbol=symbol)
+    if not alert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+
+    updated_alert = alert_service.update_alert(db, alert.id, alert_update)
+    return PriceAlertRead.model_validate(updated_alert)
+
+@router.delete("/{telegram_id}/{symbol}")
+def delete_alert(telegram_id: int, symbol: str, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
+    """가격 알림 삭제 (봇 내부용)"""
+    user = user_service.get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    alert = alert_service.get_alert_by_user_and_symbol(db, user_id=user.id, symbol=symbol)
+    if not alert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+
+    alert_service.delete_alert(db, alert.id)
     return {"result": True}
 
 @router.post("/test_notify")

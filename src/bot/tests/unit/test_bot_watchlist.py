@@ -21,7 +21,7 @@ async def test_watchlist_add_command_success():
         await watchlist_add_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://api_service:8000/watchlist/add",
+            "http://stockseye-api:8000/watchlist/add",
             json={
                 "user_id": 123,
                 "symbol": "005930"
@@ -61,7 +61,7 @@ async def test_watchlist_add_command_api_error():
         await watchlist_add_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://api_service:8000/watchlist/add",
+            "http://stockseye-api:8000/watchlist/add",
             json={
                 "user_id": 123,
                 "symbol": "005930"
@@ -88,7 +88,7 @@ async def test_watchlist_remove_command_success():
         await watchlist_remove_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://api_service:8000/watchlist/remove",
+            "http://stockseye-api:8000/watchlist/remove",
             json={
                 "user_id": 123,
                 "symbol": "005930"
@@ -128,7 +128,7 @@ async def test_watchlist_remove_command_api_error():
         await watchlist_remove_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://api_service:8000/watchlist/remove",
+            "http://stockseye-api:8000/watchlist/remove",
             json={
                 "user_id": 123,
                 "symbol": "005930"
@@ -156,7 +156,7 @@ async def test_watchlist_get_command_success():
         await watchlist_get_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/watchlist/get/123",
+            "http://stockseye-api:8000/watchlist/get/123",
             timeout=10
         )
         update.message.reply_text.assert_called_once_with(
@@ -180,7 +180,7 @@ async def test_watchlist_get_command_no_watchlist():
         await watchlist_get_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/watchlist/get/123",
+            "http://stockseye-api:8000/watchlist/get/123",
             timeout=10
         )
         update.message.reply_text.assert_called_once_with(
@@ -200,7 +200,7 @@ async def test_watchlist_get_command_api_error():
         await watchlist_get_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/watchlist/get/123",
+            "http://stockseye-api:8000/watchlist/get/123",
             timeout=10
         )
         update.message.reply_text.assert_called_once_with(

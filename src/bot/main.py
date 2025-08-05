@@ -92,7 +92,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("watchlist_get", watchlist_get_command))
     # app.add_handler(CommandHandler("trade_simulate", trade_simulate_command))
     # app.add_handler(CommandHandler("trade_history", trade_history_command))
-    app.add_handler(CommandHandler("symbols", symbols_command, pass_args=True))
+    app.add_handler(CommandHandler("symbols", symbols_command))
     
     app.add_handler(CommandHandler("symbol_info", symbol_info_command))
     app.add_handler(CallbackQueryHandler(symbols_pagination_callback, pattern="^symbols_page_"))
@@ -111,5 +111,17 @@ if __name__ == "__main__":
     app.add_handler(get_unregister_handler()) # /unregister
     app.add_handler(get_admin_handler()) # /admin
     app.add_handler(CommandHandler("test_notify", test_notify_command))
-    print("텔레그램 봇이 시작되었습니다. 메시지를 기다리는 중...")
-    app.run_polling()
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+    PORT = int(os.getenv("PORT", "8001"))
+
+    if WEBHOOK_URL:
+        logger.info(f"Starting bot in webhook mode on port {PORT}...")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path="webhook",
+            webhook_url=WEBHOOK_URL
+        )
+    else:
+        logger.info("Starting bot in polling mode...")
+        app.run_polling()

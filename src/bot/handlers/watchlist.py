@@ -4,7 +4,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from src.common.http_client import session
 
-API_URL = os.getenv("API_URL", "http://api_service:8000")
+API_HOST = os.getenv("API_HOST", "localhost")
+API_URL = f"http://{API_HOST}:8000"
 
 async def watchlist_add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:

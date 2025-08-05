@@ -29,7 +29,7 @@ async def test_symbols_command_success():
         await symbols_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/?limit=10&offset=0",
+            "http://stockseye-api:8000/symbols/?limit=10&offset=0",
             timeout=10
         )
         update.message.reply_text.assert_called_once()
@@ -51,7 +51,7 @@ async def test_symbols_command_no_symbols():
         await symbols_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/?limit=10&offset=0",
+            "http://stockseye-api:8000/symbols/?limit=10&offset=0",
             timeout=10
         )
         update.message.reply_text.assert_called_once()
@@ -70,7 +70,7 @@ async def test_symbols_command_api_error():
         await symbols_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/?limit=10&offset=0",
+            "http://stockseye-api:8000/symbols/?limit=10&offset=0",
             timeout=10
         )
         update.message.reply_text.assert_called_once_with(
@@ -99,7 +99,7 @@ async def test_symbols_search_command_success():
         await symbols_search_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "삼성", "limit": 10, "offset": 0},
             timeout=10
         )
@@ -122,7 +122,7 @@ async def test_symbols_search_command_no_query():
         await symbols_search_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "", "limit": 10, "offset": 0},
             timeout=10
         )
@@ -145,7 +145,7 @@ async def test_symbols_search_command_no_results():
         await symbols_search_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "없는종목", "limit": 10, "offset": 0},
             timeout=10
         )
@@ -165,7 +165,7 @@ async def test_symbols_search_command_api_error():
         await symbols_search_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "삼성", "limit": 10, "offset": 0},
             timeout=10
         )
@@ -194,7 +194,7 @@ async def test_symbol_info_command_success():
         await symbol_info_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "005930", "limit": 5000, "offset": 0},
             timeout=10
         )
@@ -233,7 +233,7 @@ async def test_symbol_info_command_not_found():
         await symbol_info_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "없는종목", "limit": 5000, "offset": 0},
             timeout=10
         )
@@ -254,7 +254,7 @@ async def test_symbol_info_command_api_error():
         await symbol_info_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "005930", "limit": 5000, "offset": 0},
             timeout=10
         )
@@ -286,7 +286,7 @@ async def test_symbols_command_with_query():
 
         # symbols_command가 symbols/search 엔드포인트를 올바른 쿼리로 호출하는지 확인
         mock_get.assert_called_once_with(
-            "http://api_service:8000/symbols/search",
+            "http://stockseye-api:8000/symbols/search",
             params={"query": "한화", "limit": 10, "offset": 0},
             timeout=10
         )

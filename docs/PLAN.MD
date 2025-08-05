@@ -1,99 +1,63 @@
 # StocksEye 개발 계획 및 현황
 
-## 🎯 Phase 1: 코어 인프라 구축 (완료)
+## 🚀 최우선 과제: 아키텍처 재설계 및 안정화
 
--   [x] **프로젝트 초기 설정**
-    -   [x] Docker 기반 서비스 환경 구성 (api, bot, db)
-    -   [x] FastAPI 및 Telegram Bot 프레임워크 연동
-    -   [x] PostgreSQL 연동 및 SQLAlchemy ORM 설정
-    -   [x] `settings.env`를 통한 환경 변수 관리
-    -   [x] `pytest` 기반 테스트 환경 구축 (in-memory DB 활용)
--   [x] **중앙 로깅 시스템 구축**
-    -   [x] `api`, `bot` 서비스 로그를 `/logs` 볼륨에 파일로 기록
-    -   [x] 표준 시간, 로그 레벨 등 일관된 포맷 적용
--   [x] **백그라운드 스케줄러(APScheduler) 연동**
-    -   [x] `api` 서비스 시작 시 스케줄러 자동 실행
-    -   [x] 스케줄러 상태 및 잡 목록 조회 API 구현
+> **현황:** E2E 테스트 과정에서 `api`와 `bot` 서비스 간의 순환 의존성으로 인한 심각한 네트워크 오류 및 기능 미작동 문제가 발견되었습니다. 이를 해결하기 위해 Message Queue(Redis)를 도입하고, 비동기 작업을 처리하는 별도의 `worker` 서비스를 추가하는 것으로 아키텍처를 재설계하기로 결정했습니다.
 
-## 🚀 Phase 2: 핵심 기능 구현 (완료)
+> **목표:** 새로운 아키텍처를 성공적으로 도입하여 서비스 간 결합도를 낮추고, 시스템 전체의 안정성과 확장성을 확보합니다. 이 과정에서 기존의 핵심 기능 미작동 버그들을 모두 해결하고, 안정적인 E2E 테스트를 구축합니다.
 
--   [x] **사용자 인증 시스템 (JWT 기반)**
-    -   [x] 회원가입, 로그인, 로그아웃 API
-    -   [x] 토큰 기반 사용자 인증 및 정보 조회
-    -   [x] 사용자 정보 조회/업데이트, 텔레그램 등록, 사용자 통계, 모든 사용자 조회 테스트 커버리지 개선 (`src/api/routers/user.py` 테스트 커버리지 개선)
--   [x] **주식 정보 관리**
-    -   [x] **종목 마스터**: DART API 연동을 통한 전체 종목 정보 일괄 갱신 (매일 오전 7시)
-    -   [x] **일별 시세**: 전체 종목의 일별 시세 데이터 생성 및 갱신 (매일 오후 6시, 현재는 임시 데이터)
-    -   [x] **공시 정보**: DART API 연동을 통한 최신 공시 정보 주기적 확인 (매 4시간, API 호출 최적화)
-    -   [x] **종목 마스터 및 현재가 조회 테스트 커버리지 개선**: `src/api/routers/stock_master.py` 테스트 커버리지 개선
--   [x] **텔레그램 봇 기본 기능**
-    -   [x] `/start`, `/help` 등 기본 명령어 핸들러
-    -   [x] 종목 코드/이름 기반 검색 및 상세 정보 조회
-    -   [x] 자연어(일상 대화) 기반 종목 검색 및 예측 요청 처리
--   [x] **관심 종목 (Watchlist)**
-    -   [x] 관심 종목 추가, 조회, 삭제 기능 (API 및 봇 명령어)
-    -   [x] 관심 종목 추가/조회/삭제 테스트 커버리지 개선 (`src/api/routers/watchlist.py` 테스트 커버리지 개선)
--   [x] **주가 예측**
-    -   [x] 이동평균선(SMA) 기반 기본 예측 모델 구현
-    -   [x] 사용자별 예측 이력 조회 기능 (API 및 봇 명령어)
--   [x] **모의 거래 (Simulated Trading)**
-    -   [x] 매수/매도 기록 및 이력 조회 기능 (API 및 봇 명령어)
-    -   [x] 거래 내역 기반 수익률, 승률 등 기본 통계 제공 (`src/api/routers/simulated_trade.py` 테스트 커버리지 개선)
+### Phase 1: 아키텍처 재설계 및 인프라 구축 (진행 중)
 
-## ✨ Phase 3: 기능 고도화 및 UX 개선 (진행 중)
+-   [ ] **[인프라] `docker-compose.yml` 수정:**
+    -   [x] **(완료)** `redis` 서비스를 신규 추가합니다.
+    -   [ ] `worker` 서비스를 신규 추가합니다. (`src/worker` 디렉토리 및 Dockerfile 생성 필요)
+    -   [ ] 모든 서비스(`api`, `bot`, `db`, `redis`, `worker`)의 이름과 `container_name`에 `stockseye-` 접두사를 붙여 명명 규칙을 통일합니다. (예: `stockseye-api`)
+    -   [ ] 서비스 간 통신에 사용되는 호스트 이름을 새로운 서비스명으로 업데이트합니다. (예: `API_HOST=stockseye-api`)
 
--   [x] **실시간 공시 알림**
-    -   [x] `SystemConfig`를 이용해 마지막 확인 공시 추적
-    -   [x] 신규 공시 발생 시 구독자에게 텔레그램 알림 발송
-    -   [x] DART API 사용량 초과 등 예외 처리 강화
-    -   [x] DART API 호출 횟수 최적화 (전체 공시 갱신 시 단일 API 호출로 변경)
--   [x] **가격 알림 (Price Alert) 기능 고도화**
-    -   [x] 알림 조건 다양화: 목표가(이상/이하), 전일 대비 변동률(상승/하락)
-    -   [x] 통합 알림 설정: 단일 `PriceAlert` 모델에서 가격, 변동률, 공시 알림 여부 동시 관리
-    -   [x] 반복 알림: 알림 발생 후에도 비활성화되지 않고 계속 알림을 받는 옵션 추가 (매일, 매주 등)
-    -   [x] 알림 메시지 개선: 현재가, 등락률 등 상세 정보 포함
-    -   [x] 텔레그램 봇 `/set_price` 명령어 오류 수정 및 기능 개선
--   [x] **관리자 기능 강화**
-    -   [x] 통계 조회, 스케줄러 잡 제어, 데이터 수동 갱신 등 봇 명령어로 제어
-    -   [x] 장시간 소요 작업(일괄 갱신 등)에 대한 비동기 처리 및 결과 알림
-    -   [x] 관리자 명령어 핸들러에 `@admin_only` 데코레이터를 적용하여 권한 확인 로직 중복 제거
-    -   [x] 전체 공시 갱신 로직을 단일 API 호출로 개선하여 효율성 및 안정성 확보
--   [x] **외부 API 연동 안정성 강화**
-    -   [x] `requests` 사용 시 `timeout` 및 `retries` 로직 추가 (DART API, 봇 핸들러)
-    -   [x] **(TODO)** 실제 주식 시세 API 연동 (현재 임시 데이터 -> 실 데이터)
--   [x] **(TODO) 예측 모델 개선**
-    -   [x] 더 다양한 기술적 지표(RSI, MACD 등)를 사용한 예측 로직 고도화
-    -   [x] 예측 결과에 대한 신뢰도 또는 확률 점수 제공 (`src/api/routers/predict.py` 테스트 커버리지 개선)
+-   [ ] **[리팩토링] 서비스명 변경에 따른 프로젝트 전체 수정:**
+    -   **목표:** `docker-compose.yml`의 서비스명 변경사항을 프로젝트 내의 모든 관련 파일에 일괄 적용합니다.
+    -   **대상 파일:**
+        -   `dev_ops.sh`, `scripts/service_control.sh` 등 쉘 스크립트
+        -   `src/bot/tests/e2e/test_api_bot_e2e.py` 등 테스트 코드 내의 URL
+        -   기타 설정 파일 및 문서
 
-## 🔧 Phase 4: 리팩토링 및 안정화 (향후 계획)
+### Phase 2: Worker 서비스 구현 및 기능 이전
 
--   [x] **개발/운영 모드 구분 추가**: `APP_ENV` 환경 변수 도입 및 환경별 `.env` 파일, 동적 로깅 설정 적용
--   [x] **코드 리팩토링**
-    -   [x] API 라우터 구조 개선 (e.g., `admin` 라우터 통합)
-    -   [x] 중복 코드 제거 (e.g., `requests_retry_session` 공통화 -> `http_client.py`로 분리)
-    -   [x] API 서비스 로직에 대한 의존성 주입(DI) 패턴 전면 적용
-    -   [x] 불필요한 파일 제거 (e.g., `src/bot/services/notify_service.py`)
-    -   [x] `telegram_id` 등 DB 스키마 타입 불일치 문제 해결 및 `User` 모델 필드 확장
--   [x] **테스트 커버리지 확대**
-    -   [x] `bot` 핸들러에 대한 단위/통합 테스트 코드 보강 (`/set_price` 명령어 테스트 추가)
-    -   [x] **테스트 환경 안정화**: `test_toggle_disclosure_alert_existing_alert_on_to_off` 테스트 실패 문제 해결 (서비스 의존성 모의를 통한 테스트 격리 확보)
-    -   [x] **봇 서비스 테스트 안정화**: `bot` 핸들러의 비동기 함수 호출 시 `await` 키워드 누락 문제 해결 (`src/bot/tests/test_bot_natural.py` 테스트 통과)
-    -   [x] **테스트 파일 구조 개선**: `test_bot_alert_price.py`를 `test_api_alerts_price.py`로 이름 변경, `src/common` 모듈 테스트를 `src/common/tests`로 이동, `test_e2e_scenario.py`를 `src/api/tests/e2e`로 이동 및 `pytest.ini` 업데이트
-    -   [x] **API 단위 테스트 폴더 분리**: `src/api/tests` 내의 단위 테스트 파일들을 `src/api/tests/unit`으로 이동 및 `pytest.ini` 업데이트
--   [x] **`GEMINI.md` 지침 업데이트**: `replace` 도구 사용 지침 및 `docker compose exec` 문제 해결 지침 보강
--   [x] **`api` 서비스 `bot_router` 엔드포인트 구현 및 테스트**: `alert/list`, `alert/remove`, `alert/deactivate` 엔드포인트 구현 및 테스트 완료
--   [x] **(TODO)** `api` 서비스의 모든 라우터에 대한 테스트 코드 작성
-    -   [x] **(TODO)** `bot` 서비스의 모든 핸들러에 대한 테스트 코드 작성
-    -   [x] **`common` 모듈에 대한 단위 테스트 코드 작성**
-    -   [x] `src/common/db_connector.py` 테스트 커버리지 개선
-    -   [x] `src/common/notify_service.py` 테스트 커버리지 개선
--   [x] **스케줄러 잡 DB 세션 관리 개선**: `src/api/main.py` 내 스케줄러 잡에서 `get_db()` 사용 방식 (`db = next(db_gen)`)을 올바른 세션 관리 방식으로 변경 (`db = get_db()` 및 `db.close()`).
-    -   [ ] GitHub Actions 연동
-    -   [ ] `main` 브랜치 push 시 자동 테스트 및 Docker 이미지 빌드/배포
--   [ ] **(TODO) 성능 튜닝 및 최적화**
-    -   [ ] DB 쿼리 최적화 (인덱스 추가, `selectinload` 등 사용)
-    -   [ ] 대량 데이터 처리 로직(일괄 갱신 등) 성능 개선
--   [x] **텔레그램 봇 `/symbols` 명령어 오류 해결**: `/symbols` 명령어 실행 시 "[종목 목록 조회 실패: 알 수 없는 오류가 발생했습니다.]" 응답이 발생하는 문제 해결. (페이지네이션 및 `market` 정보 표시 개선 포함)
--   [ ] **봇 테스트 리팩토링**: 기능별 단위 테스트 및 통합 테스트 분리
+-   [ ] **[신규] `worker` 서비스 기본 구현:**
+    -   `src/worker/main.py`를 생성하고, Redis Pub/Sub 구독 및 메시지 처리를 위한 기본 로직을 구현합니다.
+    -   과거 `OLD-PJT/StockEye/app/core/database.py`의 `redis.asyncio` 사용법을 참고하여 비동기 Redis 클라이언트를 구현합니다.
 
+-   [ ] **[기능 이전] 스케줄러 기능 이전:**
+    -   `api` 서비스의 `main.py`에 있던 APScheduler 관련 코드를 `worker` 서비스로 이전합니다.
+    -   `update_stock_masters`, `update_daily_prices` 등 모든 주기적인 잡(job)이 `worker`에서 실행되도록 수정합니다.
 
+-   [ ] **[기능 이전] 알림 기능 리팩토링:**
+    -   **`api` 서비스:** `price_alert_service.py` 등에서 `bot`을 직접 호출하던 로직을 제거하고, `chat_id`와 메시지 내용을 포함한 데이터를 Redis의 `notifications` 채널에 발행(Publish)하도록 수정합니다.
+    -   **`worker` 서비스:** `notifications` 채널을 구독하고, 메시지를 수신하면 Telegram API를 직접 호출하여 사용자에게 알림을 발송하는 기능을 구현합니다.
+
+### Phase 3: 핵심 기능 정상화 및 E2E 테스트 구축
+
+> **목표:** 새로운 아키텍처 위에서 기존의 모든 버그를 해결하고, 각 기능에 대한 E2E 테스트를 작성하여 안정성을 검증합니다.
+
+-   [ ] **[버그/치명적] 사용자 데이터 연동 기능 정상화:**
+    -   **대상:** `alert`, `history`, `trade`, `watchlist` 등
+    -   **해결 방안:** `telegram_id` 기반의 사용자 식별 로직을 `api` 서비스에 중앙화하여 구현했던 내용을 새로운 아키텍처에 맞게 재검증하고 안정화합니다.
+    -   **검증:** 각 기능에 대한 **Bot-API-Worker 연동 E2E 테스트 코드를 반드시 작성**하여 버그 재발을 방지합니다.
+
+-   [ ] **[버그/심각] `natural` 핸들러 API 응답 형식 불일치 문제 해결:**
+    -   **해결:** `natural.py`에서 API 응답(`{"items": [...]}`)을 올바르게 파싱하도록 수정합니다.
+    -   **검증:** E2E 테스트를 통해 자연어 처리 기능의 정상 동작을 확인합니다.
+
+-   [ ] **[기능 누락] 예측 이력 저장을 위한 `user_id` 전달:**
+    -   **해결:** `predict`, `natural` 핸들러에서 `/predict` API 호출 시 `telegram_id`를 포함하도록 수정하고, `api`는 이를 `user_id`로 변환하여 이력을 저장하도록 합니다.
+    -   **검증:** E2E 테스트를 통해 예측 이력이 DB에 정상적으로 저장되는지 확인합니다.
+
+## 🌟 Phase 4: 테스트 고도화 및 지침 개선 (유지)
+
+-   [ ] **(기존) 단위 테스트 커버리지 100% 달성**
+    -   [ ] **Bot 핸들러:** `start.py`, `history.py` 등 누락된 단위 테스트를 작성합니다.
+    -   [ ] **API 라우터:** `admin.py` 등 단위 테스트가 없는 모든 라우터에 대해 신규 작성합니다.
+    -   [ ] **API 서비스:** `stock_service.py` 등 기존 테스트를 보강하고 순수 단위 테스트로 리팩토링합니다.
+    -   [ ] **`common` 모듈:** 모든 공통 모듈에 대한 단위 테스트를 작성합니다.
+-   [ ] **(기존) 통합 테스트 보강**
+    -   [ ] `predict.py` 등 통합 테스트가 없는 API 라우터에 대해 신규 작성합니다.

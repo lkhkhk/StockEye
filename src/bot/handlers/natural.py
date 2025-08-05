@@ -5,7 +5,8 @@ from telegram.ext import ContextTypes
 from src.common.http_client import session
 import httpx # httpx 임포트 추가
 
-API_URL = os.getenv("API_URL", "http://api_service:8000")
+API_HOST = os.getenv("API_HOST", "localhost")
+API_URL = f"http://{API_HOST}:8000"
 
 # 종목명/코드 추출 및 예측/상세 안내
 async def natural_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):

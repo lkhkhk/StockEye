@@ -9,7 +9,8 @@ from src.common.http_client import session # Import the session object directly
 
 logger = logging.getLogger(__name__)
 
-API_URL = os.getenv("API_URL", "http://api_service:8000")
+API_HOST = os.getenv("API_HOST", "localhost")
+API_URL = f"http://{API_HOST}:8000"
 
 ADMIN_ID = os.getenv("TELEGRAM_ADMIN_ID", "")
 

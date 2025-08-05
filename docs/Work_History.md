@@ -1,4 +1,63 @@
-## 2. 작업 기록
+### 2.15. 아키텍처 재설계 준비: 프로젝트 명명 규칙 통일 및 설정 파일 업데이트 (2025-08-05)
+
+*   **목표:** 새로운 `worker` 서비스 도입에 앞서, 프로젝트의 일관성과 명확성을 확보하기 위해 모든 서비스의 명명 규칙을 통일하고 관련 설정 파일을 업데이트합니다.
+*   **작업 내역:**
+    *   **`docker-compose.yml` 수정:** 모든 서비스(`api`, `bot`, `db`)의 이름과 `container_name`에 `stockseye-` 접두사를 붙여 수정했습니다. (예: `api` -> `stockseye-api`)
+    *   **서비스 간 호출 코드 수정:** `docker-compose.yml`의 변경사항에 맞춰, 서비스 간 통신에 사용되는 호스트 이름을 새로운 서비스명으로 업데이트했습니다.
+        *   `src/bot/handlers/*.py`: `api_service`를 `stockseye-api`를 참조하도록 `API_HOST` 환경 변수를 사용하게 변경했습니다.
+        *   `src/bot/tests/unit/*.py`: 테스트 코드 내에 하드코딩된 `http://api_service:8000` URL을 `http://stockseye-api:8000`으로 일괄 변경했습니다.
+        *   `src/bot/tests/e2e/test_api_bot_e2e.py`: 웹훅 URL의 호스트명을 `stockseye-bot`으로 수정했습니다.
+    *   **스크립트 수정:** `scripts/backup_restore.sh`의 대상 컨테이너 이름을 `postgres_db`에서 `stockseye-db`로 변경했습니다.
+*   **결과:** 새로운 아키텍처를 적용하기 위한 모든 사전 준비 작업을 완료했습니다.
+
+---
+
+### 2.14. 아키텍처 재설계: Message Queue 도입 및 Worker 서비스 분리 (2025-08-05)
+
+*   **목표:** E2E 테스트에서 발생한 `api`와 `bot` 서비스 간의 순환 의존성 및 네트워크 문제를 근본적으로 해결하기 위해 아키텍처를 재설계합니다.
+*   **논의 및 결정 사항:**
+    *   **문제 진단:** `api` 서비스가 알림을 보내기 위해 `bot` 서비스의 웹훅을 직접 호출하는 구조는 강한 결합(Tight Coupling)과 순환 의존성을 야기하여, E2E 테스트 실패 및 시스템 불안정성의 원인이 됨을 확인했습니다.
+    *   **해결 방안 채택:** 서비스 간의 결합을 끊고 비동기 처리를 도입하기 위해 **Message Queue(Redis)를 사용하는 `worker` 서비스 모델**을 채택하기로 결정했습니다.
+        *   **`worker` 서비스:** 알림, 주기적 작업(스케줄링), 비동기 장기 실행 작업 등 백그라운드에서 실행되어야 하는 모든 작업을 전담하는 독립적인 서비스입니다.
+        *   **`api` 서비스:** `bot`을 직접 호출하는 대신, 알림/작업 요청을 Redis에 메시지로 발행(Publish)하는 역할만 수행합니다.
+        *   **`bot` 서비스:** 사용자 요청을 처리하고 `api`에 데이터를 요청하는 역할에만 집중합니다.
+    *   **명명 규칙 개선:** 프로젝트의 명확성과 확장성을 위해 모든 서비스와 컨테이너의 이름에 `stockseye-` 접두사를 붙여 통일하기로 결정했습니다. (예: `stockseye-api`, `stockseye-bot`)
+*   **현재 상태:** 새로운 아키텍처 계획을 `PLAN.MD`에 반영하고, 관련 파일(docker-compose.yml, 소스 코드, 문서 등)을 일괄적으로 수정하는 작업을 진행할 예정입니다.
+
+---
+
+### 2.13. Bot-API 연동 버그 해결 및 E2E 테스트 도입 (2025-08-04)
+
+*   **목표:** 프로젝트 전반에 걸쳐 발견된 Bot-API 간의 사용자 식별 및 인증 방식 불일치 버그를 해결하고, 재발 방지를 위한 E2E 테스트를 도입합니다.
+*   **작업 내역 (진행 중):**
+    *   **`/alert` 기능 버그 해결:**
+        *   **1단계 (분석):** `notification.py`, `price_alert.py`, `alert.py`, `user_service.py` 등 관련 파일의 코드를 분석하여, 봇은 `telegram_id`를 보내지만 API는 `JWT` 토큰을 요구하는 근본적인 문제를 재확인했습니다.
+        *   **2단계 (계획):** API 라우터(`notification.py`)가 `telegram_id`를 기반으로 사용자를 식별하고, 필요시 신규 사용자를 자동 생성하도록 수정하는 것으로 해결 방향을 정했습니다.
+        *   **3단계 (구현):**
+            *   `src/api/schemas/price_alert.py` 스키마에 `telegram_id` 필드를 추가했습니다.
+            *   `src/api/routers/notification.py`의 `create_alert`, `get_my_alerts`, `delete_alert` 엔드포인트를 `telegram_id` 기반으로 동작하도록 수정했습니다.
+            *   `src/bot/handlers/alert.py`의 `alert_list`, `alert_remove`, `set_price_alert`, `alert_button_callback`, `alert_set_repeat_callback` 함수를 수정하여 `telegram_id`를 사용하고, API의 변경된 엔드포인트에 맞게 호출하도록 변경했습니다.
+        *   **4단계 (검증 시도 및 문제 발생):**
+            *   수정된 `alert` 기능에 대한 E2E 테스트(`src/bot/tests/e2e/test_api_bot_e2e.py`)를 작성했습니다.
+            *   `api` 컨테이너에서 `pytest`를 실행하여 `src/api/tests/integration/test_api_alerts.py`와 `src/bot/tests/e2e/test_api_bot_e2e.py`를 검증하려 했으나, `httpx.ConnectError: All connection attempts failed` 오류가 지속적으로 발생했습니다.
+            *   **원인 분석:**
+                *   E2E 테스트가 봇의 웹훅 URL(`http://bot:8001/webhook`)에 연결하지 못하는 문제였습니다.
+                *   `src/bot/main.py`가 폴링 모드로 동작하고 있었고, E2E 테스트는 웹훅을 호출하는 방식이었습니다.
+                *   `src/bot/main.py`를 웹훅 모드로 변경하고, `docker-compose.yml`에 `bot` 서비스의 `ports` 매핑과 `WEBHOOK_URL` 환경 변수를 추가했습니다.
+                *   `test_api_bot_e2e.py`의 `BOT_WEBHOOK_URL` 설정과 `src/bot/main.py`의 `webhook_url` 설정 간의 불일치(`http://bot:8001` vs `http://bot:8001/webhook`)가 있었습니다.
+                *   `src/bot/tests/e2e/test_api_bot_e2e.py`의 `send_telegram_message` 함수에서 `BOT_WEBHOOK_URL`에 `/webhook` 경로를 추가하여 요청을 보내도록 수정했습니다.
+            *   **현재 상태:** `httpx.ConnectError: [Errno -5] No address associated with hostname` 오류가 여전히 발생하고 있습니다. 이는 `api` 컨테이너에서 `bot` 서비스의 웹훅 URL을 해석하지 못하는 네트워크 문제입니다.
+
+---
+
+### 2.12. API 단위 테스트 강화 - `predict_service.py` (`calculate_analysis_items`) (2025-08-02)
+
+*   **목표:** `src/api/services/predict_service.py`의 `calculate_analysis_items` 메서드에 대한 심층적인 단위 테스트를 추가하고 100% 커버리지를 달성합니다.
+*   **수행 내용:**
+    *   `src/api/tests/unit/test_predict_service.py` 파일에 `calculate_analysis_items` 메서드를 직접 테스트하는 `test_calculate_analysis_items_basic_up_trend` 및 `test_calculate_analysis_items_basic_down_trend` 테스트 케이스를 추가했습니다.
+    *   이 테스트들은 Pandas DataFrame 형태의 Mock 데이터를 사용하여 `calculate_analysis_items`의 SMA 기반 추세 분석 로직을 검증합니다.
+*   **결과:** `calculate_analysis_items` 메서드에 대한 단위 테스트를 진행 중입니다. 추가적인 시나리오(횡보, RSI, MACD, 엣지 케이스 등)에 대한 테스트를 계속 추가할 예정입니다.
+
 
 ### 2.1. 프로젝트 분석 및 문서 현행화 (2025-07-25)
 

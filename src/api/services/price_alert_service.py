@@ -18,14 +18,6 @@ class PriceAlertService:
     def create_alert(self, db: Session, user_id: int, alert: PriceAlertCreate) -> PriceAlert:
         logger.debug(f"가격 알림 생성 시도: user_id={user_id}, symbol={alert.symbol}, target_price={alert.target_price}, condition={alert.condition}, change_percent={alert.change_percent}, change_type={alert.change_type}, notify_on_disclosure={alert.notify_on_disclosure}, repeat_interval={alert.repeat_interval}")
         
-        # 유효성 검사: 최소 하나의 알림 조건은 설정되어야 함
-        if not (alert.target_price is not None or alert.change_percent is not None or alert.notify_on_disclosure):
-            logger.warning("최소 하나의 알림 조건(목표 가격, 변동률, 공시 알림)은 반드시 설정해야 합니다.")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="최소 하나의 알림 조건(목표 가격, 변동률, 공시 알림)은 반드시 설정해야 합니다."
-            )
-        
         # 변동률 알림 설정 시 change_percent와 change_type이 함께 설정되어야 함
         if alert.change_percent is not None and alert.change_type is None:
             logger.warning("변동률 알림 설정 시 변동 유형(change_type)도 함께 설정해야 합니다.")
@@ -38,6 +30,14 @@ class PriceAlertService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="변동 유형(change_type) 설정 시 변동률(change_percent)도 함께 설정해야 합니다."
+            )
+
+        # 유효성 검사: 최소 하나의 알림 조건은 설정되어야 함
+        if not (alert.target_price is not None or alert.change_percent is not None or alert.notify_on_disclosure):
+            logger.warning("최소 하나의 알림 조건(목표 가격, 변동률, 공시 알림)은 반드시 설정해야 합니다.")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="최소 하나의 알림 조건(목표 가격, 변동률, 공시 알림)은 반드시 설정해야 합니다."
             )
 
         try:
