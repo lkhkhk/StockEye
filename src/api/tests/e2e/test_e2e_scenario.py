@@ -13,7 +13,8 @@ from src.api.models.prediction_history import PredictionHistory
 from src.api.models.simulated_trade import SimulatedTrade
 from src.api.models.system_config import SystemConfig
 
-def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
+@pytest.mark.asyncio
+async def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     """
     사용자 생성부터 watchlist 추가, 알림 설정, 예측, 거래까지 이어지는 E2E 시나리오
     """
@@ -23,7 +24,7 @@ def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     password = "e2e_password"
     email = f"e2e_{unique_id}@test.com"
 
-    response = client.post("/users/register", json={
+    response = client.post("/api/v1/users/register", json={
         "username": username,
         "email": email,
         "password": password
@@ -33,7 +34,7 @@ def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     assert user_data["username"] == username
 
     # 로그인
-    response = client.post("/users/login", json={"username": username, "password": password})
+    response = client.post("/api/v1/users/login", json={"username": username, "password": password})
     assert response.status_code == 200
     token_data = response.json()
     access_token = token_data["access_token"]
@@ -46,12 +47,12 @@ def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     
     # 2. Watchlist 추가
     symbol = "005930" # 삼성전자
-    response = client.post("/watchlist/add", json={"user_id": user_id, "symbol": symbol}, headers=headers)
+    response = client.post("/api/v1/watchlist/add", json={"user_id": user_id, "symbol": symbol}, headers=headers)
     assert response.status_code == 200
     assert response.json()["message"] == "종목이 관심 목록에 추가되었습니다."
 
     # 3. 가격 알림 설정
-    response = client.post("/alerts/", json={
+    response = client.post("/api/v1/alerts/", json={
             "symbol": symbol,
             "target_price": 90000,
             "condition": "gte"
@@ -62,7 +63,7 @@ def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     assert alert_data["target_price"] == 90000
 
     # 4. 주가 예측
-    response = client.post("/predict", json={"symbol": symbol, "user_id": user_id}, headers=headers)
+    response = client.post("/api/v1/predict", json={"symbol": symbol, "user_id": user_id}, headers=headers)
     assert response.status_code == 200
     assert response.json()["symbol"] == symbol
     assert "confidence" in response.json()
@@ -70,7 +71,7 @@ def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     assert 0 <= response.json()["confidence"] <= 100
 
     # 5. 모의 거래
-    response = client.post("/trade/simulate", json={
+    response = client.post("/api/v1/trade/simulate", json={
         "user_id": user_id,
         "symbol": symbol,
         "trade_type": "buy",
@@ -81,7 +82,7 @@ def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):
     assert response.json()["message"] == "모의매매 기록 완료"
 
     # 6. 거래 내역 확인
-    response = client.get(f"/trade/history/{user_id}", headers=headers)
+    response = client.get(f"/api/v1/trade/history/{user_id}", headers=headers)
     assert response.status_code == 200
     trade_history = response.json()
     assert len(trade_history["trades"]) == 1

@@ -20,7 +20,7 @@ class TestTelegramAlertRouter:
             "condition": "gte",
             "is_active": True
         }
-        create_response = client.post("/alerts/", json=create_payload)
+        create_response = client.post("/api/v1/alerts/", json=create_payload)
         assert create_response.status_code == 200
         created_alert = create_response.json()
         assert created_alert["symbol"] == symbol
@@ -35,7 +35,7 @@ class TestTelegramAlertRouter:
         assert alert_in_db.target_price == 80000
 
         # 2. 알림 목록 조회
-        list_response = client.get(f"/alerts/{telegram_id}")
+        list_response = client.get(f"/api/v1/alerts/{telegram_id}")
         assert list_response.status_code == 200
         alerts = list_response.json()
         assert len(alerts) == 1
@@ -43,15 +43,15 @@ class TestTelegramAlertRouter:
 
         # 3. 알림 수정 (공시 알림 켜기)
         update_payload = {"notify_on_disclosure": True}
-        update_response = client.put(f"/alerts/{telegram_id}/{symbol}", json=update_payload)
+        update_response = client.put(f"/api/v1/alerts/{telegram_id}/{symbol}", json=update_payload)
         assert update_response.status_code == 200
         updated_alert = update_response.json()
         assert updated_alert["notify_on_disclosure"] is True
-        real_db.refresh(alert_in_db) # DB 객체 새로고침
+        alert_in_db = real_db.query(PriceAlert).filter(PriceAlert.user_id == user.id, PriceAlert.symbol == symbol).first() # DB 객체 새로고침
         assert alert_in_db.notify_on_disclosure is True
 
         # 4. 알림 삭제
-        delete_response = client.delete(f"/alerts/{telegram_id}/{symbol}")
+        delete_response = client.delete(f"/api/v1/alerts/{telegram_id}/{symbol}")
         assert delete_response.status_code == 200
         assert delete_response.json()["result"] is True
 
@@ -60,7 +60,7 @@ class TestTelegramAlertRouter:
         assert alert_after_delete is None
 
         # 5. 알림 목록 재조회 (비어 있어야 함)
-        final_list_response = client.get(f"/alerts/{telegram_id}")
+        final_list_response = client.get(f"/api/v1/alerts/{telegram_id}")
         assert final_list_response.status_code == 200
         assert final_list_response.json() == []
 
@@ -72,12 +72,12 @@ class TestTelegramAlertRouter:
             "target_price": "invalid_price", # 잘못된 타입
             "condition": "gte"
         }
-        response = client.post("/alerts/", json=payload)
+        response = client.post("/api/v1/alerts/", json=payload)
         assert response.status_code == 422
 
     def test_get_alerts_no_user(self, client: TestClient):
         """존재하지 않는 사용자의 알림 목록 조회 시 빈 리스트 반환 테스트"""
-        response = client.get("/alerts/999999999")
+        response = client.get("/api/v1/alerts/999999999")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -85,17 +85,17 @@ class TestTelegramAlertRouter:
         """존재하지 않는 알림 수정 시 404 오류 테스트"""
         telegram_id = 111222333
         # 먼저 사용자 생성
-        client.post("/alerts/", json={"telegram_id": telegram_id, "symbol": "000020", "target_price": 10000})
+        client.post("/api/v1/alerts/", json={"telegram_id": telegram_id, "symbol": "000020", "target_price": 10000})
         
         update_payload = {"target_price": 12000}
-        response = client.put(f"/alerts/{telegram_id}/NONEXISTENT_SYMBOL", json=update_payload)
+        response = client.put(f"/api/v1/alerts/{telegram_id}/NONEXISTENT_SYMBOL", json=update_payload)
         assert response.status_code == 404
 
     def test_delete_alert_not_found(self, client: TestClient):
         """존재하지 않는 알림 삭제 시 404 오류 테스트"""
         telegram_id = 444555666
         # 먼저 사용자 생성
-        client.post("/alerts/", json={"telegram_id": telegram_id, "symbol": "000040", "target_price": 20000})
+        client.post("/api/v1/alerts/", json={"telegram_id": telegram_id, "symbol": "000040", "target_price": 20000})
 
         response = client.delete(f"/alerts/{telegram_id}/NONEXISTENT_SYMBOL")
         assert response.status_code == 404

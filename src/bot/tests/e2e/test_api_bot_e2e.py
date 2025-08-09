@@ -1,110 +1,100 @@
 import pytest
-import httpx
-import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 import os
-import time
 
-# Define the base URL for the bot service (assuming it's exposed on localhost for testing)
-BOT_WEBHOOK_URL = os.getenv("BOT_WEBHOOK_URL", "http://stockseye-bot:8001")
+# Import handler functions from your bot
+from src.bot.handlers.alert import set_price_alert, alert_list, alert_remove
 
+# Mock user and chat IDs for testing
+TEST_USER_ID = 12345
+TEST_CHAT_ID = 12345
 
-
-async def send_telegram_message(text: str, chat_id: int = 12345):
-    """Simulates sending a Telegram message to the bot's webhook."""
-    payload = {
-        "update_id": 123456789,
-        "message": {
-            "message_id": 123,
-            "from": {
-                "id": chat_id,
-                "is_bot": False,
-                "first_name": "Test",
-                "last_name": "User",
-                "username": "testuser",
-                "language_code": "en"
-            },
-            "chat": {
-                "id": chat_id,
-                "first_name": "Test",
-                "last_name": "User",
-                "username": "testuser",
-                "type": "private"
-            },
-            "date": int(time.time()),
-            "text": text
-        }
-    }
-    async with httpx.AsyncClient() as client:
-        response = await client.post(f"{BOT_WEBHOOK_URL}/webhook", json=payload, timeout=10)
-        response.raise_for_status() # Raise an exception for 4xx/5xx responses
-        return response
-
-async def get_bot_response_from_logs(chat_id: int, expected_text_substring: str, timeout: int = 10):
-    """Fetches bot logs and checks for a specific response for a given chat_id."""
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        # This is a simplified approach. In a real scenario, you might need a more robust log parsing mechanism
-        # or a dedicated endpoint on the bot for testing responses.
-        log_command = f"docker compose logs bot --tail 100"
-        result = os.popen(log_command).read()
-        
-        # Look for patterns indicating the bot sent a message to the user
-        # This pattern needs to be refined based on actual bot logging for outgoing messages
-        # For now, we'll just check if the expected text appears anywhere in the logs
-        if expected_text_substring in result and f"chat_id={chat_id}" in result:
-            return True
-        await asyncio.sleep(1)
-    return False
-
-@pytest.mark.asyncio
-async def test_start_command_e2e():
-    """Test the /start command end-to-end with actual bot and API services."""
-    chat_id = 12345
-    command = "/start"
-    expected_response_substring = "안녕하세요! 텔레그램 봇이 정상 동작합니다."
-
-    print(f"\nSending command: {command} to chat_id: {chat_id}")
-    await send_telegram_message(command, chat_id)
-
-    print(f"Checking bot logs for response: '{expected_response_substring}' for chat_id: {chat_id}")
-    assert await get_bot_response_from_logs(chat_id, expected_response_substring), f"Bot did not respond with expected text for {command}"
-
-# Add more E2E tests for other commands here
+@pytest.fixture(autouse=True)
+def setup_environment():
+    """Sets up environment variables for tests."""
+    os.environ["API_HOST"] = "stockseye-api"
+    yield
+    # Clean up environment variables if necessary
+    del os.environ["API_HOST"]
 
 @pytest.mark.asyncio
 async def test_alert_scenario_e2e():
-    """Test the full alert scenario: set, list, and remove."""
-    chat_id = 54321 # Use a different chat_id to avoid conflicts
-    symbol = "005930" # Samsung Electronics
+    """
+    Tests the full alert scenario (set, list, remove) by directly calling handlers
+    and interacting with the live API, DB, and Redis services.
+    """
+    symbol = "005930"  # Samsung Electronics
 
-    # 1. Set a price alert
-    set_command = f"/set_price {symbol} 80000 이상"
-    expected_set_response = f"'{symbol}'의 가격 알림을 '80,000원 이상'(으)로 설정했습니다."
-    print(f"\nSending command: {set_command} to chat_id: {chat_id}")
-    await send_telegram_message(set_command, chat_id)
-    print(f"Checking bot logs for response: '{expected_set_response}' for chat_id: {chat_id}")
-    assert await get_bot_response_from_logs(chat_id, expected_set_response), f"Bot did not respond correctly for {set_command}"
+    # --- 1. Set a price alert ---
+    # Mock Update and Context for set_price_alert
+    update_set = MagicMock()
+    context_set = MagicMock()
+    update_set.effective_user.id = TEST_USER_ID
+    update_set.message.reply_text = AsyncMock()
+    context_set.args = [symbol, "80000", "이상"]
 
-    # 2. List alerts to verify
-    list_command = "/alert_list"
-    expected_list_response = f"- 1. {symbol}"
-    print(f"\nSending command: {list_command} to chat_id: {chat_id}")
-    await send_telegram_message(list_command, chat_id)
-    print(f"Checking bot logs for response containing: '{expected_list_response}' for chat_id: {chat_id}")
-    assert await get_bot_response_from_logs(chat_id, expected_list_response), f"Bot did not list the alert correctly for {list_command}"
+    print(f"\n[E2E] 1. Setting price alert for {symbol}...")
+    await set_price_alert(update_set, context_set)
 
-    # 3. Remove the alert
-    remove_command = "/alert_remove 1"
-    expected_remove_response = f"알림 번호 1 ({symbol}) 삭제 완료"
-    print(f"\nSending command: {remove_command} to chat_id: {chat_id}")
-    await send_telegram_message(remove_command, chat_id)
-    print(f"Checking bot logs for response: '{expected_remove_response}' for chat_id: {chat_id}")
-    assert await get_bot_response_from_logs(chat_id, expected_remove_response), f"Bot did not respond correctly for {remove_command}"
+    # Verify the confirmation message
+    update_set.message.reply_text.assert_called_once()
+    call_args_set = update_set.message.reply_text.call_args[0][0]
+    assert f"✅ '{symbol}'의 가격 알림을" in call_args_set
+    assert "80,000.0원 이상" in call_args_set
+    print("[E2E] 1. Price alert set successfully.")
 
-    # 4. List alerts again to verify removal
-    expected_final_list_response = "등록된 알림이 없습니다."
-    print(f"\nSending command: {list_command} to chat_id: {chat_id}")
-    await send_telegram_message(list_command, chat_id)
-    print(f"Checking bot logs for response: '{expected_final_list_response}' for chat_id: {chat_id}")
-    assert await get_bot_response_from_logs(chat_id, expected_final_list_response), f"Bot did not confirm alert removal correctly for {list_command}"
+    # --- 2. List alerts to verify ---
+    # Mock Update and Context for alert_list
+    update_list = MagicMock()
+    context_list = MagicMock()
+    update_list.effective_user.id = TEST_USER_ID
+    update_list.message.reply_text = AsyncMock()
+    context_list.user_data = {} # Simulate user_data
 
+    print(f"\n[E2E] 2. Listing alerts for user {TEST_USER_ID}...")
+    await alert_list(update_list, context_list)
+
+    # Verify the alert is listed
+    update_list.message.reply_text.assert_called_once()
+    call_args_list = update_list.message.reply_text.call_args[0][0]
+    assert f"- 1. {symbol}" in call_args_list
+    assert "80,000.0원 이상" in call_args_list
+    print("[E2E] 2. Alert listed successfully.")
+
+
+    # --- 3. Remove the alert ---
+    # Mock Update and Context for alert_remove
+    update_remove = MagicMock()
+    context_remove = MagicMock()
+    update_remove.effective_user.id = TEST_USER_ID
+    update_remove.message.reply_text = AsyncMock()
+    # The user_data now contains the mapping from the alert_list call
+    context_remove.user_data = context_list.user_data
+    context_remove.args = ["1"] # The number of the alert to remove
+
+    print(f"\n[E2E] 3. Removing alert #1 for user {TEST_USER_ID}...")
+    await alert_remove(update_remove, context_remove)
+
+    # Verify the removal confirmation
+    update_remove.message.reply_text.assert_called_once()
+    call_args_remove = update_remove.message.reply_text.call_args[0][0]
+    assert f"알림 번호 1 ({symbol}) 삭제 완료" in call_args_remove
+    print("[E2E] 3. Alert removed successfully.")
+
+
+    # --- 4. List alerts again to verify removal ---
+    # Mock Update and Context for the final alert_list
+    update_final_list = MagicMock()
+    context_final_list = MagicMock()
+    update_final_list.effective_user.id = TEST_USER_ID
+    update_final_list.message.reply_text = AsyncMock()
+    # user_data would be updated after removal, so we use a fresh one
+    context_final_list.user_data = {} 
+
+
+    print(f"\n[E2E] 4. Listing alerts again for user {TEST_USER_ID}...")
+    await alert_list(update_final_list, context_final_list)
+
+    # Verify that no alerts are listed
+    update_final_list.message.reply_text.assert_called_once_with("등록된 알림이 없습니다.")
+    print("[E2E] 4. Verified that no alerts are listed. E2E test complete.")

@@ -55,3 +55,32 @@ StocksEye 프로젝트는 다음과 같은 Git 브랜치 구조를 따릅니다.
 
 - 공통 모듈은 외부 의존성이 적으므로 전통적인 단위 테스트를 작성하기 용이합니다.
 - 특히 `http_client.py`의 재시도 로직이나 `dart_utils.py`의 데이터 파싱 로직 등은 다양한 성공/실패 시나리오에 대해 독립적인 테스트를 통해 안정성을 검증해야 합니다.
+
+## 6. 안정적인 테스트 환경 구축 가이드
+
+통합 테스트, 특히 데이터베이스와 연동되는 테스트는 잘못된 설정으로 인해 많은 시간을 낭비하게 할 수 있습니다. 다음은 테스트 환경의 안정성을 확보하기 위한 핵심 가이드라인입니다.
+
+### 6.1. 테스트 데이터베이스 Fixture 설계 (`conftest.py`)
+
+테스트 DB Fixture는 타이밍 문제와 상태 오염을 막기 위해 신중하게 설계해야 합니다.
+
+- **Engine과 Session의 생명주기를 분리하세요:**
+    - **`db_engine` (Session Scope):** `pytest` 세션 당 한 번만 실행되는 `session` 스코프의 fixture에서 데이터베이스 자체의 생성(`CREATE DATABASE`)과 삭제(`DROP DATABASE`)를 책임집니다. **SQLAlchemy `engine` 객체는 반드시 DB 생성이 확인된 후에 이 fixture 내부에서 생성하고 `yield` 해야 합니다.** 모듈 레벨에서 `engine`을 생성하면, DB가 준비되기 전의 불안정한 연결 상태를 캐싱하여 세션 내내 문제를 일으킬 수 있습니다.
+    - **`real_db` (Function Scope):** 각 테스트 함수마다 실행되는 `function` 스코프의 fixture에서 테이블 스키마(`metadata.create_all`)와 데이터의 상태를 책임집니다. 매 테스트 직전에 테이블을 모두 `DROP`하고 `CREATE`하는 방식은 테스트 간의 완벽한 독립성을 보장하는 가장 확실한 방법입니다.
+
+- **`TestClient`를 사용하세요:** 외부 API를 호출하는 `httpx`와 같은 라이브러리 대신, FastAPI의 `TestClient`를 사용하세요. `TestClient`는 `pytest`의 fixture와 함께 동작하여, 위에서 설계한 DB 세션 의존성을 올바르게 주입받고 트랜잭션을 관리할 수 있게 해줍니다.
+
+### 6.2. Docker 호스트 볼륨 문제
+
+- `docker-compose.yml`에서 `volumes: - ./db/db_data:/var/lib/postgresql/data`와 같이 호스트 경로에 DB 데이터를 직접 바인딩하는 경우, `docker compose down --volumes` 명령으로도 데이터가 삭제되지 않습니다.
+- 테스트 중 DB 파일 손상(`InternalError_` 등)이 의심될 경우, 다음 순서로 완전히 초기화해야 합니다.
+    1. `docker compose down`으로 모든 컨테이너를 중지합니다.
+    2. `sudo rm -rf ./db/db_data` 명령으로 호스트의 DB 디렉토리 자체를 완전히 삭제합니다.
+    3. `docker compose up -d --build`로 서비스를 재시작합니다.
+
+### 6.3. 테스트 실패 시나리오 분석
+
+- **`404 Not Found`:** API 라우터가 제대로 등록되지 않았거나, 요청 경로의 `prefix`가 잘못되었을 가능성이 가장 높습니다. `main.py`의 `app.include_router` 부분을 확인하세요.
+- **`400 Bad Request` / `422 Unprocessable Entity`:** 요청 데이터의 형식이나 값이 Pydantic 스키마의 유효성 검증을 통과하지 못한 경우입니다. 요청 본문을 확인하세요.
+- **`401 Unauthorized` / `403 Forbidden`:** 인증(로그인) 또는 인가(권한) 관련 문제입니다. 테스트에서 사용한 인증 토큰이 유효한지, 해당 유저가 필요한 권한을 가지고 있는지 확인하세요.
+- **`pydantic.ValidationError` (서버 내부):** API가 반환하는 데이터가 `response_model`로 지정된 Pydantic 스키마와 일치하지 않는 경우입니다. `async` 함수에 `await`가 누락되어 코루틴 객체가 반환되는 경우가 흔한 원인입니다.

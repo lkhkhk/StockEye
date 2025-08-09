@@ -24,6 +24,7 @@ def search_symbols(query: str = Query(..., min_length=1), limit: int = Query(10,
     base_query = db.query(StockMaster).filter(StockMaster.name.ilike(f"%{query}%") | StockMaster.symbol.ilike(f"%{query}%"))
     total_count = base_query.count()
     rows = base_query.offset(offset).limit(limit).all()
+    print(f"Returning rows: {rows}")
     return {
         "items": [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in rows],
         "total_count": total_count

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.api.main import check_price_alerts_job
+from src.worker.main import check_price_alerts_job
 from src.api.services.price_alert_service import PriceAlertService
 
 @patch('src.api.main.get_db')

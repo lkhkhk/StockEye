@@ -19,6 +19,7 @@ class AuthService:
         if not user:
             return False
         if not verify_password(password, user.password_hash):
+            logger.debug(f"[AuthService] Password verification failed for {username}. Plain: {password}, Hashed in DB: {user.password_hash}")
             return False
         return user
 
@@ -36,6 +37,7 @@ class AuthService:
 
         # 2. 새 사용자 생성
         hashed_password = get_password_hash(password)
+        logger.debug(f"[AuthService] Hashed password for {username}: {hashed_password}")
         db_user = User(
             username=username,
             email=email,
@@ -47,6 +49,7 @@ class AuthService:
         # 3. DB에 반영
         try:
             db.flush()
+            db.commit()
             db.refresh(db_user)
         except IntegrityError as e:
             db.rollback()

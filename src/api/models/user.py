@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, func, BigInteger
 import sqlalchemy as sa
 from src.common.db_connector import Base
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = 'app_users'
@@ -14,4 +15,6 @@ class User(Base):
     first_name = Column(String(50), nullable=True)
     last_name = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False) 
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    alerts = relationship("PriceAlert", back_populates="user")

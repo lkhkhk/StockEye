@@ -43,7 +43,7 @@ class TestAuthService:
         mock_db_session.refresh.return_value = None
 
         # When
-        registered_user = auth_service.register_user(mock_db_session, mock_user_create_schema)
+        registered_user = auth_service.create_user(mock_db_session, username=mock_user_create_schema.username, email=mock_user_create_schema.email, password=mock_user_create_schema.password)
 
         # Then
         mock_db_session.query.assert_called_once_with(User)
@@ -60,7 +60,7 @@ class TestAuthService:
 
         # When / Then
         with pytest.raises(UserAlreadyExistsException):
-            auth_service.register_user(mock_db_session, mock_user_create_schema)
+            auth_service.create_user(mock_db_session, username=mock_user_create_schema.username, email=mock_user_create_schema.email, password=mock_user_create_schema.password)
         mock_db_session.add.assert_not_called()
         mock_db_session.commit.assert_not_called()
 

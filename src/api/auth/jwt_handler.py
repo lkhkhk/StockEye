@@ -5,6 +5,9 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 from src.api.models.user import User
 from src.api.services.user_service import UserService, get_user_service
@@ -24,6 +27,7 @@ security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """비밀번호 검증"""
+    logger.debug(f"[jwt_handler] Verifying password. Plain: {plain_password}, Hashed: {hashed_password}")
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:

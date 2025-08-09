@@ -9,26 +9,43 @@ from src.common.db_connector import get_db
 from datetime import datetime
 from typing import Callable
 from src.api.services.predict_service import PredictService
+from src.api.services.user_service import UserService # Import UserService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/predict", tags=["predict"])
+router = APIRouter(tags=["predict"])
 
 def get_predict_service() -> PredictService:
     return PredictService()
 
+def get_user_service() -> UserService:
+    return UserService()
+
 @router.post("/", response_model=StockPredictionResponse, tags=["predict"])
-def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db), predict_service: PredictService = Depends(get_predict_service)):
+def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db), predict_service: PredictService = Depends(get_predict_service), user_service: UserService = Depends(get_user_service)): # Add user_service dependency
+    print(f"Received request: {request}")
     symbol = request.symbol
     
     # 예측 수행
     result = predict_service.predict_stock_movement(db, symbol)
+    print(f"Prediction result: {result}")
     
-    # 예측 이력 저장 (사용자 ID가 있는 경우)
-    if hasattr(request, 'user_id') and request.user_id:
+    # 예측 이력 저장 (telegram_id가 있는 경우)
+    if request.telegram_id and result["prediction"] != "N/A":
         try:
+            # telegram_id로 user_id 조회 또는 생성
+            user = user_service.get_user_by_telegram_id(db, request.telegram_id)
+            if not user:
+                user = user_service.create_user_from_telegram(
+                    db,
+                    telegram_id=request.telegram_id,
+                    username=f"tg_{request.telegram_id}",
+                    first_name="Telegram",
+                    last_name="User"
+                )
+            
             prediction_history = PredictionHistory(
-                user_id=request.user_id,
+                user_id=user.id, # Use user.id
                 symbol=symbol,
                 prediction=result["prediction"],
                 created_at=datetime.utcnow()
@@ -45,4 +62,4 @@ def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db)
         prediction=result["prediction"],
         confidence=result["confidence"],
         reason=result["reason"]
-    ) 
+    )

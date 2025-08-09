@@ -5,7 +5,7 @@ from src.common.http_client import session
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     API_HOST = os.getenv("API_HOST", "localhost")
-api_url = f"http://{API_HOST}:8000"
+    api_url = f"http://{API_HOST}:8000"
     telegram_id = str(update.effective_chat.id)
     # 알림 수신 동의 (is_active=True)
     payload = {"telegram_id": telegram_id, "is_active": True}
@@ -21,7 +21,7 @@ api_url = f"http://{API_HOST}:8000"
 
 async def unregister(update: Update, context: ContextTypes.DEFAULT_TYPE):
     API_HOST = os.getenv("API_HOST", "localhost")
-api_url = f"http://{API_HOST}:8000"
+    api_url = f"http://{API_HOST}:8000"
     telegram_id = str(update.effective_chat.id)
     # 알림 수신 해제 (is_active=False)
     payload = {"telegram_id": telegram_id, "is_active": False}

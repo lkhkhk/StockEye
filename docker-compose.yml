@@ -29,6 +29,7 @@ services:
       retries: 10
     volumes:
       - ./src/api:/app/src/api
+      - ./src/api/tests:/app/src/api/tests
       - ./src/common:/app/src/common
       - ./logs:/logs
     networks:
@@ -44,18 +45,11 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-development}
       - API_HOST=stockseye-api
-      - WEBHOOK_URL=http://stockseye-bot:8001
     depends_on:
       - stockseye-api
-    ports:
-      - "8001:8001"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
     volumes:
       - ./src/bot:/app/src/bot
+      - ./src/bot/tests:/app/src/bot/tests
       - ./src/common:/app/src/common
       - ./logs:/logs
     networks:
@@ -72,7 +66,7 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
     ports:
-      - "${DB_PORT}:5432"
+      - "5433:5432"
     volumes:
       - ./db/db_data:/var/lib/postgresql/data
     healthcheck:

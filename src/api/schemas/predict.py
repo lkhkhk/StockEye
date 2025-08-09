@@ -3,7 +3,7 @@ from typing import Optional
 
 class StockPredictionRequest(BaseModel):
     symbol: str
-    user_id: Optional[int] = None
+    telegram_id: Optional[int] = None
 
 class StockPredictionResponse(BaseModel):
     symbol: str

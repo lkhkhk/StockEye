@@ -12,7 +12,7 @@ class PriceAlertBase(BaseModel):
     repeat_interval: Optional[str] = None
 
 class PriceAlertCreate(PriceAlertBase):
-    telegram_id: int
+    telegram_id: Optional[int] = None
     is_active: Optional[bool] = True
 
 class PriceAlertRead(PriceAlertBase):

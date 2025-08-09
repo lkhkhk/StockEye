@@ -23,8 +23,8 @@ def get_user_service():
     return UserService()
 
 @router.post("/", response_model=PriceAlertRead)
-def create_alert(alert: PriceAlertCreate, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
-    """가격 알림 생성 (봇 내부용)"""
+async def create_alert(alert: PriceAlertCreate, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
+    print(f"Creating alert with payload: {alert}")
     user = user_service.get_user_by_telegram_id(db, alert.telegram_id)
     if not user:
         # 사용자가 없으면 생성
@@ -36,7 +36,7 @@ def create_alert(alert: PriceAlertCreate, db: Session = Depends(get_db), alert_s
             last_name="User"
         )
 
-    result = alert_service.create_alert(db, user_id=user.id, alert=alert)
+    result = await alert_service.create_alert(db, user_id=user.id, alert=alert)
     return PriceAlertRead.model_validate(result)
 
 @router.get("/{telegram_id}", response_model=List[PriceAlertRead])
@@ -59,7 +59,7 @@ def get_alert_by_user_and_symbol(user_id: int, symbol: str, db: Session = Depend
 
 
 @router.put("/{telegram_id}/{symbol}", response_model=PriceAlertRead)
-def update_alert(telegram_id: int, symbol: str, alert_update: PriceAlertUpdate, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
+async def update_alert(telegram_id: int, symbol: str, alert_update: PriceAlertUpdate, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
     """가격 알림 수정 (봇 내부용)"""
     user = user_service.get_user_by_telegram_id(db, telegram_id)
     if not user:
@@ -69,11 +69,11 @@ def update_alert(telegram_id: int, symbol: str, alert_update: PriceAlertUpdate, 
     if not alert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
 
-    updated_alert = alert_service.update_alert(db, alert.id, alert_update)
+    updated_alert = await alert_service.update_alert(db, alert.id, alert_update)
     return PriceAlertRead.model_validate(updated_alert)
 
 @router.delete("/{telegram_id}/{symbol}")
-def delete_alert(telegram_id: int, symbol: str, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
+async def delete_alert(telegram_id: int, symbol: str, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service), user_service: UserService = Depends(get_user_service)):
     """가격 알림 삭제 (봇 내부용)"""
     user = user_service.get_user_by_telegram_id(db, telegram_id)
     if not user:
@@ -83,7 +83,7 @@ def delete_alert(telegram_id: int, symbol: str, db: Session = Depends(get_db), a
     if not alert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
 
-    alert_service.delete_alert(db, alert.id)
+    await alert_service.delete_alert(db, alert.id)
     return {"result": True}
 
 @router.post("/test_notify")

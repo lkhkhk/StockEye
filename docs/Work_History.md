@@ -1,63 +1,30 @@
-### 2.15. 아키텍처 재설계 준비: 프로젝트 명명 규칙 통일 및 설정 파일 업데이트 (2025-08-05)
+## 텔레그램 봇 `/symbols` 명령어 문제 해결 계획 (2025-08-01)
 
-*   **목표:** 새로운 `worker` 서비스 도입에 앞서, 프로젝트의 일관성과 명확성을 확보하기 위해 모든 서비스의 명명 규칙을 통일하고 관련 설정 파일을 업데이트합니다.
-*   **작업 내역:**
-    *   **`docker-compose.yml` 수정:** 모든 서비스(`api`, `bot`, `db`)의 이름과 `container_name`에 `stockseye-` 접두사를 붙여 수정했습니다. (예: `api` -> `stockseye-api`)
-    *   **서비스 간 호출 코드 수정:** `docker-compose.yml`의 변경사항에 맞춰, 서비스 간 통신에 사용되는 호스트 이름을 새로운 서비스명으로 업데이트했습니다.
-        *   `src/bot/handlers/*.py`: `api_service`를 `stockseye-api`를 참조하도록 `API_HOST` 환경 변수를 사용하게 변경했습니다.
-        *   `src/bot/tests/unit/*.py`: 테스트 코드 내에 하드코딩된 `http://api_service:8000` URL을 `http://stockseye-api:8000`으로 일괄 변경했습니다.
-        *   `src/bot/tests/e2e/test_api_bot_e2e.py`: 웹훅 URL의 호스트명을 `stockseye-bot`으로 수정했습니다.
-    *   **스크립트 수정:** `scripts/backup_restore.sh`의 대상 컨테이너 이름을 `postgres_db`에서 `stockseye-db`로 변경했습니다.
-*   **결과:** 새로운 아키텍처를 적용하기 위한 모든 사전 준비 작업을 완료했습니다.
+### 1. 현재 상황 요약
 
----
-
-### 2.14. 아키텍처 재설계: Message Queue 도입 및 Worker 서비스 분리 (2025-08-05)
-
-*   **목표:** E2E 테스트에서 발생한 `api`와 `bot` 서비스 간의 순환 의존성 및 네트워크 문제를 근본적으로 해결하기 위해 아키텍처를 재설계합니다.
-*   **논의 및 결정 사항:**
-    *   **문제 진단:** `api` 서비스가 알림을 보내기 위해 `bot` 서비스의 웹훅을 직접 호출하는 구조는 강한 결합(Tight Coupling)과 순환 의존성을 야기하여, E2E 테스트 실패 및 시스템 불안정성의 원인이 됨을 확인했습니다.
-    *   **해결 방안 채택:** 서비스 간의 결합을 끊고 비동기 처리를 도입하기 위해 **Message Queue(Redis)를 사용하는 `worker` 서비스 모델**을 채택하기로 결정했습니다.
-        *   **`worker` 서비스:** 알림, 주기적 작업(스케줄링), 비동기 장기 실행 작업 등 백그라운드에서 실행되어야 하는 모든 작업을 전담하는 독립적인 서비스입니다.
-        *   **`api` 서비스:** `bot`을 직접 호출하는 대신, 알림/작업 요청을 Redis에 메시지로 발행(Publish)하는 역할만 수행합니다.
-        *   **`bot` 서비스:** 사용자 요청을 처리하고 `api`에 데이터를 요청하는 역할에만 집중합니다.
-    *   **명명 규칙 개선:** 프로젝트의 명확성과 확장성을 위해 모든 서비스와 컨테이너의 이름에 `stockseye-` 접두사를 붙여 통일하기로 결정했습니다. (예: `stockseye-api`, `stockseye-bot`)
-*   **현재 상태:** 새로운 아키텍처 계획을 `PLAN.MD`에 반영하고, 관련 파일(docker-compose.yml, 소스 코드, 문서 등)을 일괄적으로 수정하는 작업을 진행할 예정입니다.
+*   **문제:** 텔레그램 봇의 `/symbols` 명령어가 여전히 정상 작동하지 않습니다. "종목 목록 조회 실패: 알 수 없는 오류가 발생했습니다." 메시지가 계속 표시됩니다.
+*   **원인 분석 (이전까지):**
+    *   `api_service`의 `/symbols/` 엔드포인트가 모든 종목 데이터를 반환하여 텔레그램 메시지 길이 제한(4096자)을 초과하는 것이 문제의 원인으로 파악되었습니다.
+    *   `src/api/routers/stock_master.py` 파일의 `get_all_symbols` 함수에 `limit` 파라미터를 추가하여 반환되는 종목 수를 제한하도록 수정했습니다.
+    *   `src/bot/handlers/symbols.py` 파일의 `symbols_command` 함수에서 API 호출 시 `limit=10` 파라미터를 포함하도록 수정했습니다.
+    *   `api` 및 `bot` 서비스를 강제로 재빌드하고 재시작하여 변경 사항을 적용했습니다.
+*   **최신 테스트 결과:**
+    *   `bot` 컨테이너 내부에서 `requests`를 사용하여 `http://api_service:8000/symbols/?limit=10` 엔드포인트를 직접 호출한 결과, **여전히 모든 종목 데이터가 반환되는 것을 확인했습니다.** (10개로 제한되지 않음)
+    *   이는 `src/api/routers/stock_master.py`의 `limit` 로직이 예상대로 작동하지 않거나, Docker 빌드/배포 과정에서 알 수 없는 문제가 발생했을 가능성을 시사합니다.
 
 ---
 
-### 2.13. Bot-API 연동 버그 해결 및 E2E 테스트 도입 (2025-08-04)
+### 2. 내일 작업 계획
 
-*   **목표:** 프로젝트 전반에 걸쳐 발견된 Bot-API 간의 사용자 식별 및 인증 방식 불일치 버그를 해결하고, 재발 방지를 위한 E2E 테스트를 도입합니다.
-*   **작업 내역 (진행 중):**
-    *   **`/alert` 기능 버그 해결:**
-        *   **1단계 (분석):** `notification.py`, `price_alert.py`, `alert.py`, `user_service.py` 등 관련 파일의 코드를 분석하여, 봇은 `telegram_id`를 보내지만 API는 `JWT` 토큰을 요구하는 근본적인 문제를 재확인했습니다.
-        *   **2단계 (계획):** API 라우터(`notification.py`)가 `telegram_id`를 기반으로 사용자를 식별하고, 필요시 신규 사용자를 자동 생성하도록 수정하는 것으로 해결 방향을 정했습니다.
-        *   **3단계 (구현):**
-            *   `src/api/schemas/price_alert.py` 스키마에 `telegram_id` 필드를 추가했습니다.
-            *   `src/api/routers/notification.py`의 `create_alert`, `get_my_alerts`, `delete_alert` 엔드포인트를 `telegram_id` 기반으로 동작하도록 수정했습니다.
-            *   `src/bot/handlers/alert.py`의 `alert_list`, `alert_remove`, `set_price_alert`, `alert_button_callback`, `alert_set_repeat_callback` 함수를 수정하여 `telegram_id`를 사용하고, API의 변경된 엔드포인트에 맞게 호출하도록 변경했습니다.
-        *   **4단계 (검증 시도 및 문제 발생):**
-            *   수정된 `alert` 기능에 대한 E2E 테스트(`src/bot/tests/e2e/test_api_bot_e2e.py`)를 작성했습니다.
-            *   `api` 컨테이너에서 `pytest`를 실행하여 `src/api/tests/integration/test_api_alerts.py`와 `src/bot/tests/e2e/test_api_bot_e2e.py`를 검증하려 했으나, `httpx.ConnectError: All connection attempts failed` 오류가 지속적으로 발생했습니다.
-            *   **원인 분석:**
-                *   E2E 테스트가 봇의 웹훅 URL(`http://bot:8001/webhook`)에 연결하지 못하는 문제였습니다.
-                *   `src/bot/main.py`가 폴링 모드로 동작하고 있었고, E2E 테스트는 웹훅을 호출하는 방식이었습니다.
-                *   `src/bot/main.py`를 웹훅 모드로 변경하고, `docker-compose.yml`에 `bot` 서비스의 `ports` 매핑과 `WEBHOOK_URL` 환경 변수를 추가했습니다.
-                *   `test_api_bot_e2e.py`의 `BOT_WEBHOOK_URL` 설정과 `src/bot/main.py`의 `webhook_url` 설정 간의 불일치(`http://bot:8001` vs `http://bot:8001/webhook`)가 있었습니다.
-                *   `src/bot/tests/e2e/test_api_bot_e2e.py`의 `send_telegram_message` 함수에서 `BOT_WEBHOOK_URL`에 `/webhook` 경로를 추가하여 요청을 보내도록 수정했습니다.
-            *   **현재 상태:** `httpx.ConnectError: [Errno -5] No address associated with hostname` 오류가 여전히 발생하고 있습니다. 이는 `api` 컨테이너에서 `bot` 서비스의 웹훅 URL을 해석하지 못하는 네트워크 문제입니다.
+1.  **API 로직 심층 디버깅 (`src/api/routers/stock_master.py`):**
+    *   `get_all_symbols` 함수 내부에 디버그 로그를 추가하여 `limit` 파라미터가 함수 내부로 정확히 전달되는지, 그리고 SQLAlchemy 쿼리(`db.query(StockMaster).limit(limit).all()`)가 `limit`을 제대로 적용하여 SQL 쿼리를 생성하는지 상세히 확인하겠습니다.
+    *   필요하다면 `limit` 값을 코드에 직접 하드코딩하여 (`.limit(10)`) `Query` 파라미터 주입 문제인지, 아니면 SQLAlchemy 쿼리 자체의 문제인지 파악하겠습니다.
+2.  **API 서비스 강제 재빌드 및 재시작:** API 코드 수정 후에는 `api` 서비스만 다시 한번 `docker compose build --no-cache api && docker compose up -d api` 명령으로 강제 재빌드 및 재시작하여 변경 사항이 확실히 반영되도록 하겠습니다.
+3.  **API 응답 재테스트 (봇 컨테이너에서):** 재빌드 후 `bot` 컨테이너에서 `requests` 스크립트를 사용하여 `/symbols/?limit=10` 엔드포인트의 응답이 실제로 10개로 제한되는지 다시 한번 정확히 확인하겠습니다.
+4.  **봇 로그 상세 분석 (API 수정 확인 후):** API가 정상적으로 제한된 응답을 반환하기 시작하면, `bot_service`의 최신 로그를 다시 면밀히 검토하여 텔레그램 메시지 길이 제한 문제가 해결되었는지, 또는 다른 새로운 오류가 발생하는지 확인하겠습니다.
+5.  **최종 커밋:** `/symbols` 명령어가 텔레그램 봇에서 완전히 정상 작동하는 것을 확인한 후에 모든 관련 변경 사항을 커밋하겠습니다.
 
 ---
-
-### 2.12. API 단위 테스트 강화 - `predict_service.py` (`calculate_analysis_items`) (2025-08-02)
-
-*   **목표:** `src/api/services/predict_service.py`의 `calculate_analysis_items` 메서드에 대한 심층적인 단위 테스트를 추가하고 100% 커버리지를 달성합니다.
-*   **수행 내용:**
-    *   `src/api/tests/unit/test_predict_service.py` 파일에 `calculate_analysis_items` 메서드를 직접 테스트하는 `test_calculate_analysis_items_basic_up_trend` 및 `test_calculate_analysis_items_basic_down_trend` 테스트 케이스를 추가했습니다.
-    *   이 테스트들은 Pandas DataFrame 형태의 Mock 데이터를 사용하여 `calculate_analysis_items`의 SMA 기반 추세 분석 로직을 검증합니다.
-*   **결과:** `calculate_analysis_items` 메서드에 대한 단위 테스트를 진행 중입니다. 추가적인 시나리오(횡보, RSI, MACD, 엣지 케이스 등)에 대한 테스트를 계속 추가할 예정입니다.
-
 
 ### 2.1. 프로젝트 분석 및 문서 현행화 (2025-07-25)
 
@@ -67,6 +34,8 @@
     *   `src` 디렉토리 내 모든 Python 소스 코드 분석을 통해 기능 및 구현 상태 파악.
     *   `docs/PLAN.MD` 파일에 개발 단계별 현황 및 상세 TODO 항목 업데이트.
     *   `README.md` 파일의 폴더 구조 설명을 최신 상태 및 개선 제안 반영하여 업데이트.
+
+---
 
 ### 2.2. 구조 개선 및 리팩토링 (2025-07-25)
 
@@ -86,6 +55,7 @@
     *   **불필요한 파일 제거:** `src/bot/services/notify_service.py` 파일 삭제.
 *   **검증:** 각 변경 사항 적용 후 `docker compose up -d --build`를 통해 서비스 재빌드 및 재기동. `api` 및 `bot` 서비스의 모든 `pytest`를 실행하여 기능 및 안정성 검증 완료.
 
+---
 
 ### 2.3. `/set_price` 명령어 오류 수정 및 테스트 (2025-07-26)
 
@@ -129,6 +99,8 @@
         *   **解決:** `src/bot/tests/test_alert_handler.py`의 테스트 코드에서 예상 문자열을 `75,000.0원`으로 변경.
 *   **테스트 결과:** `src/api/tests/test_bot_alert_price.py` 및 `src/bot/tests/test_alert_handler.py`의 모든 테스트 통과.
 
+---
+
 ### 2.4. API 테스트 커버리지 확장 및 안정화 (2025-07-27)
 
 *   **목표:** API 서비스의 테스트 커버리지를 확장하고, 테스트 환경의 안정성을 확보.
@@ -143,6 +115,8 @@
         *   **解決:** `src/api/models/prediction_history.py`에서 `id` 컬럼 정의를 `Column(Integer, primary_key=True, autoincrement=True)`로 변경하여 SQLite 호환성을 확보.
         *   `src/api/tests/conftest.py`의 `db` fixture를 수정하여 각 테스트 함수 실행 전에 모든 테이블을 삭제하고 다시 생성함으로써 깨끗한 데이터베이스 상태를 보장.
 *   **테스트 결과:** 모든 API 테스트가 성공적으로 통과.
+
+---
 
 ### 2.5. 테스트 환경 안정화 및 API 테스트 오류 수정 (2025-07-30)
 
@@ -161,6 +135,8 @@
         *   **원인 4: `real_db.rollback.called` `AttributeError`**: `test_check_and_notify_new_disclosures_dart_api_limit_exceeded`, `test_check_and_notify_new_disclosures_other_dart_api_error`, `test_check_and_notify_new_disclosures_unexpected_error` 테스트에서 `real_db.rollback`이 메서드이므로 `called` 속성을 직접 가질 수 없어 발생.
         *   **解決 4:** 각 테스트 함수 내에서 `patch.object(real_db, 'rollback')`를 사용하여 `real_db.rollback`을 목(mock) 처리하고, `mock_real_db_rollback.assert_called_once()` 또는 `mock_real_db_rollback.assert_not_called()`로 검증.
 *   **테스트 결과:** `api` 서비스의 모든 테스트 (129개 통과, 1개 스킵, 7개 경고) 및 `bot` 서비스의 모든 테스트 (22개 통과)가 성공적으로 완료.
+
+---
 
 ### 2.6. 관리자 기능 강화 및 예측 모델 개선 (2025-07-30)
 
@@ -185,6 +161,8 @@
     *   `AssertionError` (예측 결과 불일치) 오류 발생 및 `src/api/services/predict_service.py`의 예측 로직 및 `src/api/tests/test_predict_service.py`의 예상 값 조정으로 해결.
 *   **테스트 결과:** `api` 및 `bot` 서비스의 모든 테스트 성공적으로 통과.
 
+---
+
 ### 2.7. 봇 핸들러 테스트 및 실제 주식 시세 API 연동 (2025-08-01)
 
 *   **목표:** 텔레그램 봇 핸들러에 대한 테스트 커버리지를 확장하고, 실제 주식 시세 API를 연동하여 데이터의 정확성을 높입니다.
@@ -207,31 +185,7 @@
     *   **`NameError: name 'Mock' is not defined`**: `unittest.mock.Mock` 임포트를 제거하여 발생. 다시 `from unittest.mock import AsyncMock, patch, Mock`으로 임포트하여 해결.
 *   **테스트 결과:** `api` 및 `bot` 서비스의 모든 테스트 성공적으로 통과.
 
-
-## 텔레그램 봇 `/symbols` 명령어 문제 해결 계획 (2025-08-01)
-
-### 1. 현재 상황 요약
-
-*   **문제:** 텔레그램 봇의 `/symbols` 명령어가 여전히 정상 작동하지 않습니다. "종목 목록 조회 실패: 알 수 없는 오류가 발생했습니다." 메시지가 계속 표시됩니다.
-*   **원인 분석 (이전까지):**
-    *   `api_service`의 `/symbols/` 엔드포인트가 모든 종목 데이터를 반환하여 텔레그램 메시지 길이 제한(4096자)을 초과하는 것이 문제의 원인으로 파악되었습니다.
-    *   `src/api/routers/stock_master.py` 파일의 `get_all_symbols` 함수에 `limit` 파라미터를 추가하여 반환되는 종목 수를 제한하도록 수정했습니다.
-    *   `src/bot/handlers/symbols.py` 파일의 `symbols_command` 함수에서 API 호출 시 `limit=10` 파라미터를 포함하도록 수정했습니다.
-    *   `api` 및 `bot` 서비스를 강제로 재빌드하고 재시작하여 변경 사항을 적용했습니다.
-*   **최신 테스트 결과:**
-    *   `bot` 컨테이너 내부에서 `requests`를 사용하여 `http://api_service:8000/symbols/?limit=10` 엔드포인트를 직접 호출한 결과, **여전히 모든 종목 데이터가 반환되는 것을 확인했습니다.** (10개로 제한되지 않음)
-    *   이는 `src/api/routers/stock_master.py`의 `limit` 로직이 예상대로 작동하지 않거나, Docker 빌드/배포 과정에서 알 수 없는 문제가 발생했을 가능성을 시사합니다.
-
-### 2. 내일 작업 계획
-
-1.  **API 로직 심층 디버깅 (`src/api/routers/stock_master.py`):**
-    *   `get_all_symbols` 함수 내부에 디버그 로그를 추가하여 `limit` 파라미터가 함수 내부로 정확히 전달되는지, 그리고 SQLAlchemy 쿼리(`db.query(StockMaster).limit(limit).all()`)가 `limit`을 제대로 적용하여 SQL 쿼리를 생성하는지 상세히 확인하겠습니다.
-    *   필요하다면 `limit` 값을 코드에 직접 하드코딩하여 (`.limit(10)`) `Query` 파라미터 주입 문제인지, 아니면 SQLAlchemy 쿼리 자체의 문제인지 파악하겠습니다.
-2.  **API 서비스 강제 재빌드 및 재시작:** API 코드 수정 후에는 `api` 서비스만 다시 한번 `docker compose build --no-cache api && docker compose up -d api` 명령으로 강제 재빌드 및 재시작하여 변경 사항이 확실히 반영되도록 하겠습니다.
-3.  **API 응답 재테스트 (봇 컨테이너에서):** 재빌드 후 `bot` 컨테이너에서 `requests` 스크립트를 사용하여 `/symbols/?limit=10` 엔드포인트의 응답이 실제로 10개로 제한되는지 다시 한번 정확히 확인하겠습니다.
-4.  **봇 로그 상세 분석 (API 수정 확인 후):** API가 정상적으로 제한된 응답을 반환하기 시작하면, `bot_service`의 최신 로그를 다시 면밀히 검토하여 텔레그램 메시지 길이 제한 문제가 해결되었는지, 또는 다른 새로운 오류가 발생하는지 확인하겠습니다.
-5.  **최종 커밋:** `/symbols` 명령어가 텔레그램 봇에서 완전히 정상 작동하는 것을 확인한 후에 모든 관련 변경 사항을 커밋하겠습니다.
-
+---
 
 ### 2.8. `/symbols <키워드>` 명령 문제 해결 (2025-08-02)
 
@@ -252,3 +206,149 @@
         *   `test_stock_master_data_fixture`에 "한화" 및 "한화생명" 종목을 추가하여 한글 검색 테스트(`test_search_symbols_korean_query`)가 유효한 데이터를 대상으로 실행되도록 함.
         *   모든 `api` 서비스 통합 테스트가 성공적으로 통과함을 확인. 이는 `api` 서비스의 검색 기능이 정상 작동함을 의미.
 *   **테스트 결과:** `bot` 서비스의 `test_bot_symbols.py`를 포함한 모든 테스트가 성공적으로 통과. `api` 서비스의 모든 통합 테스트도 성공적으로 통과.
+
+---
+
+### 2.12. API 단위 테스트 강화 - `predict_service.py` (`calculate_analysis_items`) (2025-08-02)
+
+*   **목표:** `src/api/services/predict_service.py`의 `calculate_analysis_items` 메서드에 대한 심층적인 단위 테스트를 추가하고 100% 커버리지를 달성합니다.
+*   **수행 내용:**
+    *   `src/api/tests/unit/test_predict_service.py` 파일에 `calculate_analysis_items` 메서드를 직접 테스트하는 `test_calculate_analysis_items_basic_up_trend` 및 `test_calculate_analysis_items_basic_down_trend` 테스트 케이스를 추가했습니다.
+    *   이 테스트들은 Pandas DataFrame 형태의 Mock 데이터를 사용하여 `calculate_analysis_items`의 SMA 기반 추세 분석 로직을 검증합니다.
+*   **결과:** `calculate_analysis_items` 메서드에 대한 단위 테스트를 진행 중입니다. 추가적인 시나리오(횡보, RSI, MACD, 엣지 케이스 등)에 대한 테스트를 계속 추가할 예정입니다.
+
+---
+
+### 2.13. Bot-API 연동 버그 해결 및 E2E 테스트 도입 (2025-08-04)
+
+*   **목표:** 프로젝트 전반에 걸쳐 발견된 Bot-API 간의 사용자 식별 및 인증 방식 불일치 버그를 해결하고, 재발 방지를 위한 E2E 테스트를 도입합니다.
+*   **작업 내역 (진행 중):**
+    *   **`/alert` 기능 버그 해결:**
+        *   **1단계 (분석):** `notification.py`, `price_alert.py`, `alert.py`, `user_service.py` 등 관련 파일의 코드를 분석하여, 봇은 `telegram_id`를 보내지만 API는 `JWT` 토큰을 요구하는 근본적인 문제를 재확인했습니다.
+        *   **2단계 (계획):** API 라우터(`notification.py`)가 `telegram_id`를 기반으로 사용자를 식별하고, 필요시 신규 사용자를 자동 생성하도록 수정하는 것으로 해결 방향을 정했습니다.
+        *   **3단계 (구현):**
+            *   `src/api/schemas/price_alert.py` 스키마에 `telegram_id` 필드를 추가했습니다.
+            *   `src/api/routers/notification.py`의 `create_alert`, `get_my_alerts`, `delete_alert` 엔드포인트를 `telegram_id` 기반으로 동작하도록 수정했습니다.
+            *   `src/bot/handlers/alert.py`의 `alert_list`, `alert_remove`, `set_price_alert`, `alert_button_callback`, `alert_set_repeat_callback` 함수를 수정하여 `telegram_id`를 사용하고, API의 변경된 엔드포인트에 맞게 호출하도록 변경했습니다.
+        *   **4단계 (검증 시도 및 문제 발생):**
+            *   수정된 `alert` 기능에 대한 E2E 테스트(`src/bot/tests/e2e/test_api_bot_e2e.py`)를 작성했습니다.
+            *   `api` 컨테이너에서 `pytest`를 실행하여 `src/api/tests/integration/test_api_alerts.py`와 `src/bot/tests/e2e/test_api_bot_e2e.py`를 검증하려 했으나, `httpx.ConnectError: All connection attempts failed` 오류가 지속적으로 발생했습니다.
+            *   **원인 분석:**
+                *   E2E 테스트가 봇의 웹훅 URL(`http://bot:8001/webhook`)에 연결하지 못하는 문제였습니다.
+                *   `src/bot/main.py`가 폴링 모드로 동작하고 있었고, E2E 테스트는 웹훅을 호출하는 방식이었습니다.
+                *   `src/bot/main.py`를 웹훅 모드로 변경하고, `docker-compose.yml`에 `bot` 서비스의 `ports` 매핑과 `WEBHOOK_URL` 환경 변수를 추가했습니다.
+                *   `test_api_bot_e2e.py`의 `BOT_WEBHOOK_URL` 설정과 `src/bot/main.py`의 `webhook_url` 설정 간의 불일치(`http://bot:8001` vs `http://bot:8001/webhook`)가 있었습니다.
+                *   `src/bot/tests/e2e/test_api_bot_e2e.py`의 `send_telegram_message` 함수에서 `BOT_WEBHOOK_URL`에 `/webhook` 경로를 추가하여 요청을 보내도록 수정했습니다.
+            *   **현재 상태:** `httpx.ConnectError: [Errno -5] No address associated with hostname` 오류가 여전히 발생하고 있습니다. 이는 `api` 컨테이너에서 `bot` 서비스의 웹훅 URL을 해석하지 못하는 네트워크 문제입니다.
+
+---
+
+### 2.14. 아키텍처 재설계: Message Queue 도입 및 Worker 서비스 분리 (2025-08-05)
+
+*   **목표:** E2E 테스트에서 발생한 `api`와 `bot` 서비스 간의 순환 의존성 및 네트워크 문제를 근본적으로 해결하기 위해 아키텍처를 재설계합니다.
+*   **논의 및 결정 사항:**
+    *   **문제 진단:** `api` 서비스가 알림을 보내기 위해 `bot` 서비스의 웹훅을 직접 호출하는 구조는 강한 결합(Tight Coupling)과 순환 의존성을 야기하여, E2E 테스트 실패 및 시스템 불안정성의 원인이 됨을 확인했습니다.
+    *   **해결 방안 채택:** 서비스 간의 결합을 끊고 비동기 처리를 도입하기 위해 **Message Queue(Redis)를 사용하는 `worker` 서비스 모델**을 채택하기로 결정했습니다.
+        *   **`worker` 서비스:** 알림, 주기적 작업(스케줄링), 비동기 장기 실행 작업 등 백그라운드에서 실행되어야 하는 모든 작업을 전담하는 독립적인 서비스입니다.
+        *   **`api` 서비스:** `bot`을 직접 호출하는 대신, 알림/작업 요청을 Redis에 메시지로 발행(Publish)하는 역할만 수행합니다.
+        *   **`bot` 서비스:** 사용자 요청을 처리하고 `api`에 데이터를 요청하는 역할에만 집중합니다.
+    *   **명명 규칙 개선:** 프로젝트의 명확성과 확장성을 위해 모든 서비스와 컨테이너의 이름에 `stockseye-` 접두사를 붙여 통일하기로 결정했습니다. (예: `stockseye-api`, `stockseye-bot`)
+*   **현재 상태:** 새로운 아키텍처 계획을 `PLAN.MD`에 반영하고, 관련 파일(docker-compose.yml, 소스 코드, 문서 등)을 일괄적으로 수정하는 작업을 진행할 예정입니다.
+
+---
+
+### 2.15. 아키텍처 재설계 준비: 프로젝트 명명 규칙 통일 및 설정 파일 업데이트 (2025-08-05)
+
+*   **목표:** 새로운 `worker` 서비스 도입에 앞서, 프로젝트의 일관성과 명확성을 확보하기 위해 모든 서비스의 명명 규칙을 통일하고 관련 설정 파일을 업데이트합니다.
+*   **작업 내역:**
+    *   **`docker-compose.yml` 수정:** 모든 서비스(`api`, `bot`, `db`)의 이름과 `container_name`에 `stockseye-` 접두사를 붙여 수정했습니다. (예: `api` -> `stockseye-api`)
+    *   **서비스 간 호출 코드 수정:** `docker-compose.yml`의 변경사항에 맞춰, 서비스 간 통신에 사용되는 호스트 이름을 새로운 서비스명으로 업데이트했습니다.
+        *   `src/bot/handlers/*.py`: `api_service`를 `stockseye-api`를 참조하도록 `API_HOST` 환경 변수를 사용하게 변경했습니다.
+        *   `src/bot/tests/unit/*.py`: 테스트 코드 내에 하드코딩된 `http://api_service:8000` URL을 `http://stockseye-api:8000`으로 일괄 변경했습니다.
+        *   `src/bot/tests/e2e/test_api_bot_e2e.py`: 웹훅 URL의 호스트명을 `stockseye-bot`으로 수정했습니다.
+    *   **스크립트 수정:** `scripts/backup_restore.sh`의 대상 컨테이너 이름을 `postgres_db`에서 `stockseye-db`로 변경했습니다.
+*   **결과:** 새로운 아키텍처를 적용하기 위한 모든 사전 준비 작업을 완료했습니다.
+
+---
+
+
+---
+
+### 2.16. 아키텍처 재설계 1단계: 인프라 구축 및 Worker 서비스 기본 구현 (2025-08-06)
+
+*   **목표:** `PLAN.MD`에 정의된 새로운 아키텍처의 1단계 작업을 완료합니다.
+*   **작업 내역:**
+    *   **`docker-compose.yml` 수정:**
+        *   `redis` 서비스를 신규 추가했습니다.
+        *   `worker` 서비스를 신규 추가하고, `src/worker/Dockerfile`을 작성했습니다.
+        *   `api`와 `bot` 서비스가 `redis`에 의존하도록 `depends_on` 설정을 추가했습니다.
+    *   **`worker` 서비스 기본 구현:**
+        *   `src/worker/main.py`를 생성하고, Redis Pub/Sub 채널(`notifications`)을 구독하고 메시지를 로깅하는 기본 로직을 구현했습니다.
+    *   **`requirements.txt` 업데이트:**
+        *   `redis` 라이브러리를 추가했습니다.
+        *   `apscheduler`를 `api` 서비스의 `requirements.txt`에서 최상위 `requirements.txt`로 이동시켰습니다. (향후 `worker`에서 사용 예정)
+*   **검증:** `docker compose up -d --build` 명령을 통해 모든 서비스(`stockseye-api`, `stockseye-bot`, `stockseye-db`, `stockseye-redis`, `stockseye-worker`)가 오류 없이 정상적으로 기동됨을 확인했습니다. `worker` 서비스의 로그를 통해 Redis 연결 및 구독 메시지를 확인했습니다.
+*   **결과:** 아키텍처 재설계의 첫 번째 단계를 성공적으로 완료했습니다.
+
+---
+
+### 2.17. 아키텍처 재설계 2단계 (1/2): 스케줄러 기능 이전 및 단위 테스트 (2025-08-07)
+
+*   **목표:** `api` 서비스에 있던 스케줄러 기능을 `worker` 서비스로 이전하고, 이에 대한 단위 테스트를 작성하여 안정성을 검증합니다.
+*   **작업 내역:**
+    *   **스케줄러 로직 이전:**
+        *   `src/api/main.py`의 `APScheduler` 관련 코드를 `src/worker/main.py`로 이전했습니다.
+        *   `update_stock_master_job`, `check_price_alerts_job`, `check_new_disclosures_job` 잡(job)들이 `worker` 서비스에서 실행되도록 수정했습니다.
+    *   **의존성 설정:**
+        *   `worker` 서비스가 DB에 접근하고 `StockService`, `PriceAlertService`를 사용할 수 있도록 `src/worker/main.py`에 `get_db`, `get_stock_service`, `get_price_alert_service` 의존성 주입 함수를 추가했습니다.
+        *   `src/common/`의 `db_connector.py`, `http_client.py` 등을 `worker`가 사용할 수 있도록 경로 문제를 해결했습니다.
+    *   **API 코드 정리:** `src/api/main.py`에서 스케줄러 관련 코드를 모두 제거했습니다.
+    *   **단위 테스트 작성:**
+        *   `src/worker/tests/unit/test_scheduler.py` 파일을 신규 작성했습니다.
+        *   `test_scheduler_initialization_and_job_addition` 테스트를 통해 스케줄러가 초기화되고 모든 잡이 정상적으로 추가되는지 검증했습니다. (서비스 의존성은 Mocking)
+*   **검증:**
+    *   `docker compose exec stockseye-worker pytest` 명령으로 `test_scheduler.py`의 단위 테스트가 성공적으로 통과함을 확인했습니다.
+    *   `docker compose up -d --build`로 모든 서비스를 재기동하고, `docker compose logs stockseye-worker`를 통해 스케줄러가 시작되고 잡들이 등록되는 로그를 확인했습니다.
+*   **결과:** 스케줄러 기능을 `worker` 서비스로 성공적으로 이전하고, 단위 테스트를 통해 안정성을 1차적으로 확보했습니다.
+
+---
+
+### 2.18. 아키텍처 재설계 2단계 (2/2): 알림 기능 리팩토링 및 테스트 (2025-08-08)
+
+*   **목표:** 기존의 동기적 알림 로직을 Redis Pub/Sub 기반의 비동기 방식으로 변경하고, `worker`와 `api`의 각 역할에 대한 테스트를 작성합니다.
+*   **작업 내역:**
+    *   **`worker` 서비스 구현:**
+        *   `src/worker/main.py`에 `notification_listener` 함수를 구현했습니다. 이 함수는 `notifications` 채널에서 메시지를 수신하여 `telegram-bot` 라이브러리를 통해 실제 텔레그램 메시지를 발송합니다.
+        *   `send_telegram_message` 유틸리티 함수를 추가했습니다.
+    *   **`api` 서비스 리팩토링:**
+        *   `src/api/services/price_alert_service.py`의 `check_price_alerts` 함수를 수정했습니다. 기존에 `bot`을 직접 호출하던 로직을 제거하고, `redis` 클라이언트를 사용하여 `notifications` 채널에 `chat_id`와 메시지를 포함한 JSON 데이터를 발행(Publish)하도록 변경했습니다.
+    *   **단위/통합 테스트 작성:**
+        *   **`worker` 단위 테스트:** `src/worker/tests/unit/test_listener.py`를 작성하여, `notification_listener`가 Redis 메시지를 성공적으로 수신하고 `send_telegram_message` 함수를 올바른 인자와 함께 호출하는지 검증했습니다.
+        *   **`api` 통합 테스트:** `src/api/tests/integration/test_notification_publish.py`를 작성하여, 가격 알림 조건이 충족되었을 때 `api` 서비스가 Redis에 올바른 형식의 메시지를 발행하는지 검증하는 통합 테스트를 구현했습니다.
+*   **현재 상태 및 문제점:**
+    *   `api` 통합 테스트(`test_notification_publish_on_alert_trigger`) 실행 중, `/users/login` 엔드포인트에서 `401 Unauthorized` 오류가 발생하며 테스트가 실패하고 있습니다.
+    *   **원인 분석:**
+        *   `test_create_user` 헬퍼 함수를 통해 테스트용 사용자를 생성하고 있으나, 로그인 시도 시 인증에 실패하고 있습니다.
+        *   `src/api/services/auth_service.py`의 `create_user` 메서드에 `db.commit()`이 누락되어, 사용자 정보가 트랜잭션 내에서만 존재하고 실제 DB에 커밋되지 않아 로그인 시 사용자를 찾지 못하는 문제일 가능성이 높습니다.
+    *   **다음 조치:** `auth_service.py`의 `create_user`에 `db.commit()`을 추가하고, 비밀번호 해싱 및 검증 로직을 디버깅하여 `401` 오류의 정확한 원인을 파악하고 해결할 예정입니다.
+
+---
+
+### 2.19. 통합 테스트 환경 안정화 및 알림 기능 버그 수정 (2025-08-08)
+
+*   **목표:** `test_notification_publish.py` 통합 테스트의 지속적인 실패 원인을 근본적으로 해결하여 테스트 환경을 안정화하고, 이를 통해 알림 생성 기능의 버그를 수정 및 검증합니다.
+
+*   **문제 해결 과정:**
+    1.  **초기 문제 (401 Unauthorized):** `httpx`를 사용한 테스트에서 사용자 로그인 시 `401` 오류가 발생했습니다. 초기에는 DB `commit` 누락으로 추정했으나, 근본 원인은 테스트 간 DB 상태가 초기화되지 않아 발생하는 사용자 중복 등록 실패였습니다.
+    2.  **1차 해결 시도 (TestClient 도입):** 테스트를 `httpx`에서 `TestClient`를 사용하도록 리팩토링하여 `pytest`의 `fixture` 생명주기에 포함시켰습니다.
+    3.  **2차 문제 (DB Connection Error):** `TestClient` 도입 후, `psycopg2.OperationalError: cannot connect to invalid database "test_stocks_db"` 및 `InternalError_: giving up after too many tries to overwrite row`와 같은 심각한 DB 연결 오류가 발생했습니다.
+        *   **원인 분석:** 이 문제의 핵심 원인은 **`conftest.py` 모듈 로딩 시점에 생성된 `SQLAlchemy engine`이, 실제 DB가 준비되기 전의 불안정한 연결 상태를 캐싱**하고 있었기 때문입니다. 또한, **호스트에 바인딩된 DB 볼륨 (`./db/db_data`)이 `docker compose down`으로 삭제되지 않아, 손상된 DB 상태가 계속 유지**되는 것도 문제의 원인이었습니다.
+    4.  **근본적인 해결 (환경 및 Fixture 재설계):**
+        *   **DB 데이터 완전 삭제:** 사용자에게 `sudo rm -rf ./db/db_data` 명령 실행을 요청하여 호스트에 남아있던 모든 DB 데이터를 물리적으로 삭제했습니다.
+        *   **`conftest.py` 전면 리팩토링:**
+            *   `db_engine` fixture를 `scope="session"`으로 만들어, 세션 시작 시 DB를 `DROP` & `CREATE`하고, **DB 준비가 완료된 후** `engine` 객체를 생성하도록 변경했습니다. 이를 통해 불안정한 연결 상태가 캐싱되는 문제를 원천 차단했습니다.
+            *   `real_db` fixture는 `scope="function"`을 유지하되, 각 테스트마다 테이블을 `DROP` & `CREATE` 하도록 하여 테스트 간 완벽한 독립성을 보장했습니다.
+    5.  **3차 문제 (404 Not Found):** DB 문제가 해결되자, 이번에는 사용자 등록 시 `404` 오류가 발생했습니다. 이는 `src/api/main.py`에서 `user.router`를 등록할 때 `prefix="/api/v1"`이 누락되었기 때문이었습니다. 해당 접두사를 추가하여 해결했습니다.
+    6.  **최종 문제 (ValidationError):** 마지막으로 `pydantic.ValidationError`와 `RuntimeWarning: coroutine ... was never awaited` 오류가 발생했습니다. `src/api/routers/notification.py`의 `create_alert` 함수가 `async` 서비스 함수를 호출하면서 `await` 키워드를 빠뜨린 것이 원인이었습니다. 함수를 `async def`로 수정하고 `await`를 추가하여 최종적으로 버그를 해결했습니다.
+
+*   **결과:** 길고 복잡한 디버깅 끝에 모든 테스트 환경 문제를 해결하고, 알림 생성 API가 정상적으로 동작함을 통합 테스트를 통해 검증했습니다. 이로써 `PLAN.MD`의 알림 기능 리팩토링 작업의 큰 걸림돌을 제거했습니다.

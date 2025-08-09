@@ -27,7 +27,8 @@ def override_get_db_dependency(db_session: Session):
     yield
     app.dependency_overrides = {} # 테스트 종료 후 오버라이드 해제
 
-def test_set_price_alert_for_bot_with_repeat_interval(client: TestClient, db_session: Session):
+@pytest.mark.asyncio
+async def test_set_price_alert_for_bot_with_repeat_interval(client: TestClient, db_session: Session):
     """봇을 통해 가격 알림 설정 시 repeat_interval이 올바르게 저장되는지 테스트"""
     telegram_user_id = 12345
     symbol = "005930"
@@ -70,7 +71,8 @@ def test_set_price_alert_for_bot_with_repeat_interval(client: TestClient, db_ses
     assert alert.repeat_interval == repeat_interval
     assert alert.is_active == True
 
-def test_update_price_alert_for_bot_with_repeat_interval(client: TestClient, db_session: Session):
+@pytest.mark.asyncio
+async def test_update_price_alert_for_bot_with_repeat_interval(client: TestClient, db_session: Session):
     """봇을 통해 기존 가격 알림 업데이트 시 repeat_interval이 올바르게 저장되는지 테스트"""
     telegram_user_id = 12346
     symbol = "005930"

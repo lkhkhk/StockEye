@@ -16,3 +16,4 @@ python-multipart
 lxml
 pandas_datareader
 yfinance
+redis

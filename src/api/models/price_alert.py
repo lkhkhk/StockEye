@@ -16,3 +16,5 @@ class PriceAlert(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="alerts")
