@@ -19,7 +19,7 @@
     -   [x] `docker-compose.yml`의 서비스명 변경사항을 `bot` 핸들러, 테스트 코드, 쉘 스크립트 등 프로젝트 내의 모든 관련 파일에 일괄 적용했습니다.
 -   [x] **[신규] `worker` 서비스 기본 구현:**
     -   [x] `src/worker/main.py`를 생성하고, Redis Pub/Sub 구독 및 기본 로깅 로직을 구현했습니다.
-    -   [x] `docker compose up --build`를 통해 모든 서비스가 정상적으로 기동됨을 확인했습니다.
+    -   [x] `docker compose up --build`를 통해 모든 서비스가 정상적으로 기동됨을 확인했습니다。
 
 ### Phase 2: Worker 서비스 기능 이전 및 테스트
 
@@ -62,16 +62,22 @@
 
 -   [x] **[완료] 사용자 데이터 연동 기능 정상화:**
     -   **대상:** `alert`, `history`, `trade`, `watchlist` 등
-    -   **해결 방안:** `telegram_id` 기반의 사용자 식별 로직을 `api` 서비스에 중앙화하여 구현했던 내용을 새로운 아키텍처에 맞게 재검증하고 안정화합니다.
-    -   **검증:** 각 기능에 대한 **Bot-API-Worker 연동 E2E 테스트 코드를 반드시 작성**하여 버그 재발을 방지합니다.
+    -   **해결 방안:** `telegram_id` 기반의 사용자 식별 로직을 `api` 서비스에 중앙화하여 구현했던 내용을 새로운 아키텍처에 맞게 재검증하고 안정화합니다。
+    -   **검증:** 각 기능에 대한 **Bot-API-Worker 연동 E2E 테스트 코드를 반드시 작성**하여 버그 재발을 방지합니다。
 
 -   [x] **[완료] `natural` 핸들러 API 응답 형식 불일치 문제 해결:**
-    -   **해결:** `natural.py`에서 API 응답(`{"items": [...]}`)을 올바르게 파싱하도록 수정합니다.
-    -   **검증:** E2E 테스트를 통해 자연어 처리 기능의 정상 동작을 확인합니다.
+    -   **해결:** `natural.py`에서 API 응답(`{"items": [...]}`)을 올바르게 파싱하도록 수정합니다。
+    -   **검증:** E2E 테스트를 통해 자연어 처리 기능의 정상 동작을 확인합니다。
 
--   [ ] **[기능 누락] 예측 이력 저장을 위한 `user_id` 전달:**
-    -   **해결:** `predict`, `natural` 핸들러에서 `/predict` API 호출 시 `telegram_id`를 포함하도록 수정하고, `api`는 이를 `user_id`로 변환하여 이력을 저장하도록 합니다.
-    -   **검증:** E2E 테스트를 통해 예측 이력이 DB에 정상적으로 저장되는지 확인합니다.
+-   [x] **[완료] 예측 이력 저장을 위한 `user_id` 전달:**
+    -   **현황:** `predict`, `natural` 핸들러에서 `/predict` API 호출 시 `telegram_id`를 포함하고, `api`는 이를 `user_id`로 변환하여 이력을 저장하도록 하는 기능 구현 중.
+    -   **발생 문제:**
+        *   **API 라우터 경로 불일치:** `bot`에서 `/predict`로 호출했으나 `api` 라우터가 `/predict/`로 설정되어 `307 Temporary Redirect` 발생 및 POST 본문 유실. (`/predict`로 수정 완료)
+        *   **테스트 데이터 시딩 불일치:** `api` 서비스 시작 시 `StockMaster` 테이블에 테스트 데이터가 이미 존재한다고 판단하여 시딩을 건너뛰었으나, 실제 검색 시 데이터가 조회되지 않는 문제 발생. (시딩 로직 보강 완료)
+        *   **`predict_service` 로직 오류:** `predict_stock_movement` 함수가 `calculate_analysis_items`의 결과를 `None`으로 잘못 판단하여 "예측 불가"를 반환하는 문제 발생. (`predict_service` 로직 수정 완료)
+        *   **E2E 테스트 실패 지속:** 위 모든 수정에도 불구하고 E2E 테스트가 동일한 오류로 계속 실패하고 있음. 이는 DB 환경, Docker 네트워크, 또는 `pytest`와 `asyncio`의 상호작용 등 더 근본적인 환경적 문제일 가능성이 높음.
+    -   **해결:** `httpx.Response.ok` 속성 Deprecated 문제로 확인되어, `response.is_success` 또는 `response.status_code < 400`으로 변경하여 해결했습니다.
+    -   **검증:** `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트 통과 확인.
 
 ## 🌟 Phase 4: 테스트 고도화 및 지침 개선 (유지)
 
@@ -82,3 +88,26 @@
     -   [ ] **`common` 모듈:** 모든 공통 모듈에 대한 단위 테스트를 작성합니다.
 -   [ ] **(기존) 통합 테스트 보강**
     -   [ ] `predict.py` 등 통합 테스트가 없는 API 라우터에 대해 신규 작성합니다.
+
+## ⚙️ Phase 5: 환경 변수 및 DB 설정 안정화
+
+-   [ ] **`TELEGRAM_BOT_TOKEN` 환경 변수 문제 해결:**
+    -   `worker` 서비스 로그에 `The "TELEGRAM_BOT_TOKEN" variable is not set.` 경고가 발생하는 문제 해결.
+    -   `docker-compose.yml` 및 관련 파일 검토하여 `TELEGRAM_BOT_TOKEN`이 모든 서비스에 올바르게 전달되는지 확인.
+-   [ ] **`.env` 파일 및 환경 변수 설정 전반 검토:**
+    -   `docker-compose.yml`, `Dockerfile`들, `settings.env.example` 등을 검토하여 환경 변수 설정의 일관성 확보.
+    -   `db` 서비스 때문에 필요하다고 알려진 `.env` 파일의 필요성을 재검토하고, 가능하다면 의존성 제거 방안 모색.
+
+---
+
+## 🐞 현재 발견된 주요 문제점 (새로운 과제)
+
+-   [ ] **[API] 통합 테스트 404 오류 해결:** `src/api/main.py`의 라우터 `prefix` 설정과 `TestClient` 호출 경로의 일관성 확인 및 수정.
+-   [ ] **[Bot/API] 단위 테스트 Mocking/Import 오류 해결:**
+    -   `src/bot/tests/unit/test_alert_handler.py`, `test_bot_natural.py`, `test_bot_predict.py`, `test_bot_register.py` 등에서 Mocking 관련 오류 (`TypeError: object AsyncMock can't be used in 'await' expression` 등)가 발생합니다.
+    -   `src/bot/tests/unit/test_bot_natural.py`에서 `ModuleNotFoundError: No module named 'src.bot.handlers.natural.session'` 오류가 발생합니다.
+    -   `src/api/tests/unit/test_auth_service.py`에서 `ModuleNotFoundError: No module named 'src.api.services.auth_service.pwd_context'` 오류가 발생합니다.
+-   [ ] **[API] 서비스 로직 오류 해결:** `src/api/tests/unit/test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 등에서 `KeyError` 또는 `TypeError`와 같은 로직 오류가 발생합니다.
+-   [ ] **[Worker] 단위 테스트 오류 해결:**
+    -   `src/worker/tests/unit/test_listener.py`에서 `TypeError: object AsyncMock can't be used in 'await' expression` 오류가 발생합니다.
+    -   `src/worker/tests/unit/test_main_jobs.py`에서 `ModuleNotFoundError: No module named 'src.api.main'` 오류가 발생합니다.

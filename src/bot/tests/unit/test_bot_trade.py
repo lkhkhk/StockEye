@@ -1,5 +1,4 @@
 import pytest
-import requests
 from unittest.mock import AsyncMock, patch, Mock
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -13,9 +12,8 @@ async def test_trade_simulate_command_success():
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
     context.args = ["buy", "005930", "10000", "10"]
 
-    mock_response = AsyncMock(status_code=200, ok=True)
+    mock_response = AsyncMock(status_code=200)
     mock_response.json = Mock(return_value={"message": "모의 거래 기록 완료"})
-    mock_response.raise_for_status.return_value = None
 
     with patch('src.bot.handlers.trade.session.post', return_value=mock_response) as mock_post:
         await trade_simulate_command(update, context)
@@ -31,9 +29,7 @@ async def test_trade_simulate_command_success():
             },
             timeout=10
         )
-        update.message.reply_text.assert_called_once_with(
-            "모의 거래 기록 완료"
-        )
+        update.message.reply_text.assert_called_once_with("모의 거래 기록 완료")
 
 @pytest.mark.asyncio
 async def test_trade_simulate_command_invalid_args():
@@ -58,7 +54,7 @@ async def test_trade_simulate_command_api_error():
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
     context.args = ["buy", "005930", "10000", "10"]
 
-    mock_response = AsyncMock(status_code=500, ok=False)
+    mock_response = AsyncMock(status_code=500)
 
     with patch('src.bot.handlers.trade.session.post', return_value=mock_response) as mock_post:
         await trade_simulate_command(update, context)
@@ -85,15 +81,11 @@ async def test_trade_history_command_success():
     update.message.reply_text = AsyncMock()
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
 
-    mock_json_method = Mock(return_value={
-        "trades": [
-            {"trade_time": "2023-01-01T10:00:00", "trade_type": "buy", "symbol": "005930", "price": 10000, "quantity": 10},
-            {"trade_time": "2023-01-02T11:00:00", "trade_type": "sell", "symbol": "005930", "price": 10500, "quantity": 5}
-        ]
-    })
-    mock_response = AsyncMock(status_code=200, ok=True)
-    mock_response.json = mock_json_method
-    mock_response.raise_for_status.return_value = None
+    mock_response = AsyncMock(status_code=200)
+    mock_response.json = Mock(return_value={"trades": [
+        {"trade_time": "2023-01-01T10:00:00", "trade_type": "buy", "symbol": "005930", "price": 10000, "quantity": 10},
+        {"trade_time": "2023-01-02T11:00:00", "trade_type": "sell", "symbol": "005930", "price": 10500, "quantity": 5}
+    ]})
 
     with patch('src.bot.handlers.trade.session.get', return_value=mock_response) as mock_get:
         await trade_history_command(update, context)
@@ -114,12 +106,8 @@ async def test_trade_history_command_no_history():
     update.message.reply_text = AsyncMock()
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
 
-    mock_json_method = Mock(return_value={
-        "trades": []
-    })
-    mock_response = AsyncMock(status_code=200, ok=True)
-    mock_response.json = mock_json_method
-    mock_response.raise_for_status.return_value = None
+    mock_response = AsyncMock(status_code=200)
+    mock_response.json = Mock(return_value={"trades": []})
 
     with patch('src.bot.handlers.trade.session.get', return_value=mock_response) as mock_get:
         await trade_history_command(update, context)
@@ -128,9 +116,7 @@ async def test_trade_history_command_no_history():
             "http://stockseye-api:8000/trade/history/123",
             timeout=10
         )
-        update.message.reply_text.assert_called_once_with(
-            "모의 거래 기록이 없습니다."
-        )
+        update.message.reply_text.assert_called_once_with("모의 거래 기록이 없습니다.")
 
 @pytest.mark.asyncio
 async def test_trade_history_command_api_error():
@@ -139,7 +125,7 @@ async def test_trade_history_command_api_error():
     update.message.reply_text = AsyncMock()
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
 
-    mock_response = AsyncMock(status_code=500, ok=False)
+    mock_response = AsyncMock(status_code=500)
 
     with patch('src.bot.handlers.trade.session.get', return_value=mock_response) as mock_get:
         await trade_history_command(update, context)

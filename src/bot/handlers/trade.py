@@ -22,7 +22,7 @@ async def trade_simulate_command(update: Update, context: ContextTypes.DEFAULT_T
             "quantity": int(quantity)
         }
         response = await session.post(f"{API_URL}/trade/simulate", json=payload, timeout=10)
-        if response.ok:
+        if response.status_code < 400:
             await update.message.reply_text(response.json().get("message", "모의 거래 기록 완료"))
         else:
             await update.message.reply_text(f"모의 거래 기록 실패: API 응답 코드 {response.status_code}")
@@ -33,7 +33,7 @@ async def trade_history_command(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id
     try:
         response = await session.get(f"{API_URL}/trade/history/{user_id}", timeout=10)
-        if response.ok:
+        if response.status_code < 400:
             data = response.json()
             trades = data.get("trades", [])
             if not trades:
@@ -46,4 +46,4 @@ async def trade_history_command(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             await update.message.reply_text(f"모의 거래 이력 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (API 응답 코드: {response.status_code})")
     except Exception as e:
-        await update.message.reply_text(f"모의 거래 이력 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") 
+        await update.message.reply_text(f"모의 거래 이력 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")

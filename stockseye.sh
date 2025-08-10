@@ -1,5 +1,33 @@
 #!/bin/bash
 
+
+# test shell-commands
+test_shell_command() {
+
+    # echo "함수 파라메타 \$@ : $@"
+    # echo "함수 파라메타 0 : $0 : 스크립트명"
+    # echo "함수 파라메타 1 : $1"
+    # echo "함수 파라메타 2 : $2"
+
+    script_name="$0"
+    echo "전체 경로 포함 스크립트명: $script_name"
+
+    file_name=$(basename "$script_name")
+    echo "스크립트 파일명: $file_name"
+
+    # 파일명에서 확장자 제거
+    name_without_extension="${file_name%.*}"
+    echo "파일명 (확장자 제거): $name_without_extension"  # 출력: my_script
+
+    # 확장자만 추출
+    extension="${file_name##*.}"
+    echo "확장자: $extension"  # 출력: sh
+
+    # exit;
+}
+
+# git switch develop && git pull && git switch main && git merge develop
+
 # StocksEye 개발/테스트/운영 스크립트
 
 # 색상 정의
@@ -13,6 +41,20 @@ SCRIPT_DIR=$(dirname "$(realpath "$0")")
 PROJECT_ROOT="$SCRIPT_DIR"
 
 # 함수 정의
+
+# Get 프로젝트명
+get_project_name() {
+
+    # 스크립트 파일명
+    local script_name="$0"
+    local file_name=$(basename "$script_name")
+    # 파일명에서 확장자 제거
+    local name_without_extension="${file_name%.*}"
+    # 확장자만 추출
+    # local extension="${file_name##*.}"
+
+    echo ${name_without_extension}
+}
 
 # 서비스 빌드 및 재시작
 build_and_restart() {
@@ -64,6 +106,22 @@ run_all_tests() {
     echo -e "${GREEN}>>> 모든 서비스 테스트 완료.${NC}"
 }
 
+# 특정 서비스 빌드 및 재시작
+build_and_restart_service() {
+    local project_name=$(get_project_name)
+    local service_name="${project_name}-${1:-frontend}" # 기본값 frontend
+    local env=${2:-development} # 기본값 development
+    echo -e "${YELLOW}>>> Docker Compose 서비스 빌드 및 재시작 (환경: $env)...${NC}"
+    cd "$PROJECT_ROOT" || exit 1
+    APP_ENV=$env docker compose up -d --build "${service_name}"
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}>>> 서비스 빌드 및 재시작 완료.${NC}"
+    else
+        echo -e "${RED}>>> 서비스 빌드 및 재시작 실패.${NC}"
+        exit 1
+    fi
+}
+
 # Docker 환경 정리
 clean_env() {
     echo -e "${RED}>>> 경고: 이 작업은 모든 Docker 컨테이너, 네트워크, 볼륨을 영구적으로 삭제합니다.${NC}"
@@ -75,6 +133,7 @@ clean_env() {
         docker compose down --volumes --remove-orphans
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}>>> Docker 환경 정리 완료.${NC}"
+            sudo rm -rf ./db/* ./logs/*
         else
             echo -e "${RED}>>> Docker 환경 정리 실패.${NC}"
             exit 1
@@ -86,7 +145,7 @@ clean_env() {
 
 # 도움말 표시
 show_help() {
-    echo "사용법: ./dev_ops.sh [명령어]"
+    echo "사용법: ./$0 [명령어]"
     echo ""
     echo "명령어:"
     echo "  build       : Docker Compose 서비스를 빌드하고 재시작합니다."
@@ -97,34 +156,45 @@ show_help() {
     echo "  help        : 이 도움말 메시지를 표시합니다."
     echo ""
     echo "예시:"
-    echo "  ./dev_ops.sh build"
-    echo "  ./dev_ops.sh all-test"
-    echo "  ./dev_ops.sh clean"
+    echo "  ./$0 build"
+    echo "  ./$0 all-test"
+    echo "  ./$0 clean"
 }
 
 # 메인 로직
-case "$1" in
-    build)
-        build_and_restart "$2" # 환경 인자 전달
-        ;;
-    api-test)
-        run_api_tests
-        ;;
-    bot-test)
-        run_bot_tests
-        ;;
-    all-test)
-        run_all_tests
-        ;;
-    clean)
-        clean_env
-        ;;
-    help)
-        show_help
-        ;;
-    *)
-        echo -e "${RED}오류: 알 수 없는 명령어입니다. 'help'를 입력하여 사용법을 확인하세요.${NC}"
-        show_help
-        exit 1
-        ;;
-esac
+main() {
+    case "$1" in
+        build)
+            shift 
+            build_and_restart "$@" # 환경 인자 전달
+            ;;
+        api-test)
+            run_api_tests
+            ;;
+        bot-test)
+            run_bot_tests
+            ;;
+        all-test)
+            run_all_tests
+            ;;
+        service)
+            shift 
+            build_and_restart_service "$@" # 환경 인자 전달
+            ;;
+        clean)
+            clean_env
+            ;;
+        help)
+            show_help
+            ;;
+        *)
+            echo -e "${RED}오류: 알 수 없는 명령어입니다. 'help'를 입력하여 사용법을 확인하세요.${NC}"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# 메인 함수 호출
+main "$@"
+

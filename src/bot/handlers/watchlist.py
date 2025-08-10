@@ -15,7 +15,7 @@ async def watchlist_add_command(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id
     try:
         response = await session.post(f"{API_URL}/watchlist/add", json={"user_id": user_id, "symbol": symbol}, timeout=10)
-        if response.ok:
+        if response.status_code < 400:
             await update.message.reply_text(response.json().get("message", "관심종목 추가 완료"))
         else:
             await update.message.reply_text(f"관심종목 추가 실패: API 응답 코드 {response.status_code}")
@@ -30,7 +30,7 @@ async def watchlist_remove_command(update: Update, context: ContextTypes.DEFAULT
     user_id = update.effective_user.id
     try:
         response = await session.post(f"{API_URL}/watchlist/remove", json={"user_id": user_id, "symbol": symbol}, timeout=10)
-        if response.ok:
+        if response.status_code < 400:
             await update.message.reply_text(response.json().get("message", "관심종목 제거 완료"))
         else:
             await update.message.reply_text(f"관심종목 제거 실패: API 응답 코드 {response.status_code}")
@@ -41,7 +41,7 @@ async def watchlist_get_command(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id
     try:
         response = await session.get(f"{API_URL}/watchlist/get/{user_id}", timeout=10)
-        if response.ok:
+        if response.status_code < 400:
             data = response.json()
             watchlist = data.get("watchlist", [])
             if not watchlist:

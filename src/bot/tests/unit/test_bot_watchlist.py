@@ -1,6 +1,6 @@
 import pytest
 import requests
-from unittest.mock import AsyncMock, patch, Mock
+from unittest.mock import AsyncMock, patch, Mock, PropertyMock
 from telegram import Update
 from telegram.ext import ContextTypes
 from src.bot.handlers.watchlist import watchlist_add_command, watchlist_remove_command, watchlist_get_command
@@ -13,9 +13,9 @@ async def test_watchlist_add_command_success():
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
     context.args = ["005930"]
 
-    mock_response = AsyncMock(status_code=200, ok=True)
+    mock_response = AsyncMock(status_code=200)
+    type(mock_response).is_success = PropertyMock(return_value=True)
     mock_response.json = Mock(return_value={"message": "관심종목 추가 완료"})
-    mock_response.raise_for_status.return_value = None
 
     with patch('src.bot.handlers.watchlist.session.post', return_value=mock_response) as mock_post:
         await watchlist_add_command(update, context)
@@ -55,7 +55,8 @@ async def test_watchlist_add_command_api_error():
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
     context.args = ["005930"]
 
-    mock_response = AsyncMock(status_code=500, ok=False)
+    mock_response = AsyncMock(status_code=500)
+    type(mock_response).is_success = PropertyMock(return_value=False)
 
     with patch('src.bot.handlers.watchlist.session.post', return_value=mock_response) as mock_post:
         await watchlist_add_command(update, context)
@@ -80,9 +81,9 @@ async def test_watchlist_remove_command_success():
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
     context.args = ["005930"]
 
-    mock_response = AsyncMock(status_code=200, ok=True)
+    mock_response = AsyncMock(status_code=200)
+    type(mock_response).is_success = PropertyMock(return_value=True)
     mock_response.json = Mock(return_value={"message": "관심종목 제거 완료"})
-    mock_response.raise_for_status.return_value = None
 
     with patch('src.bot.handlers.watchlist.session.post', return_value=mock_response) as mock_post:
         await watchlist_remove_command(update, context)
@@ -122,7 +123,8 @@ async def test_watchlist_remove_command_api_error():
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
     context.args = ["005930"]
 
-    mock_response = AsyncMock(status_code=500, ok=False)
+    mock_response = AsyncMock(status_code=500)
+    type(mock_response).is_success = PropertyMock(return_value=False)
 
     with patch('src.bot.handlers.watchlist.session.post', return_value=mock_response) as mock_post:
         await watchlist_remove_command(update, context)
@@ -146,11 +148,9 @@ async def test_watchlist_get_command_success():
     update.message.reply_text = AsyncMock()
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
 
-    mock_response = AsyncMock(status_code=200, ok=True)
-    mock_response.json = Mock(return_value={
-        "watchlist": ["005930 삼성전자", "000660 SK하이닉스"]
-    })
-    mock_response.raise_for_status.return_value = None
+    mock_response = AsyncMock(status_code=200)
+    type(mock_response).is_success = PropertyMock(return_value=True)
+    mock_response.json = Mock(return_value={"watchlist": ["005930 삼성전자", "000660 SK하이닉스"]})
 
     with patch('src.bot.handlers.watchlist.session.get', return_value=mock_response) as mock_get:
         await watchlist_get_command(update, context)
@@ -170,11 +170,9 @@ async def test_watchlist_get_command_no_watchlist():
     update.message.reply_text = AsyncMock()
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
 
-    mock_response = AsyncMock(status_code=200, ok=True)
-    mock_response.json = Mock(return_value={
-        "watchlist": []
-    })
-    mock_response.raise_for_status.return_value = None
+    mock_response = AsyncMock(status_code=200)
+    type(mock_response).is_success = PropertyMock(return_value=True)
+    mock_response.json = Mock(return_value={"watchlist": []})
 
     with patch('src.bot.handlers.watchlist.session.get', return_value=mock_response) as mock_get:
         await watchlist_get_command(update, context)
@@ -194,7 +192,8 @@ async def test_watchlist_get_command_api_error():
     update.message.reply_text = AsyncMock()
     context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
 
-    mock_response = AsyncMock(status_code=500, ok=False)
+    mock_response = AsyncMock(status_code=500)
+    type(mock_response).is_success = PropertyMock(return_value=False)
 
     with patch('src.bot.handlers.watchlist.session.get', return_value=mock_response) as mock_get:
         await watchlist_get_command(update, context)
