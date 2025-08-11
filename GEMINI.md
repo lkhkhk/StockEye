@@ -137,7 +137,7 @@ graph TD
 
 ### `run_shell_command`
 *   **`docker compose` 사용법:**
-    *   컨테이너 이름(`stockseye-api`) 대신 **서비스 이름(`stockseye-api`)**을 사용합니다. (명명 규칙 통일)
+    *   컨테이너 이름(`stockeye-api`) 대신 **서비스 이름(`stockeye-api`)**을 사용합니다. (명명 규칙 통일)
     *   `exec` 명령 실패 등 `docker compose` 동작이 불안정할 경우, 환경을 완전히 클린 재시작합니다.
         1.  `docker compose down --volumes`
         2.  `docker compose up -d --build`
@@ -147,5 +147,5 @@ graph TD
 
 ## 4. 📜 프로젝트 규약 (Project Conventions)
 
-*   **서비스 명명 규칙:** 모든 서비스와 컨테이너 이름은 `stockseye-` 접두사를 사용하여 통일합니다. (예: `stockseye-api`, `stockseye-bot`, `stockseye-worker`)
+*   **서비스 명명 규칙:** 모든 서비스와 컨테이너 이름은 `stockeye-` 접두사를 사용하여 통일합니다. (예: `stockeye-api`, `stockeye-bot`, `stockeye-worker`)
 *   **`src/common` 모듈:** `api`, `bot`, `worker` 서비스가 공유하므로, 이 디렉토리 내 파일 변경 시 모든 서비스에 미치는 영향을 고려하여 관련 파일들을 일관되게 수정해야 합니다.

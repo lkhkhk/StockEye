@@ -4,7 +4,7 @@ import os
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     HELP_TEXT_USER = (
-        "[StocksEye 봇 도움말]\n"
+        "[StockEye 봇 도움말]\n"
         "\n"
         "**계정 관리**\n"
         "- /register : 알림 수신 동의 (텔레그램 알림 활성화)\n"

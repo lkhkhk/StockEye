@@ -1,11 +1,14 @@
 from fastapi import FastAPI
+from sqlalchemy.orm import Session
 from src.api.routers import user, notification, predict, watchlist, simulated_trade, prediction_history, admin, stock_master, bot_router
-from src.common.db_connector import Base, engine
+from src.common.db_connector import Base, engine, SessionLocal
+from src.api.models.stock_master import StockMaster
+from src.api.models.daily_price import DailyPrice # 추가
 import sys
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from datetime import datetime
+from datetime import datetime, timedelta # timedelta 추가
 
 APP_ENV = os.getenv("APP_ENV", "development")
 
@@ -28,14 +31,71 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# DB 테이블 자동 생성
-try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("DB 테이블이 성공적으로 생성되었거나 이미 존재합니다.")
-except Exception as e:
-    logger.error(f"DB 테이블 생성 중 오류 발생: {e}", exc_info=True)
-
 app = FastAPI()
+
+def seed_test_data(db: Session):
+    """테스트용 StockMaster 및 DailyPrice 데이터를 시딩하는 함수"""
+    try:
+        logger.info("개발 환경: 모든 테이블을 드롭하고 다시 생성합니다.")
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+
+        logger.info("개발 환경: StockMaster 테이블에 테스트 데이터를 시딩합니다.")
+        stocks = [
+            StockMaster(symbol="005930", name="삼성전자", market="KOSPI"),
+            StockMaster(symbol="000660", name="SK하이닉스", market="KOSPI"),
+            StockMaster(symbol="035720", name="카카오", market="KOSPI"),
+            StockMaster(symbol="005380", name="현대차", market="KOSPI"),
+            StockMaster(symbol="000270", name="기아", market="KOSPI"),
+            StockMaster(symbol="GOOG", name="Alphabet Inc.", market="NASDAQ"),
+            StockMaster(symbol="AAPL", name="Apple Inc.", market="NASDAQ"),
+            StockMaster(symbol="MSFT", name="Microsoft Corp.", market="NASDAQ"),
+            StockMaster(symbol="AMZN", name="Amazon.com Inc.", market="NASDAQ"),
+            StockMaster(symbol="NFLX", name="Netflix Inc.", market="NASDAQ"),
+        ]
+        db.add_all(stocks)
+        db.commit()
+        logger.info("테스트 StockMaster 데이터 시딩 완료.")
+
+        # DailyPrice 데이터 시딩 추가
+        logger.info("개발 환경: DailyPrice 테이블에 테스트 데이터를 시딩합니다.")
+        daily_prices = []
+        today = datetime.now().date()
+        # 삼성전자 (005930)에 대한 30일치 가상 데이터
+        for i in range(30):
+            date = today - timedelta(days=i)
+            # 간단한 가상 가격 데이터 (실제와 유사하게 변동)
+            close_price = 100 + (i % 5) * 2 - (i // 5) * 1
+            open_price = close_price + (i % 3) - 1
+            high_price = max(open_price, close_price) + (i % 2)
+            low_price = min(open_price, close_price) - (i % 2)
+            volume = 1000000 + (i % 10) * 100000
+
+            daily_prices.append(
+                DailyPrice(
+                    symbol="005930",
+                    date=date,
+                    open=float(open_price),
+                    high=float(high_price),
+                    low=float(low_price),
+                    close=float(close_price),
+                    volume=int(volume)
+                )
+            )
+        db.add_all(daily_prices)
+        db.commit()
+        logger.info("테스트 DailyPrice 데이터 시딩 완료.")
+
+    except Exception as e:
+        logger.error(f"테스트 데이터 시딩 중 오류 발생: {e}", exc_info=True)
+        db.rollback()
+
+@app.on_event("startup")
+def on_startup():
+    if APP_ENV == "development":
+        db = SessionLocal()
+        seed_test_data(db)
+        db.close()
 
 # --- Routers ---
 app.include_router(user.router, prefix="/api/v1")

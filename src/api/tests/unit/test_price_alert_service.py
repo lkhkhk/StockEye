@@ -433,7 +433,7 @@ async def test_check_alerts_yesterday_close_is_zero(price_alert_service, mock_db
 
 # --- Integration Test for Redis Publish ---
 
-REDIS_HOST = "stockseye-redis"
+REDIS_HOST = "stockeye-redis"
 REDIS_PORT = 6379
 
 @pytest.mark.asyncio

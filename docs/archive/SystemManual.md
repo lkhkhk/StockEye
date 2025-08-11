@@ -65,7 +65,7 @@
 
 ## 8. 운영 서버 서비스 기동 절차 (dev_ops.sh 활용)
 
-이 절차는 `dev_ops.sh` 스크립트를 활용하여 StocksEye 서비스를 운영 서버에 배포하고 기동하는 방법을 설명합니다.
+이 절차는 `dev_ops.sh` 스크립트를 활용하여 StockEye 서비스를 운영 서버에 배포하고 기동하는 방법을 설명합니다.
 
 #### 1. 사전 준비 (운영 서버)
 
@@ -76,12 +76,12 @@
 
 #### 2. 소스 코드 클론
 
-운영 서버의 적절한 디렉토리(예: `/opt/StocksEye`)에 Git 저장소를 클론합니다.
+운영 서버의 적절한 디렉토리(예: `/opt/StockEye`)에 Git 저장소를 클론합니다.
 
 ```bash
 cd /opt
 git clone https://github.com/lkhkhk/StockEye.git
-cd StocksEye
+cd StockEye
 ```
 
 #### 3. 환경 변수 파일 생성 및 설정
@@ -118,7 +118,7 @@ cp settings.env.example .env.production
 
 #### 5. 데이터베이스 초기화 및 마이그레이션 (최초 배포 시)
 
-StocksEye 서비스는 API 서비스 기동 시 SQLAlchemy 모델을 기반으로 테이블을 자동으로 생성합니다. 따라서 별도의 수동 마이그레이션 명령은 필요하지 않습니다.
+StockEye 서비스는 API 서비스 기동 시 SQLAlchemy 모델을 기반으로 테이블을 자동으로 생성합니다. 따라서 별도의 수동 마이그레이션 명령은 필요하지 않습니다.
 
 #### 6. 서비스 상태 확인
 
@@ -149,7 +149,7 @@ StocksEye 서비스는 API 서비스 기동 시 SQLAlchemy 모델을 기반으�
 소스 코드 변경사항이 있을 경우, 다음 절차로 업데이트합니다.
 
 ```bash
-cd /opt/StocksEye
+cd /opt/StockEye
 git pull origin main # 또는 develop 등 작업 브랜치
 ./dev_ops.sh build production
 ```

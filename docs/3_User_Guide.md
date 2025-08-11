@@ -1,10 +1,10 @@
 # 사용자 가이드
 
-이 문서는 StocksEye 텔레그램 봇의 사용 방법을 안내합니다.
+이 문서는 StockEye 텔레그램 봇의 사용 방법을 안내합니다.
 
 ## 1. 시작하기
 
-텔레그램에서 StocksEye 봇을 찾아 대화를 시작하고 `/start` 명령어를 입력하면 봇 사용을 시작할 수 있습니다.
+텔레그램에서 StockEye 봇을 찾아 대화를 시작하고 `/start` 명령어를 입력하면 봇 사용을 시작할 수 있습니다.
 
 ## 2. 주요 명령어
 
@@ -12,8 +12,8 @@
 | :--- | :--- | :--- |
 | `/start` | 봇 시작 및 환영 메시지, 명령어 안내 표시 | `/start` |
 | `/help` | 모든 명령어 목록과 사용법 안내 | `/help` |
-| `/register` | StocksEye 서비스에 사용자를 등록합니다. | `/register` |
-| `/unregister` | StocksEye 서비스에서 사용자를 탈퇴합니다. | `/unregister` |
+| `/register` | StockEye 서비스에 사용자를 등록합니다. | `/register` |
+| `/unregister` | StockEye 서비스에서 사용자를 탈퇴합니다. | `/unregister` |
 | `/symbols` | 등록된 전체 주식 종목 목록을 조회합니다. | `/symbols` |
 | `/symbols_search` | 키워드로 주식 종목을 검색합니다. | `/symbols_search 삼성` |
 | `/symbol_info` | 특정 종목의 상세 정보를 조회합니다. | `/symbol_info 005930` |

@@ -9,12 +9,12 @@ from src.bot.handlers.natural import natural_message_handler
 # Mock user and chat IDs for testing
 TEST_USER_ID = 12345
 TEST_CHAT_ID = 12345
-API_URL = f"http://stockseye-api:8000"
+API_URL = f"http://stockeye-api:8000"
 
 @pytest.fixture(autouse=True)
 def setup_environment():
     """Sets up environment variables for tests."""
-    os.environ["API_HOST"] = "stockseye-api"
+    os.environ["API_HOST"] = "stockeye-api"
     yield
     # Clean up environment variables if necessary
     del os.environ["API_HOST"]

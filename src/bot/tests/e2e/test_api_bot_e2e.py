@@ -12,7 +12,7 @@ TEST_CHAT_ID = 12345
 @pytest.fixture(autouse=True)
 def setup_environment():
     """Sets up environment variables for tests."""
-    os.environ["API_HOST"] = "stockseye-api"
+    os.environ["API_HOST"] = "stockeye-api"
     yield
     # Clean up environment variables if necessary
     del os.environ["API_HOST"]

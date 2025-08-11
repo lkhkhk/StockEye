@@ -1,6 +1,6 @@
 # 시작하기
 
-이 문서는 StocksEye 프로젝트의 개발 환경을 설정하고 서비스를 실행하는 방법을 안내합니다.
+이 문서는 StockEye 프로젝트의 개발 환경을 설정하고 서비스를 실행하는 방법을 안내합니다.
 
 ## 1. 요구사항
 
@@ -13,8 +13,8 @@
 ### 2.1. 소스 코드 복제
 
 ```bash
-git clone https://github.com/your-repo/StocksEye.git
-cd StocksEye
+git clone https://github.com/your-repo/StockEye.git
+cd StockEye
 ```
 
 ### 2.2. Python 가상환경 설정

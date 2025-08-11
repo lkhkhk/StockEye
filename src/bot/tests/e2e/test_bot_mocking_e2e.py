@@ -37,7 +37,7 @@ async def test_e2e_start_command(mock_update, mock_context):
 
     # 3. Assert
     mock_update.message.reply_text.assert_called_once()
-    assert "안녕하세요! StocksEye 봇입니다." in mock_update.message.reply_text.call_args[0][0]
+    assert "안녕하세요! StockEye 봇입니다." in mock_update.message.reply_text.call_args[0][0]
 
 @pytest.mark.asyncio
 async def test_e2e_help_command(mock_update, mock_context):
@@ -50,7 +50,7 @@ async def test_e2e_help_command(mock_update, mock_context):
 
     # 3. Assert
     mock_update.message.reply_text.assert_called_once()
-    assert "[StocksEye 봇 도움말]" in mock_update.message.reply_text.call_args[0][0]
+    assert "[StockEye 봇 도움말]" in mock_update.message.reply_text.call_args[0][0]
 
 # 여기에 다른 명령어들에 대한 E2E 테스트 케이스를 추가합니다.
 

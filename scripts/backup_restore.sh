@@ -4,7 +4,7 @@
 #   ./backup_restore.sh backup   # 백업 (백업파일: db_backup_YYYYMMDD.sql)
 #   ./backup_restore.sh restore db_backup_YYYYMMDD.sql  # 복구
 
-CONTAINER=stockseye-db
+CONTAINER=stockeye-db
 USER=postgres
 DB=service_db
 

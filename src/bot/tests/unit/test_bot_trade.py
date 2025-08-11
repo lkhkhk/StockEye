@@ -19,7 +19,7 @@ async def test_trade_simulate_command_success():
         await trade_simulate_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://stockseye-api:8000/trade/simulate",
+            "http://stockeye-api:8000/trade/simulate",
             json={
                 "user_id": 123,
                 "symbol": "005930",
@@ -60,7 +60,7 @@ async def test_trade_simulate_command_api_error():
         await trade_simulate_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://stockseye-api:8000/trade/simulate",
+            "http://stockeye-api:8000/trade/simulate",
             json={
                 "user_id": 123,
                 "symbol": "005930",
@@ -91,7 +91,7 @@ async def test_trade_history_command_success():
         await trade_history_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://stockseye-api:8000/trade/history/123",
+            "http://stockeye-api:8000/trade/history/123",
             timeout=10
         )
         expected_msg = "[모의 거래 이력]\n"
@@ -113,7 +113,7 @@ async def test_trade_history_command_no_history():
         await trade_history_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://stockseye-api:8000/trade/history/123",
+            "http://stockeye-api:8000/trade/history/123",
             timeout=10
         )
         update.message.reply_text.assert_called_once_with("모의 거래 기록이 없습니다.")
@@ -131,7 +131,7 @@ async def test_trade_history_command_api_error():
         await trade_history_command(update, context)
 
         mock_get.assert_called_once_with(
-            "http://stockseye-api:8000/trade/history/123",
+            "http://stockeye-api:8000/trade/history/123",
             timeout=10
         )
         update.message.reply_text.assert_called_once_with(

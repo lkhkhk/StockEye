@@ -12,7 +12,7 @@ import redis.asyncio as redis
 import os
 import json
 
-REDIS_HOST = os.getenv("REDIS_HOST", "stockseye-redis")
+REDIS_HOST = os.getenv("REDIS_HOST", "stockeye-redis")
 
 logger = logging.getLogger(__name__)
 

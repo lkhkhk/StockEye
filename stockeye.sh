@@ -28,7 +28,7 @@ test_shell_command() {
 
 # git switch develop && git pull && git switch main && git merge develop
 
-# StocksEye 개발/테스트/운영 스크립트
+# StockEye 개발/테스트/운영 스크립트
 
 # 색상 정의
 GREEN='\033[0;32m'

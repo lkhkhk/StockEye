@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import logging
+from src.api.services.user_service import UserService
+from src.api.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ router = APIRouter(prefix="/prediction", tags=["prediction_history"])
 
 class PredictionHistoryRecord(BaseModel):
     id: int
-    user_id: int
+    telegram_id: int # Changed from user_id to telegram_id
     symbol: str
     prediction: str
     created_at: datetime
@@ -26,9 +28,9 @@ class PredictionHistoryResponse(BaseModel):
     page: int
     page_size: int
 
-@router.get("/history/{user_id}", response_model=PredictionHistoryResponse, tags=["prediction_history"])
+@router.get("/history/{telegram_id}", response_model=PredictionHistoryResponse, tags=["prediction_history"]) # Changed path parameter
 def get_prediction_history(
-    user_id: int, 
+    telegram_id: int, # Changed parameter name
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="페이지 번호"),
     page_size: int = Query(10, ge=1, le=100, description="페이지 크기"),
@@ -36,10 +38,16 @@ def get_prediction_history(
     prediction: Optional[str] = Query(None, description="예측 결과 필터")
 ):
     """사용자의 예측 이력 조회 (페이지네이션 및 필터링 지원)"""
-    logger.debug(f"get_prediction_history 호출: user_id={user_id}, page={page}, page_size={page_size}, symbol={symbol}, prediction={prediction}")
+    logger.debug(f"get_prediction_history 호출: telegram_id={telegram_id}, page={page}, page_size={page_size}, symbol={symbol}, prediction={prediction}") # Changed log
+    
+    # telegram_id로 user_id 조회
+    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    if not user:
+        logger.debug(f"Telegram ID {telegram_id}에 해당하는 사용자를 찾을 수 없습니다.")
+        return PredictionHistoryResponse(history=[], total_count=0, page=page, page_size=page_size)
     
     # 기본 쿼리
-    query = db.query(PredictionHistory).filter(PredictionHistory.user_id == user_id)
+    query = db.query(PredictionHistory).filter(PredictionHistory.user_id == user.id) # Changed filter
     
     # 필터 적용
     if symbol:
@@ -55,16 +63,23 @@ def get_prediction_history(
     
     # 페이지네이션 적용
     offset = (page - 1) * page_size
-    records = query.order_by(PredictionHistory.created_at.desc()).offset(offset).limit(page_size).all()
+    
+    # User 테이블과 조인하여 telegram_id 가져오기
+    records = db.query(PredictionHistory, User.telegram_id)\
+        .join(User, PredictionHistory.user_id == User.id)\
+        .filter(PredictionHistory.user_id == user.id)\
+        .order_by(PredictionHistory.created_at.desc())\
+        .offset(offset).limit(page_size).all()
+    
     logger.debug(f"예측 이력 {len(records)}개 조회됨 (페이지 {page}, 페이지 크기 {page_size}).")
     
     return PredictionHistoryResponse(
         history=[PredictionHistoryRecord(
-            id=r.id,
-            user_id=r.user_id,
-            symbol=r.symbol,
-            prediction=r.prediction,
-            created_at=r.created_at
+            id=r.PredictionHistory.id,
+            telegram_id=r.telegram_id, # Use telegram_id from join
+            symbol=r.PredictionHistory.symbol,
+            prediction=r.PredictionHistory.prediction,
+            created_at=r.PredictionHistory.created_at
         ) for r in records],
         total_count=total_count,
         page=page,

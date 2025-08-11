@@ -4,7 +4,7 @@ import os
 import asyncio
 
 # --- Constants ---
-API_HOST = os.getenv("API_HOST", "stockseye-api")
+API_HOST = os.getenv("API_HOST", "stockeye-api")
 API_URL = f"http://{API_HOST}:8000/api/v1"
 
 @pytest.fixture(scope="module", autouse=True)

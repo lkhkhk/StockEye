@@ -38,7 +38,7 @@ class TestHelpHandler:
         # reply_text의 호출 인자를 캡처하여 예상되는 문자열과 비교
         self.update.message.reply_text.assert_called_once()
         called_text = self.update.message.reply_text.call_args[0][0]
-        assert "[StocksEye 봇 도움말]" in called_text
+        assert "[StockEye 봇 도움말]" in called_text
         assert "/register" in called_text
         assert "[관리자 전용 명령어 안내]" not in called_text
 
@@ -53,6 +53,6 @@ class TestHelpHandler:
         # reply_text의 호출 인자를 캡처하여 예상되는 문자열과 비교
         self.update.message.reply_text.assert_called_once()
         called_text = self.update.message.reply_text.call_args[0][0]
-        assert "[StocksEye 봇 도움말]" in called_text
+        assert "[StockEye 봇 도움말]" in called_text
         assert "/register" in called_text
         assert "[관리자 전용]" in called_text

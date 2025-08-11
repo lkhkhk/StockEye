@@ -5,7 +5,7 @@ import os
 ADMIN_ID = os.getenv("TELEGRAM_ADMIN_ID", "")
 
 START_TEXT_USER = (
-    "안녕하세요! StocksEye 봇입니다.\n"
+    "안녕하세요! StockEye 봇입니다.\n"
     "주식 정보 조회, 예측, 알림, 모의 거래 등 다양한 기능을 제공합니다.\n"
     "\n"
     "자세한 사용법과 전체 명령어 목록은 /help 를 입력해주세요."

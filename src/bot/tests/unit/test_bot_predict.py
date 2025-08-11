@@ -20,7 +20,7 @@ async def test_predict_command_success():
         await predict_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://stockseye-api:8000/predict",
+            "http://stockeye-api:8000/predict",
             json={"symbol": "005930"},
             timeout=10
         )
@@ -58,7 +58,7 @@ async def test_predict_command_api_error():
         await predict_command(update, context)
 
         mock_post.assert_called_once_with(
-            "http://stockseye-api:8000/predict",
+            "http://stockeye-api:8000/predict",
             json={"symbol": "005930"},
             timeout=10
         )

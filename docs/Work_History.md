@@ -250,7 +250,7 @@
         *   **`worker` 서비스:** 알림, 주기적 작업(스케줄링), 비동기 장기 실행 작업 등 백그라운드에서 실행되어야 하는 모든 작업을 전담하는 독립적인 서비스입니다.
         *   **`api` 서비스:** `bot`을 직접 호출하는 대신, 알림/작업 요청을 Redis에 메시지로 발행(Publish)하는 역할만 수행합니다.
         *   **`bot` 서비스:** 사용자 요청을 처리하고 `api`에 데이터를 요청하는 역할에만 집중합니다.
-    *   **명명 규칙 개선:** 프로젝트의 명확성과 확장성을 위해 모든 서비스와 컨테이너의 이름에 `stockseye-` 접두사를 붙여 통일하기로 결정했습니다. (예: `stockseye-api`, `stockseye-bot`)
+    *   **명명 규칙 개선:** 프로젝트의 명확성과 확장성을 위해 모든 서비스와 컨테이너의 이름에 `stockeye-` 접두사를 붙여 통일하기로 결정했습니다. (예: `stockeye-api`, `stockeye-bot`)
 *   **현재 상태:** 새로운 아키텍처 계획을 `PLAN.MD`에 반영하고, 관련 파일(docker-compose.yml, 소스 코드, 문서 등)을 일괄적으로 수정하는 작업을 진행할 예정입니다.
 
 ---
@@ -259,12 +259,12 @@
 
 *   **목표:** 새로운 `worker` 서비스 도입에 앞서, 프로젝트의 일관성과 명확성을 확보하기 위해 모든 서비스의 명명 규칙을 통일하고 관련 설정 파일을 업데이트합니다.
 *   **작업 내역:**
-    *   **`docker-compose.yml` 수정:** 모든 서비스(`api`, `bot`, `db`)의 이름과 `container_name`에 `stockseye-` 접두사를 붙여 수정했습니다. (예: `api` -> `stockseye-api`)
+    *   **`docker-compose.yml` 수정:** 모든 서비스(`api`, `bot`, `db`)의 이름과 `container_name`에 `stockeye-` 접두사를 붙여 수정했습니다. (예: `api` -> `stockeye-api`)
     *   **서비스 간 호출 코드 수정:** `docker-compose.yml`의 변경사항에 맞춰, 서비스 간 통신에 사용되는 호스트 이름을 새로운 서비스명으로 업데이트했습니다.
-        *   `src/bot/handlers/*.py`: `api_service`를 `stockseye-api`를 참조하도록 `API_HOST` 환경 변수를 사용하게 변경했습니다.
-        *   `src/bot/tests/unit/*.py`: 테스트 코드 내에 하드코딩된 `http://api_service:8000` URL을 `http://stockseye-api:8000`으로 일괄 변경했습니다.
-        *   `src/bot/tests/e2e/test_api_bot_e2e.py`: 웹훅 URL의 호스트명을 `stockseye-bot`으로 수정했습니다.
-    *   **스크립트 수정:** `scripts/backup_restore.sh`의 대상 컨테이너 이름을 `postgres_db`에서 `stockseye-db`로 변경했습니다.
+        *   `src/bot/handlers/*.py`: `api_service`를 `stockeye-api`를 참조하도록 `API_HOST` 환경 변수를 사용하게 변경했습니다.
+        *   `src/bot/tests/unit/*.py`: 테스트 코드 내에 하드코딩된 `http://api_service:8000` URL을 `http://stockeye-api:8000`으로 일괄 변경했습니다.
+        *   `src/bot/tests/e2e/test_api_bot_e2e.py`: 웹훅 URL의 호스트명을 `stockeye-bot`으로 수정했습니다.
+    *   **스크립트 수정:** `scripts/backup_restore.sh`의 대상 컨테이너 이름을 `postgres_db`에서 `stockeye-db`로 변경했습니다.
 *   **결과:** 새로운 아키텍처를 적용하기 위한 모든 사전 준비 작업을 완료했습니다.
 
 ---
@@ -282,7 +282,7 @@
     *   **`requirements.txt` 업데이트:**
         *   `redis` 라이브러리를 추가했습니다.
         *   `apscheduler`를 `api` 서비스의 `requirements.txt`에서 최상위 `requirements.txt`로 이동시켰습니다. (향후 `worker`에서 사용 예정)
-*   **검증:** `docker compose up -d --build` 명령을 통해 모든 서비스(`stockseye-api`, `stockseye-bot`, `stockseye-db`, `stockseye-redis`, `stockseye-worker`)가 오류 없이 정상적으로 기동됨을 확인했습니다. `worker` 서비스의 로그를 통해 Redis 연결 및 구독 메시지를 확인했습니다.
+*   **검증:** `docker compose up -d --build` 명령을 통해 모든 서비스(`stockeye-api`, `stockeye-bot`, `stockeye-db`, `stockeye-redis`, `stockeye-worker`)가 오류 없이 정상적으로 기동됨을 확인했습니다. `worker` 서비스의 로그를 통해 Redis 연결 및 구독 메시지를 확인했습니다.
 *   **결과:** 스케줄러 기능을 `worker` 서비스로 성공적으로 이전하고, 단위 테스트를 통해 안정성을 1차적으로 확보했습니다.
 
 ---
@@ -302,8 +302,8 @@
         *   `src/worker/tests/unit/test_scheduler.py` 파일을 신규 작성했습니다.
         *   `test_scheduler_initialization_and_job_addition` 테스트를 통해 스케줄러가 초기화되고 모든 잡이 정상적으로 추가되는지 검증했습니다. (서비스 의존성은 Mocking)
 *   **검증:**
-    *   `docker compose exec stockseye-worker pytest` 명령으로 `test_scheduler.py`의 단위 테스트가 성공적으로 통과함을 확인했습니다.
-    *   `docker compose up -d --build`로 모든 서비스를 재기동하고, `docker compose logs stockseye-worker`를 통해 스케줄러가 시작되고 잡들이 등록되는 로그를 확인했습니다.
+    *   `docker compose exec stockeye-worker pytest` 명령으로 `test_scheduler.py`의 단위 테스트가 성공적으로 통과함을 확인했습니다.
+    *   `docker compose up -d --build`로 모든 서비스를 재기동하고, `docker compose logs stockeye-worker`를 통해 스케줄러가 시작되고 잡들이 등록되는 로그를 확인했습니다.
 *   **결과:** 스케줄러 기능을 `worker` 서비스로 성공적으로 이전하고, 단위 테스트를 통해 안정성을 1차적으로 확보했습니다.
 
 ---
@@ -442,15 +442,15 @@
 *   **문제 상세 분석:**
     *   디버그 출력은 `response`가 `httpx.Response` 객체(`Type of response: Response`, `Response object: <Response [200 OK]>`)임을 확인하지만, `hasattr(response, 'ok')`는 `False`를 반환하고 `dir(response)`에는 `ok`가 없습니다.
     *   `httpx.Response.__dict__`는 성공적으로 출력되지만, `httpx.Response.__slots__`에 접근할 때 `AttributeError: type object 'Response' has no attribute '__slots__'`가 발생합니다.
-    *   이는 `httpx` 라이브러리 설치 또는 `stockseye-bot` Docker 컨테이너 내 Python 환경에 매우 깊고 근본적인 문제가 있음을 시사합니다. `httpx.Response` 클래스 정의 자체가 잘못되었거나 불완전한 상태일 가능성이 높습니다.
+    *   이는 `httpx` 라이브러리 설치 또는 `stockeye-bot` Docker 컨테이너 내 Python 환경에 매우 깊고 근본적인 문제가 있음을 시사합니다. `httpx.Response` 클래스 정의 자체가 잘못되었거나 불완전한 상태일 가능성이 높습니다.
 *   **해결 시도:**
     *   **`httpx` 재설치:** `src/bot/Dockerfile`에서 `httpx`를 강제로 재설치했습니다. (실패)
-    *   **전체 Docker 이미지 재빌드:** `src/bot/Dockerfile`에 더미 주석을 추가하고 `docker compose down --volumes && docker compose up -d --build` 명령을 사용하여 `stockseye-bot` Docker 이미지를 여러 번 처음부터 재빌드했습니다. (실패)
+    *   **전체 Docker 이미지 재빌드:** `src/bot/Dockerfile`에 더미 주석을 추가하고 `docker compose down --volumes && docker compose up -d --build` 명령을 사용하여 `stockeye-bot` Docker 이미지를 여러 번 처음부터 재빌드했습니다. (실패)
     *   **격리된 `httpx` 테스트 (`test_httpx_debug.py`):** `httpx` 호출을 격리하고 `httpx.Response` 객체를 직접 디버깅하기 위한 최소한의 테스트를 생성했습니다. 이 테스트도 동일한 `AttributeError`로 실패하여 문제가 `predict_command`의 컨텍스트에 국한되지 않음을 확인했습니다.
     *   **`predict_command` 디버그 강화:** `API_URL` 출력, `response` 객체의 `type`, `dir`, `hasattr('ok')`, `httpx.Response.__dict__`, `httpx.Response.__slots__`를 출력하도록 디버그 코드를 추가했습니다. 이 디버그를 통해 `httpx.Response` 클래스 자체에 `ok` 속성이 없으며 `__slots__` 접근 시 오류가 발생함을 확인했습니다.
-*   **현재 가설:** `stockseye-bot` 컨테이너 내의 Python 환경이 어떤 식으로든 근본적으로 손상되었거나 일관성이 없어, `httpx.Response` 클래스 정의가 잘못된 형태를 띠고 있습니다. 이는 매우 드물고 진단하기 어려운 문제입니다.
+*   **현재 가설:** `stockeye-bot` 컨테이너 내의 Python 환경이 어떤 식으로든 근본적으로 손상되었거나 일관성이 없어, `httpx.Response` 클래스 정의가 잘못된 형태를 띠고 있습니다. 이는 매우 드물고 진단하기 어려운 문제입니다.
 *   **다음 진행 예정:**
-    *   `stockseye-bot` Docker 이미지를 처음부터 완전히 강제로 재빌드하여 캐시된 레이어를 사용하지 않도록 합니다. (이전 단계에서 `src/bot/Dockerfile`에 더미 주석(`Dummy comment to force rebuild - Attempt 12`)을 추가했습니다.)
+    *   `stockeye-bot` Docker 이미지를 처음부터 완전히 강제로 재빌드하여 캐시된 레이어를 사용하지 않도록 합니다. (이전 단계에서 `src/bot/Dockerfile`에 더미 주석(`Dummy comment to force rebuild - Attempt 12`)을 추가했습니다.)
     *   `docker compose down --volumes && docker compose up -d --build`를 실행합니다.
     *   재빌드 및 시작 후, `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트를 다시 실행하여 `AttributeError`가 마침내 해결되었는지, 그리고 모든 테스트가 통과하는지 확인합니다.
 
@@ -485,14 +485,14 @@
 ### 2.25. 새로운 문제점 발견 및 과제 등록 (2025-08-10)
 
 *   **문제:** `httpx.Response.ok` 문제 해결 후 전체 테스트를 실행한 결과, 다수의 새로운 오류가 발견되었습니다.
-    *   **API 통합 테스트 (`stockseye-api`):** 대부분의 통합 테스트가 `404 Not Found` 오류로 실패합니다. 이는 `TestClient`가 API 엔드포인트를 올바르게 찾지 못하고 있음을 시사합니다. (`/api/v1` 접두사 누락 가능성)
-    *   **봇 단위 테스트 (`stockseye-bot`):**
+    *   **API 통합 테스트 (`stockeye-api`):** 대부분의 통합 테스트가 `404 Not Found` 오류로 실패합니다. 이는 `TestClient`가 API 엔드포인트를 올바르게 찾지 못하고 있음을 시사합니다. (`/api/v1` 접두사 누락 가능성)
+    *   **봇 단위 테스트 (`stockeye-bot`):**
         *   `test_alert_handler.py`, `test_bot_natural.py`, `test_bot_predict.py`, `test_bot_register.py` 등에서 Mocking 관련 오류 (`TypeError: object AsyncMock can't be used in 'await' expression` 등)가 발생합니다.
         *   `test_bot_natural.py`에서 `ModuleNotFoundError: No module named 'src.bot.handlers.natural.session'` 오류가 발생합니다.
-    *   **API 단위 테스트 (`stockseye-api`):**
+    *   **API 단위 테스트 (`stockeye-api`):**
         *   `test_auth_service.py`에서 `ModuleNotFoundError: No module named 'src.api.services.auth_service.pwd_context'` 오류가 발생합니다.
         *   `test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 등에서 `KeyError` 또는 `TypeError`와 같은 로직 오류가 발생합니다.
-    *   **Worker 단위 테스트 (`stockseye-worker`):**
+    *   **Worker 단위 테스트 (`stockeye-worker`):**
         *   `test_listener.py`에서 `TypeError: object AsyncMock can't be used in 'await' expression` 오류가 발생합니다.
         *   `test_main_jobs.py`에서 `ModuleNotFoundError: No module named 'src.api.main'` 오류가 발생합니다.
 *   **다음 과제:**

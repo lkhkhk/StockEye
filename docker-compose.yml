@@ -1,9 +1,9 @@
 services:
-  stockseye-api:
+  stockeye-api:
     build:
       context: .
       dockerfile: src/api/Dockerfile
-    container_name: stockseye-api
+    container_name: stockeye-api
     ports:
       - "8000:8000"
     command: uvicorn main:app --host 0.0.0.0 --port 8000
@@ -11,16 +11,16 @@ services:
       - .env.${APP_ENV:-development}
     environment:
       - APP_ENV=${APP_ENV:-development}
-      - DB_HOST=stockseye-db
+      - DB_HOST=stockeye-db
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
-      - REDIS_HOST=stockseye-redis
+      - REDIS_HOST=stockeye-redis
     depends_on:
-      stockseye-db:
+      stockeye-db:
         condition: service_healthy
-      stockseye-redis:
+      stockeye-redis:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
@@ -33,31 +33,32 @@ services:
       - ./src/common:/app/src/common
       - ./logs:/logs
     networks:
-      - stockseye-network
+      - stockeye-network
 
-  stockseye-bot:
+  stockeye-bot:
     build:
       context: .
       dockerfile: src/bot/Dockerfile
-    container_name: stockseye-bot
+    container_name: stockeye-bot
     env_file:
       - .env.${APP_ENV:-development}
     environment:
       - APP_ENV=${APP_ENV:-development}
-      - API_HOST=stockseye-api
+      - API_HOST=stockeye-api
     depends_on:
-      - stockseye-api
+      stockeye-api:
+        condition: service_healthy
     volumes:
       - ./src/bot:/app/src/bot
       - ./src/bot/tests:/app/src/bot/tests
       - ./src/common:/app/src/common
       - ./logs:/logs
     networks:
-      - stockseye-network
+      - stockeye-network
 
-  stockseye-db:
+  stockeye-db:
     image: postgres:14
-    container_name: stockseye-db
+    container_name: stockeye-db
     restart: always
     env_file:
       - .env.${APP_ENV:-development}
@@ -75,11 +76,11 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - stockseye-network
+      - stockeye-network
 
-  stockseye-redis:
+  stockeye-redis:
     image: redis:7-alpine
-    container_name: stockseye-redis
+    container_name: stockeye-redis
     restart: always
     ports:
       - "6379:6379"
@@ -89,35 +90,35 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - stockseye-network
+      - stockeye-network
 
-  stockseye-worker:
+  stockeye-worker:
     build:
       context: .
       dockerfile: src/worker/Dockerfile
-    container_name: stockseye-worker
+    container_name: stockeye-worker
     command: python main.py
     env_file:
       - .env.${APP_ENV:-development}
     environment:
       - APP_ENV=${APP_ENV:-development}
-      - DB_HOST=stockseye-db
+      - DB_HOST=stockeye-db
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
-      - REDIS_HOST=stockseye-redis
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - REDIS_HOST=stockeye-redis
+      
     depends_on:
-      - stockseye-redis
-      - stockseye-db
+      - stockeye-redis
+      - stockeye-db
     volumes:
       - ./src/worker:/app/src/worker
       - ./src/common:/app/src/common
       - ./logs:/logs
     networks:
-      - stockseye-network
+      - stockeye-network
 
 networks:
-  stockseye-network:
+  stockeye-network:
     driver: bridge
