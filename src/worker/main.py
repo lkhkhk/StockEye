@@ -176,8 +176,8 @@ async def main():
     scheduler.add_job(update_daily_price_job, 'cron', hour=18, minute=0, id='update_daily_price_job')
     scheduler.add_job(check_disclosures_job, 'interval', minutes=240, id='check_disclosures_job')
     scheduler.add_job(check_price_alerts_job, 'interval', minutes=1, id='check_price_alerts_job')
-    scheduler.start()
-    logger.info("APScheduler started.")
+    # scheduler.start() # 관리자가 활성화하기 전까지 자동 시작 비활성화
+    logger.info("APScheduler initialized but not started.")
 
     # 알림 리스너 실행
     await notification_listener()

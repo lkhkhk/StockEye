@@ -245,8 +245,7 @@ async def alert_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 change_str = f" ({change_sign}{current_stock_data['change']:,}원, {change_sign}{current_stock_data['change_rate']:.2f}%)"
                     
                     msg += (
-                        f"- {i+1}. {a['symbol']} ({a.get('name', '')}): {price_info} / {disclosure_info} / {repeat_info} ({'활성' if a['is_active'] else '비활성'})
-"
+                        f"- {i+1}. {a['symbol']} ({a.get('name', '')}): {price_info} / {disclosure_info} / {repeat_info} ({'활성' if a['is_active'] else '비활성'})"
                         f"  현재가: {current_price_str}{change_str}\n"
                     )
                 context.user_data['alert_map'] = user_alerts_map # 매핑 정보 저장

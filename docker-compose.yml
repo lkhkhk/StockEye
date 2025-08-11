@@ -28,8 +28,13 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - ./src/api:/app/src/api
+      - ./src/api/auth:/app/src/api/auth
+      - ./src/api/models:/app/src/api/models
+      - ./src/api/routers:/app/src/api/routers
+      - ./src/api/schemas:/app/src/api/schemas
+      - ./src/api/services:/app/src/api/services
       - ./src/api/tests:/app/src/api/tests
+      - ./src/api/main.py:/app/src/api/main.py
       - ./src/common:/app/src/common
       - ./logs:/logs
     networks:
