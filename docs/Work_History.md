@@ -691,3 +691,30 @@
 *   **검증:**
     *   수정된 파일과 관련된 단위 테스트(`test_dart_utils.py`, `test_bot_admin.py`)를 실행하여 모두 통과함을 확인했습니다.
 *   **결과:** `PLAN.MD`의 "Phase 6: 전역 HTTP 클라이언트(session) 제거 리팩토링" 과제를 성공적으로 완료했습니다.
+
+---
+
+### 2.36. `start.py` 단위 테스트 작성 (2025-08-12)
+
+*   **목표:** `PLAN.MD`의 "Phase 4: 테스트 고도화"의 일환으로, `src/bot/handlers/start.py`에 대한 단위 테스트를 작성하여 테스트 커버리지를 향상시킵니다.
+*   **작업 내역:**
+    *   `src/bot/tests/unit/test_bot_start.py` 파일을 신규 작성했습니다.
+    *   `start_command` 함수가 올바른 환영 메시지를 반환하는지 검증하는 `test_start_command` 테스트 케이스를 추가했습니다.
+*   **검증:**
+    *   `docker compose exec stockeye-bot pytest src/bot/tests/unit/test_bot_start.py` 명령을 실행하여 테스트가 성공적으로 통과함을 확인했습니다.
+*   **결과:** `start.py` 핸들러에 대한 단위 테스트를 성공적으로 추가했습니다.
+
+---
+
+### 2.37. `history.py` 단위 테스트 작성 (2025-08-12)
+
+*   **목표:** `PLAN.MD`의 "Phase 4: 테스트 고도화"의 일환으로, `src/bot/handlers/history.py`에 대한 단위 테스트를 작성하여 테스트 커버리지를 향상시킵니다.
+*   **작업 내역:**
+    *   `src/bot/tests/unit/test_bot_history.py` 파일을 신규 작성했습니다.
+    *   **테스트 케이스:**
+        *   `test_history_command_success`: API 호출이 성공하고 예측 이력이 성공적으로 반환될 때의 동작을 검증합니다.
+        *   `test_history_command_no_history`: 예측 이력이 없을 때 "예측 이력이 없습니다." 메시지를 반환하는지 검증합니다.
+        *   `test_history_command_api_error`: API 호출 시 오류가 발생했을 때 적절한 오류 메시지를 반환하는지 검증합니다.
+*   **검증:**
+    *   `docker compose exec stockeye-bot pytest src/bot/tests/unit/test_bot_history.py` 명령을 실행하여 모든 테스트 케이스가 성공적으로 통과함을 확인했습니다.
+*   **결과:** `history.py` 핸들러에 대한 단위 테스트를 성공적으로 추가했습니다.

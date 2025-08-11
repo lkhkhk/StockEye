@@ -13,7 +13,7 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async with get_retry_client() as client:
             response = await client.get(f"{API_URL}/prediction/history/{user_id}", timeout=10)
             response.raise_for_status()
-            data = response.json()
+            data = await response.json()
         
         history = data.get("history", [])
         if not history:

@@ -1,6 +1,9 @@
 # DB 데이터 파일 무시
 /db/db_data/
 
+# gemini key 파일 무시
+.gemini/
+
 # 환경/민감/불요 파일
 .env
 .env.*

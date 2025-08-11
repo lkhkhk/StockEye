@@ -83,7 +83,7 @@
 
 -   [ ] **(기존) 단위 테스트 커버리지 100% 달성**
     -   [x] **Bot 핸들러:** `start.py` 단위 테스트 신규 작성 완료.
-    -   [ ] **Bot 핸들러:** `history.py` 등 누락된 단위 테스트를 작성합니다.
+    -   [x] **Bot 핸들러:** `history.py` 등 누락된 단위 테스트를 작성합니다.
     -   [ ] **API 라우터:** `admin.py` 등 단위 테스트가 없는 모든 라우터에 대해 신규 작성합니다.
     -   [ ] **API 서비스:** `stock_service.py` 등 기존 테스트를 보강하고 순수 단위 테스트로 리팩토링합니다.
     -   [ ] **`common` 모듈:** 모든 공통 모듈에 대한 단위 테스트를 작성합니다.
@@ -126,4 +126,4 @@
 -   [x] **[API] 서비스 로직 오류 해결:** `src/api/tests/unit/test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 등에서 `KeyError` 또는 `TypeError`와 같은 로직 오류가 발생합니다.
 -   [x] **[Worker] 단위 테스트 오류 해결:**
     -   [x] `src/worker/tests/unit/test_listener.py`에서 `TypeError: object AsyncMock can't be used in 'await' expression` 오류가 발생합니다.
-    -   [x] `src/worker/tests/unit/test_main_jobs.py`에서 `ModuleNotFoundError: No module named 'src/api.main'` 오류가 발생합니다.
+    -   [x] `src/worker/tests/unit/test_main_jobs.py`에서 `ModuleNotFoundError: No module named 'src.api.main'` 오류가 발생합니다.

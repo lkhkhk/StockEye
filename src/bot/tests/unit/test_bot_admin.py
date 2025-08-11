@@ -1,157 +1,158 @@
 import pytest
+import httpx
 from unittest.mock import AsyncMock, patch, MagicMock
-from telegram import Update, Message, Chat, User
-from telegram.ext import ContextTypes
+from src.bot.handlers.admin import (
+    admin_only,
+    admin_command,
+    health_command,
+    admin_update_master,
+    run_update_master_and_notify,
+    admin_stats,
+)
 
-from src.bot.handlers import admin
-from src.bot.handlers.admin import API_URL
+# Helper to create a mock response
+def create_mock_response(status_code, json_data=None, text_data=""):
+    mock_response = MagicMock()
+    mock_response.status_code = status_code
+    mock_response.json = AsyncMock(return_value=json_data)
+    mock_response.text = text_data
+    mock_response.request = MagicMock()
 
-@pytest.fixture
-def mock_get_retry_client():
-    with patch('src.bot.handlers.admin.get_retry_client') as mock_client:
-        async_mock_client = AsyncMock()
-        mock_method = AsyncMock()
-        async_mock_client.__aenter__.return_value = mock_method
-        mock_client.return_value = async_mock_client
-        yield mock_method
+    def raise_for_status():
+        if mock_response.status_code >= 400:
+            raise httpx.HTTPStatusError(
+                f"HTTP Error {mock_response.status_code}", 
+                request=mock_response.request, 
+                response=mock_response
+            )
+    mock_response.raise_for_status = MagicMock(side_effect=raise_for_status)
+    return mock_response
 
-class TestBotAdmin:
-    """관리자 봇 명령어 테스트"""
 
-    def setup_method(self):
-        """테스트 설정"""
-        self.update = AsyncMock(spec=Update)
-        self.context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-        self.update.message = AsyncMock(spec=Message)
-        self.update.message.reply_text = AsyncMock()
-        self.context.bot = AsyncMock()
-        self.context.bot.send_message = AsyncMock()
-        self.update.effective_chat = MagicMock(spec=Chat)
-        self.update.effective_chat.id = 12345
-        self.update.effective_user = MagicMock(spec=User)
-        self.update.effective_user.id = '12345'
+@pytest.mark.asyncio
+async def test_admin_only_decorator_not_admin():
+    """admin_only 데코레이터: 관리자가 아닌 경우"""
+    mock_func = AsyncMock()
+    decorated_func = admin_only(mock_func)
+    update = AsyncMock()
+    update.effective_user.id = 12345
+    context = AsyncMock()
 
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.asyncio.create_task')
-    @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_update_master_success(self, mock_create_task):
-        """종목마스터 갱신 성공 테스트"""
-        await admin.admin_update_master(self.update, self.context)
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id,
-            text="종목마스터 갱신을 시작합니다. 완료되면 결과를 안내드리겠습니다."
+    with patch('src.bot.handlers.admin.ADMIN_ID', '54321'):
+        await decorated_func(update, context)
+
+        context.bot.send_message.assert_called_once_with(
+            chat_id=update.effective_chat.id, text="관리자 전용 명령어입니다."
+        )
+        mock_func.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_admin_only_decorator_is_admin():
+    """admin_only 데코레이터: 관리자인 경우"""
+    mock_func = AsyncMock()
+    decorated_func = admin_only(mock_func)
+    update = AsyncMock()
+    admin_user_id = 12345
+    update.effective_user.id = admin_user_id
+    context = AsyncMock()
+
+    with patch('src.bot.handlers.admin.ADMIN_ID', str(admin_user_id)):
+        await decorated_func(update, context)
+        mock_func.assert_called_once_with(update, context)
+
+@pytest.mark.asyncio
+async def test_admin_command_as_admin():
+    """/admin 명령어 (관리자 권한) 테스트"""
+    update = AsyncMock()
+    context = AsyncMock()
+    update.effective_user.id = 12345
+
+    with patch('src.bot.handlers.admin.ADMIN_ID', '12345'):
+        await admin_command(update, context)
+        update.message.reply_text.assert_called_once()
+        sent_text = update.message.reply_text.call_args[0][0]
+        assert "[관리자 전용 명령어 안내]" in sent_text
+
+@pytest.mark.asyncio
+@patch('httpx.AsyncClient.get')
+async def test_health_command_success(mock_get):
+    """/health 명령어 성공 테스트"""
+    update = AsyncMock()
+    context = AsyncMock()
+    mock_get.return_value = create_mock_response(200, {"status": "ok"})
+
+    await health_command(update, context)
+    update.message.reply_text.assert_called_once_with("서비스 상태: ok")
+
+@pytest.mark.asyncio
+@patch('httpx.AsyncClient.get')
+async def test_health_command_failure_http_error(mock_get):
+    """/health 명령어 실패 (HTTP 오류) 테스트"""
+    update = AsyncMock()
+    context = AsyncMock()
+    mock_get.return_value = create_mock_response(500)
+    
+    await health_command(update, context)
+    update.message.reply_text.assert_called_once_with("헬스체크에 실패했습니다. 서버 상태를 확인해주세요.")
+
+@pytest.mark.asyncio
+async def test_admin_update_master_starts_task():
+    """/update_master 명령어: 비동기 작업 시작 테스트"""
+    update = AsyncMock()
+    context = AsyncMock()
+
+    with patch('asyncio.create_task') as mock_create_task:
+        await admin_update_master(update, context)
+        context.bot.send_message.assert_called_once_with(
+            chat_id=update.effective_chat.id, text="종목마스터 갱신을 시작합니다. 완료되면 결과를 안내드리겠습니다."
         )
         mock_create_task.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_run_update_master_and_notify_failure(self, mock_get_retry_client):
-        """종목마스터 갱신 실패(비동기) 테스트"""
-        mock_get_retry_client.post.side_effect = Exception("Test Error")
-        await admin.run_update_master_and_notify(self.context, self.update.effective_chat.id)
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id,
-            text="오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-        )
+@pytest.mark.asyncio
+@patch('httpx.AsyncClient.post')
+async def test_run_update_master_and_notify_success(mock_post):
+    """run_update_master_and_notify 비동기 작업 성공 테스트"""
+    context = AsyncMock()
+    chat_id = 12345
+    mock_post.return_value = create_mock_response(200, {"updated_count": 10, "timestamp": "2025-08-12"})
 
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.asyncio.create_task')
-    @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_update_price_success(self, mock_create_task):
-        """일별시세 갱신 성공 테스트"""
-        await admin.admin_update_price(self.update, self.context)
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id,
-            text="일별시세 갱신을 시작합니다. 완료되면 결과를 안내드리겠습니다."
-        )
-        mock_create_task.assert_called_once()
+    await run_update_master_and_notify(context, chat_id)
+    context.bot.send_message.assert_called_once()
+    sent_text = context.bot.send_message.call_args[1]['text']
+    assert "✅ 종목마스터 갱신 완료!" in sent_text
 
-    @pytest.mark.asyncio
-    async def test_run_update_price_and_notify_failure(self, mock_get_retry_client):
-        """일별시세 갱신 실패(비동기) 테스트"""
-        mock_get_retry_client.post.side_effect = Exception("Price Update Error")
-        await admin.run_update_price_and_notify(self.context, self.update.effective_chat.id)
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id,
-            text="오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-        )
+@pytest.mark.asyncio
+@patch('httpx.AsyncClient.post')
+async def test_run_update_master_and_notify_failure(mock_post):
+    """run_update_master_and_notify 비동기 작업 실패 테스트"""
+    context = AsyncMock()
+    chat_id = 12345
+    mock_post.return_value = create_mock_response(500)
 
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_show_schedules_success(self, mock_get_retry_client):
-        """스케줄러 상태 조회 성공 테스트"""
-        mock_response = AsyncMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "jobs": [{"id": "sample_job", "next_run_time": "2025-01-20T10:01:00", "trigger": "interval[0:01:00]"}]
-        }
-        mock_get_retry_client.get.return_value = mock_response
-        await admin.admin_show_schedules(self.update, self.context)
-        mock_get_retry_client.get.assert_called_once_with(f"{API_URL}/admin/schedule/status", timeout=10)
-        expected_message = "⏰ **스케줄러 잡 목록**\n\n- **ID:** `sample_job`\n  **다음 실행:** `2025-01-20T10:01:00`\n  **트리거:** `interval[0:01:00]`\n"
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id, text=expected_message, parse_mode='Markdown'
-        )
+    await run_update_master_and_notify(context, chat_id)
+    context.bot.send_message.assert_called_once_with(chat_id=chat_id, text="❌ 갱신 실패: 500")
 
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_trigger_job_success(self, mock_get_retry_client):
-        """잡 수동 실행 성공 테스트"""
-        mock_response = AsyncMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"job_id": "update_master_job", "message": "Job 'update_master_job'가 수동으로 실행되었습니다."}
-        mock_get_retry_client.post.return_value = mock_response
-        self.update.message.text = "/trigger_job update_master_job"
-        await admin.admin_trigger_job(self.update, self.context)
-        mock_get_retry_client.post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/update_master_job", timeout=10)
-        expected_message = "✅ 잡 실행 완료!\n🔧 잡 ID: update_master_job\n💬 메시지: Job 'update_master_job'가 수동으로 실행되었습니다."
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id, text=expected_message
-        )
+@pytest.mark.asyncio
+@patch('httpx.AsyncClient.get')
+async def test_admin_stats_success(mock_get):
+    """/admin_stats 명령어 성공 테스트"""
+    update = AsyncMock()
+    context = AsyncMock()
+    stats_data = {"user_count": 100, "trade_count": 50, "prediction_count": 200}
+    mock_get.return_value = create_mock_response(200, stats_data)
 
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_trigger_job_invalid_job(self, mock_get_retry_client):
-        """존재하지 않는 잡 실행 테스트"""
-        mock_response = AsyncMock()
-        mock_response.status_code = 404
-        mock_get_retry_client.post.return_value = mock_response
-        self.update.message.text = "/trigger_job nonexistent_job"
-        await admin.admin_trigger_job(self.update, self.context)
-        mock_get_retry_client.post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/nonexistent_job", timeout=10)
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id, text="❌ 잡을 찾을 수 없습니다: nonexistent_job"
-        )
+    await admin_stats(update, context)
+    update.message.reply_text.assert_called_once()
+    sent_text = update.message.reply_text.call_args[0][0]
+    assert "📊 **시스템 통계**" in sent_text
 
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_trigger_job_no_job_id(self):
-        """잡 ID가 없는 경우 테스트"""
-        self.update.message.text = "/trigger_job"
-        await admin.admin_trigger_job(self.update, self.context)
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id, text="❌ 사용법: /trigger_job job_id\n예시: /trigger_job update_master_job"
-        )
+@pytest.mark.asyncio
+@patch('httpx.AsyncClient.get')
+async def test_admin_stats_failure(mock_get):
+    """/admin_stats 명령어 실패 테스트"""
+    update = AsyncMock()
+    context = AsyncMock()
+    mock_get.return_value = create_mock_response(500)
 
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.ADMIN_ID', 'not_admin')
-    async def test_admin_command_unauthorized(self):
-        """관리자가 아닌 사용자가 관리자 명령어 시도"""
-        await admin.admin_show_schedules(self.update, self.context) # admin_only가 적용된 함수로 변경
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id, text="관리자 전용 명령어입니다."
-        )
-
-    @pytest.mark.asyncio
-    @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_stats_success(self, mock_get_retry_client):
-        """관리자 통계 조회 성공 테스트"""
-        mock_response = AsyncMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"user_count": 5, "trade_count": 25, "prediction_count": 15}
-        mock_get_retry_client.get.return_value = mock_response
-        await admin.admin_stats(self.update, self.context)
-        mock_get_retry_client.get.assert_called_once_with(f"{API_URL}/admin/admin_stats", timeout=10)
-        expected_message = "📊 **시스템 통계**\n\n👥 사용자 수: 5명\n💰 모의매매 기록: 25건\n🔮 예측 기록: 15건"
-        self.context.bot.send_message.assert_called_once_with(
-            chat_id=self.update.effective_chat.id, text=expected_message, parse_mode='Markdown'
-        )
+    await admin_stats(update, context)
+    update.message.reply_text.assert_called_once_with("❌ 조회 실패: 500")

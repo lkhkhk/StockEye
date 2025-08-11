@@ -183,7 +183,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             if response.status_code == 200:
                 stats = await response.json()
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"📊 **시스템 통계**\n\n👥 사용자 수: {stats['user_count']}명\n💰 모의매매 기록: {stats['trade_count']}건\n🔮 예측 기록: {stats['prediction_count']}건", parse_mode='Markdown')
+                await update.message.reply_text(f"📊 **시스템 통계**\n\n👥 사용자 수: {stats['user_count']}명\n💰 모의매매 기록: {stats['trade_count']}건\n🔮 예측 기록: {stats['prediction_count']}건", parse_mode='Markdown')
             else:
                 await update.message.reply_text(f"❌ 조회 실패: {response.status_code}")
             
