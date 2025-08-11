@@ -134,6 +134,7 @@ clean_env() {
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}>>> Docker 환경 정리 완료.${NC}"
             sudo rm -rf ./db/* ./logs/*
+            echo -e "${GREEN}>>> DB files, logs 삭제 완료.${NC}"
         else
             echo -e "${RED}>>> Docker 환경 정리 실패.${NC}"
             exit 1

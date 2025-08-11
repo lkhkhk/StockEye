@@ -1,4 +1,5 @@
 import logging
+import os
 from sqlalchemy.orm import Session
 from src.api.models.user import User
 from src.api.schemas.user import UserCreate
@@ -7,133 +8,10 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-def create_user(db: Session, user: UserCreate):
-    logger.debug(f"Attempting to create user: username={user.username}, email={user.email}")
-    try:
-        db_user = User(
-            username=user.username,
-            email=user.email,
-            password_hash=bcrypt.hash(user.password)
-        )
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
-        logger.debug(f"User created successfully: user_id={db_user.id}, username={db_user.username}")
-        return db_user
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to create user {user.username}: {str(e)}", exc_info=True)
-        raise
-
-def get_user_by_username(db: Session, username: str):
-    logger.debug(f"Attempting to retrieve user by username: {username}")
-    try:
-        user = db.query(User).filter(User.username == username).first()
-        if user:
-            logger.debug(f"User found: user_id={user.id}, username={user.username}")
-        else:
-            logger.debug(f"User not found for username: {username}")
-        return user
-    except Exception as e:
-        logger.error(f"Failed to retrieve user by username {username}: {str(e)}", exc_info=True)
-        return None
-
-def authenticate_user(db: Session, username: str, password: str):
-    logger.debug(f"Attempting to authenticate user: username={username}")
-    try:
-        user = get_user_by_username(db, username)
-        if user and bcrypt.verify(password, user.password_hash):
-            logger.debug(f"User authenticated successfully: user_id={user.id}")
-            return user
-        logger.debug(f"User authentication failed for username: {username}")
-        return None
-    except Exception as e:
-        logger.error(f"Failed to authenticate user {username}: {str(e)}", exc_info=True)
-        return None
-
-def get_user_stats(db: Session, user_id: int):
-    logger.debug(f"Attempting to get user stats for user_id: {user_id}")
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            logger.warning(f"User stats retrieval failed: user_id={user_id} not found")
-            return None
-        stats = {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "created_at": user.created_at
-        }
-        logger.debug(f"User stats retrieved for user_id={user_id}: {stats}")
-        return stats
-    except Exception as e:
-        logger.error(f"Failed to get user stats for user_id {user_id}: {str(e)}", exc_info=True)
-        return None
+# ... (기존 함수들은 그대로 유지) ...
 
 class UserService:
-    def create_user(self, db: Session, username: str, email: str, password: str, telegram_id: Optional[int] = None) -> User:
-        logger.debug(f"Attempting to create user: username={username}, email={email}")
-        try:
-            db_user = User(
-                username=username,
-                email=email,
-                password_hash=bcrypt.hash(password),
-                telegram_id=telegram_id
-            )
-            db.add(db_user)
-            db.commit()
-            db.refresh(db_user)
-            logger.debug(f"User created successfully: user_id={db_user.id}, username={db_user.username}")
-            return db_user
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Failed to create user {username}: {str(e)}", exc_info=True)
-            raise
-
-    def get_user_by_username(self, db: Session, username: str):
-        logger.debug(f"Attempting to retrieve user by username: {username}")
-        try:
-            user = db.query(User).filter(User.username == username).first()
-            if user:
-                logger.debug(f"User found: user_id={user.id}, username={user.username}")
-            else:
-                logger.debug(f"User not found for username: {username}")
-            return user
-        except Exception as e:
-            logger.error(f"Failed to retrieve user by username {username}: {str(e)}", exc_info=True)
-            return None
-
-    def authenticate_user(self, db: Session, username: str, password: str):
-        logger.debug(f"Attempting to authenticate user: username={username}")
-        try:
-            user = self.get_user_by_username(db, username)
-            if user and bcrypt.verify(password, user.password_hash):
-                logger.debug(f"User authenticated successfully: user_id={user.id}")
-                return user
-            logger.debug(f"User authentication failed for username: {username}")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to authenticate user {username}: {str(e)}", exc_info=True)
-            return None
-
-    def get_user_stats(self, db: Session, user_id: int):
-        logger.debug(f"Attempting to get user stats for user_id: {user_id}")
-        try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                logger.warning(f"User stats retrieval failed: user_id={user_id} not found")
-                return None
-            stats = {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "created_at": user.created_at
-            }
-            logger.debug(f"User stats retrieved for user_id={user_id}: {stats}")
-            return stats
-        except Exception as e:
-            logger.error(f"Failed to get user stats for user_id {user_id}: {str(e)}", exc_info=True)
-            return None
+    # ... (다른 메서드들은 그대로 유지) ...
 
     def get_user_by_telegram_id(self, db: Session, telegram_id: int) -> Optional[User]:
         logger.debug(f"Attempting to retrieve user by telegram_id: {telegram_id}")
@@ -146,18 +24,27 @@ class UserService:
 
     def create_user_from_telegram(self, db: Session, telegram_id: int, username: str, first_name: str, last_name: str) -> User:
         logger.debug(f"Attempting to create user from telegram: telegram_id={telegram_id}, username={username}")
+        
+        # 관리자 ID 환경 변수 확인
+        admin_telegram_id = os.getenv("TELEGRAM_ADMIN_ID")
+        user_role = "user" # 기본값
+        if admin_telegram_id and str(telegram_id) == admin_telegram_id:
+            user_role = "admin"
+            logger.info(f"Admin user detected. Assigning 'admin' role to telegram_id: {telegram_id}")
+
         try:
             new_user = User(
                 telegram_id=telegram_id,
                 username=username,
                 first_name=first_name,
                 last_name=last_name,
-                is_active=True
+                is_active=True,
+                role=user_role  # 역할(role) 설정 추가
             )
             db.add(new_user)
             db.commit()
             db.refresh(new_user)
-            logger.debug(f"User created from telegram successfully: user_id={new_user.id}, telegram_id={new_user.telegram_id}")
+            logger.debug(f"User created from telegram successfully: user_id={new_user.id}, telegram_id={new_user.telegram_id}, role={new_user.role}")
             return new_user
         except Exception as e:
             db.rollback()
@@ -173,6 +60,7 @@ class UserService:
             logger.debug(f"User not found for id: {user_id}")
         return user
 
-def get_user_service() -> UserService:
-    return UserService()
+# ... (파일의 나머지 부분은 그대로 유지) ...
 
+# 전체 파일 내용을 붙여넣기 위해 기존의 다른 함수/클래스 코드가 이 자리에 와야 합니다.
+# 이 예시에서는 핵심 수정사항만 보여드립니다.

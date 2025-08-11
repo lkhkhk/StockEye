@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from sqlalchemy.orm import Session
-from src.api.routers import user, notification, predict, watchlist, simulated_trade, prediction_history, admin, stock_master, bot_router
+# 'auth' 라우터 임포트 추가
+from src.api.routers import user, notification, predict, watchlist, simulated_trade, prediction_history, admin, stock_master, bot_router, auth
 from src.common.db_connector import Base, engine, SessionLocal
 from src.api.models.stock_master import StockMaster
 from src.api.models.daily_price import DailyPrice # 추가
@@ -107,6 +108,7 @@ app.include_router(prediction_history.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(stock_master.router, prefix="/api/v1")
 app.include_router(bot_router.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1") # 새로 추가한 auth 라우터 등록
 
 # --- Basic Endpoints ---
 @app.get("/")

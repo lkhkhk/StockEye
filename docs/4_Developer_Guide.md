@@ -84,3 +84,40 @@ StockEye 프로젝트는 다음과 같은 Git 브랜치 구조를 따릅니다.
 - **`400 Bad Request` / `422 Unprocessable Entity`:** 요청 데이터의 형식이나 값이 Pydantic 스키마의 유효성 검증을 통과하지 못한 경우입니다. 요청 본문을 확인하세요.
 - **`401 Unauthorized` / `403 Forbidden`:** 인증(로그인) 또는 인가(권한) 관련 문제입니다. 테스트에서 사용한 인증 토큰이 유효한지, 해당 유저가 필요한 권한을 가지고 있는지 확인하세요.
 - **`pydantic.ValidationError` (서버 내부):** API가 반환하는 데이터가 `response_model`로 지정된 Pydantic 스키마와 일치하지 않는 경우입니다. `async` 함수에 `await`가 누락되어 코루틴 객체가 반환되는 경우가 흔한 원인입니다.
+
+## 7. Bot-API 간 인증 흐름
+
+Bot과 API 서비스는 독립적으로 동작하며, Bot이 API의 보호된 리소스(예: 관리자 전용 기능)에 접근하기 위해 특별한 인증/인가 절차를 따릅니다. 이 흐름을 이해하는 것은 두 서비스의 상호작용을 개발하는 데 매우 중요합니다.
+
+### 7.1. 핵심 설계 원칙
+
+- **사용자 중심 인증:** 모든 API 호출의 권한은 Bot 서비스 자체가 아닌, Bot에게 명령을 내린 **최종 사용자(텔레그램 유저)**를 기준으로 합니다.
+- **암시적 사용자 등록:** 사용자는 `/start`와 같은 별도의 등록 절차 없이, 봇에게 처음 메시지를 보내는 순간 DB에 자동으로 등록됩니다.
+- **JWT 기반 API 인가:** API는 상태 비저장(Stateless) 원칙을 따르며, 모든 인가(Authorization)는 HTTP 헤더에 포함된 JWT(JSON Web Token)를 통해 이루어집니다.
+- **Bot-API 신뢰 관계:** Bot은 API와 사전에 공유된 비밀 키(`BOT_SECRET_KEY`)를 통해 자신을 인증하고, 특정 사용자를 위한 JWT 토큰을 요청할 수 있는 유일한 클라이언트입니다.
+
+### 7.2. 전체 흐름
+
+관리자 권한이 필요한 `/update_master` 명령어를 예시로 한 전체 흐름은 다음과 같습니다.
+
+1.  **사용자 등록 (`@ensure_user_registered` 데코레이터):**
+    -   사용자가 봇에게 `/update_master` 명령을 보냅니다.
+    -   명령어 핸들러에 적용된 `@ensure_user_registered` 데코레이터가 가장 먼저 실행됩니다.
+    -   데코레이터는 API의 `PUT /api/v1/users/telegram_register` 엔드포인트를 호출하여, 현재 사용자의 `telegram_id`가 DB에 존재하는지 확인하고, 없으면 새로 등록합니다.
+    -   이때 API의 `user_service`는 새로 등록되는 `telegram_id`가 환경변수 `TELEGRAM_ADMIN_ID`와 일치하는지 확인하고, 일치하면 해당 사용자의 `role`을 `admin`으로 설정하여 DB에 저장합니다.
+
+2.  **Bot 내부 관리자 확인 (`@admin_only` 데코레이터):**
+    -   사용자 등록 확인 후, `@admin_only` 데코레이터가 실행됩니다.
+    -   이 데코레이터는 사용자의 `telegram_id`가 `TELEGRAM_ADMIN_ID`와 일치하는지 다시 한번 확인하여, 봇 명령어 자체의 실행 여부를 결정합니다.
+
+3.  **JWT 토큰 발급 (`get_auth_token` 헬퍼 함수):**
+    -   명령어 핸들러의 실제 로직이 실행됩니다.
+    -   API 호출에 앞서, `get_auth_token(telegram_id)` 헬퍼 함수를 호출합니다.
+    -   이 함수는 `X-Bot-Secret-Key` 헤더에 `BOT_SECRET_KEY`를 담아, API의 `POST /api/v1/auth/bot/token` 엔드포인트를 호출합니다.
+    -   API는 `BOT_SECRET_KEY`를 검증하여 요청이 신뢰할 수 있는 Bot에게서 온 것인지 확인한 후, 요청 본문에 담긴 `telegram_id`에 해당하는 사용자를 찾아 그 사용자의 정보(`user_id`, `role` 등)가 담긴 JWT 토큰을 생성하여 Bot에게 반환합니다.
+
+4.  **API 리소스 접근:**
+    -   Bot은 발급받은 JWT 토큰을 `Authorization: Bearer <token>` 형식의 헤더에 담아, 원래 호출하려던 API 엔드포인트(예: `POST /api/v1/admin/update_master`)에 최종 요청을 보냅니다.
+    -   API는 이 요청의 JWT 토큰을 검증하여 사용자가 `admin` 권한을 가지고 있는지 확인하고, 요청을 처리합니다.
+
+이러한 다단계 인증/인가 절차를 통해 사용자 경험을 해치지 않으면서도 서비스 간의 통신과 API 리소스를 안전하게 보호합니다.

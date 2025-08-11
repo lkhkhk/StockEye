@@ -55,4 +55,89 @@ def admin_stats(db: Session = Depends(get_db), user: User = Depends(get_current_
         "prediction_count": prediction_count
     }
 
-# ... (기존 코드는 그대로 유지)
+@router.post("/update_master", tags=["admin"])
+async def update_master(
+    db: Session = Depends(get_db), 
+    stock_service: StockService = Depends(get_stock_service),
+    user: User = Depends(get_current_active_admin_user)
+):
+    """종목마스터 갱신"""
+    try:
+        result = await stock_service.update_stock_master(db)
+        if result["success"]:
+            return {
+                "message": "종목마스터 갱신 완료",
+                "updated_count": result["updated_count"],
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"종목마스터 갱신 실패: {result.get('error', '알 수 없는 오류')}")
+    except Exception as e:
+        logger.error(f"update_master 엔드포인트에서 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+@router.post("/update_price", tags=["admin"])
+async def update_price(
+    db: Session = Depends(get_db), 
+    stock_service: StockService = Depends(get_stock_service),
+    user: User = Depends(get_current_active_admin_user)
+):
+    """일별시세 갱신"""
+    try:
+        result = await stock_service.update_daily_prices(db)
+        if result["success"]:
+            return {
+                "message": f"일별시세 갱신 완료: {result['updated_count']}개 데이터 처리. 오류: {len(result['errors'])}개 종목",
+                "updated_count": result["updated_count"],
+                "error_stocks": result["errors"],
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"일별시세 갱신 실패: {result.get('error', '알 수 없는 오류')}")
+    except Exception as e:
+        logger.error(f"update_price 엔드포인트에서 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+@router.post("/update_disclosure", tags=["admin"])
+async def update_disclosure(
+    code_or_name: str = Query(None),
+    db: Session = Depends(get_db),
+    stock_service: StockService = Depends(get_stock_service),
+    user: User = Depends(get_current_active_admin_user)
+):
+    """공시 이력 갱신 (전체 또는 특정 종목)"""
+    try:
+        if not code_or_name:
+            # 전체 종목 대상
+            result = await stock_service.update_disclosures_for_all_stocks(db)
+            if result["success"]:
+                return {
+                    "message": f"전체 종목 공시 이력 갱신 완료: {result['inserted']}건 추가, {result['skipped']}건 중복",
+                    "inserted": result["inserted"],
+                    "skipped": result["skipped"],
+                    "errors": result["errors"]
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"전체 공시 갱신 실패: {result['errors']}")
+        else:
+            # 특정 종목 대상
+            stock = stock_service.search_stocks(code_or_name, db, limit=1)
+            if not stock or not stock[0].corp_code:
+                raise HTTPException(status_code=404, detail=f"'{code_or_name}'에 해당하는 종목을 찾을 수 없거나 DART 고유번호(corp_code)가 없습니다.")
+            
+            target_stock = stock[0]
+            result = await stock_service.update_disclosures(db, corp_code=target_stock.corp_code, stock_code=target_stock.symbol, stock_name=target_stock.name)
+            if result["success"]:
+                return {
+                    "message": f"'{target_stock.name}' 공시 이력 갱신 완료: {result['inserted']}건 추가, {result['skipped']}건 중복",
+                    "inserted": result["inserted"],
+                    "skipped": result["skipped"],
+                    "errors": result["errors"]
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"'{target_stock.name}' 공시 갱신 실패: {result['errors']}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"update_disclosure 엔드포인트에서 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
