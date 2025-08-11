@@ -1,9 +1,9 @@
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler
-from src.common.http_client import session
+from src.common.http_client import get_retry_client
 import os
-import requests
+import httpx
 import logging
 
 API_HOST = os.getenv("API_HOST", "localhost")
@@ -44,12 +44,13 @@ async def alert_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query_str = " ".join(context.args)
 
     try:
-        search_resp = await session.get(f"{API_URL}/symbols/search", params={"query": query_str}, timeout=10)
-        if search_resp.status_code != 200:
-            await update.message.reply_text(f"종목 검색 실패: {search_resp.text}")
-            return
-        
-        stocks = search_resp.json()
+        async with get_retry_client() as client:
+            search_resp = await client.get(f"{API_URL}/symbols/search", params={"query": query_str}, timeout=10)
+            if search_resp.status_code != 200:
+                await update.message.reply_text(f"종목 검색 실패: {search_resp.text}")
+                return
+            
+            stocks = search_resp.json()
 
         if not stocks:
             await update.message.reply_text(f"'{query_str}'에 해당하는 종목을 찾을 수 없습니다.")
@@ -100,23 +101,24 @@ async def alert_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         # 공시 알림 토글 로직
         elif action == "disclosure":
             telegram_id = query.from_user.id
-            # 먼저 현재 알림 설정을 가져옴
-            get_resp = await session.get(f"{API_URL}/alerts/user/{telegram_id}/symbol/{symbol}", timeout=10) 
-            
-            notify_on_disclosure = True # 기본값은 True (켜기)
-            if get_resp.status_code == 200:
-                # 기존 설정이 있으면 반대로 토글
-                existing_alert = get_resp.json()
-                notify_on_disclosure = not existing_alert.get('notify_on_disclosure', False)
-            
-            payload = {"notify_on_disclosure": notify_on_disclosure}
-            resp = await session.put(f"{API_URL}/alerts/{telegram_id}/{symbol}", json=payload, timeout=10)
+            async with get_retry_client() as client:
+                # 먼저 현재 알림 설정을 가져옴
+                get_resp = await client.get(f"{API_URL}/alerts/user/{telegram_id}/symbol/{symbol}", timeout=10) 
+                
+                notify_on_disclosure = True # 기본값은 True (켜기)
+                if get_resp.status_code == 200:
+                    # 기존 설정이 있으면 반대로 토글
+                    existing_alert = get_resp.json()
+                    notify_on_disclosure = not existing_alert.get('notify_on_disclosure', False)
+                
+                payload = {"notify_on_disclosure": notify_on_disclosure}
+                resp = await client.put(f"{API_URL}/alerts/{telegram_id}/{symbol}", json=payload, timeout=10)
 
-            if resp.status_code == 200:
-                status_text = "ON" if notify_on_disclosure else "OFF"
-                await query.edit_message_text(text=f"'{symbol}'의 공시 알림을 '{status_text}' 상태로 변경했습니다.")
-            else:
-                await query.edit_message_text(f"오류: 공시 알림 설정 실패 ({resp.status_code} - {resp.text})")
+                if resp.status_code == 200:
+                    status_text = "ON" if notify_on_disclosure else "OFF"
+                    await query.edit_message_text(text=f"'{symbol}'의 공시 알림을 '{status_text}' 상태로 변경했습니다.")
+                else:
+                    await query.edit_message_text(f"오류: 공시 알림 설정 실패 ({resp.status_code} - {resp.text})")
 
     except Exception as e:
         logger.error(f"알림 버튼 콜백 오류: {e}", exc_info=True)
@@ -136,27 +138,28 @@ async def alert_set_repeat_callback(update: Update, context: ContextTypes.DEFAUL
         telegram_id = query.from_user.id
         payload = {"repeat_interval": repeat_interval}
         
-        resp = await session.put(f"{API_URL}/alerts/{telegram_id}/{symbol}", json=payload, timeout=10)
+        async with get_retry_client() as client:
+            resp = await client.put(f"{API_URL}/alerts/{telegram_id}/{symbol}", json=payload, timeout=10)
 
-        if resp.status_code == 200:
-            status_text = repeat_interval if repeat_interval else "안 함"
-            await query.edit_message_text(text=f"'{symbol}'의 반복 알림 주기를 '{status_text}'으로 설정했습니다.")
-        else:
-            # 알림이 없는 경우 새로 생성
-            if resp.status_code == 404:
-                create_payload = {
-                    "telegram_id": telegram_id,
-                    "symbol": symbol,
-                    "repeat_interval": repeat_interval,
-                    "is_active": True
-                }
-                create_resp = await session.post(f"{API_URL}/alerts/", json=create_payload, timeout=10)
-                if create_resp.status_code == 200:
-                    status_text = repeat_interval if repeat_interval else "안 함"
-                    await query.edit_message_text(text=f"'{symbol}'에 대한 신규 알림을 생성하고, 반복 주기를 '{status_text}'으로 설정했습니다.")
-                    return
-            
-            await query.edit_message_text(f"오류: 반복 알림 설정 실패 ({resp.status_code} - {resp.text})")
+            if resp.status_code == 200:
+                status_text = repeat_interval if repeat_interval else "안 함"
+                await query.edit_message_text(text=f"'{symbol}'의 반복 알림 주기를 '{status_text}'으로 설정했습니다.")
+            else:
+                # 알림이 없는 경우 새로 생성
+                if resp.status_code == 404:
+                    create_payload = {
+                        "telegram_id": telegram_id,
+                        "symbol": symbol,
+                        "repeat_interval": repeat_interval,
+                        "is_active": True
+                    }
+                    create_resp = await client.post(f"{API_URL}/alerts/", json=create_payload, timeout=10)
+                    if create_resp.status_code == 200:
+                        status_text = repeat_interval if repeat_interval else "안 함"
+                        await query.edit_message_text(text=f"'{symbol}'에 대한 신규 알림을 생성하고, 반복 주기를 '{status_text}'으로 설정했습니다.")
+                        return
+                
+                await query.edit_message_text(f"오류: 반복 알림 설정 실패 ({resp.status_code} - {resp.text})")
 
     except Exception as e:
         logger.error(f"반복 알림 설정 오류: {e}", exc_info=True)
@@ -197,56 +200,59 @@ async def set_price_alert(update: Update, context: ContextTypes.DEFAULT_TYPE, re
     print(f"Sending payload to API: {payload}")
 
     try:
-        resp = await session.post(f"{API_URL}/alerts/", json=payload, timeout=10)
-        if resp.status_code == 200:
-            await update.message.reply_text(f"✅ '{symbol}'의 가격 알림을 '{price:,}원 {condition_str}'(으)로 설정했습니다.")
-        else:
-            await update.message.reply_text(f"❌ 가격 알림 설정 실패: {resp.status_code} - {resp.text}")
+        async with get_retry_client() as client:
+            resp = await client.post(f"{API_URL}/alerts/", json=payload, timeout=10)
+            if resp.status_code == 200:
+                await update.message.reply_text(f"✅ '{symbol}'의 가격 알림을 '{price:,}원 {condition_str}'(으)로 설정했습니다.")
+            else:
+                await update.message.reply_text(f"❌ 가격 알림 설정 실패: {resp.status_code} - {resp.text}")
     except Exception as e:
         await update.message.reply_text(f"가격 알림 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 async def alert_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
     try:
-        resp = await session.get(f"{API_URL}/alerts/{telegram_id}", timeout=10)
-        if resp.status_code == 200:
-            alerts = resp.json()
-            if not alerts:
-                await update.message.reply_text("등록된 알림이 없습니다.")
-                return
-            msg = "[내 알림 목록]\n"
-            user_alerts_map = {}
-            for i, a in enumerate(alerts):
-                user_alerts_map[str(i+1)] = a['symbol'] # 순번과 symbol 매핑
-                price_info = "가격 미설정"
-                if a.get("target_price") is not None and a.get("condition"):
-                    cond = "이상" if a["condition"] == "gte" else "이하"
-                    price_info = f"{a['target_price']:,}원 {cond}"
+        async with get_retry_client() as client:
+            resp = await client.get(f"{API_URL}/alerts/{telegram_id}", timeout=10)
+            if resp.status_code == 200:
+                alerts = resp.json()
+                if not alerts:
+                    await update.message.reply_text("등록된 알림이 없습니다.")
+                    return
+                msg = "[내 알림 목록]\n"
+                user_alerts_map = {}
+                for i, a in enumerate(alerts):
+                    user_alerts_map[str(i+1)] = a['symbol'] # 순번과 symbol 매핑
+                    price_info = "가격 미설정"
+                    if a.get("target_price") is not None and a.get("condition"):
+                        cond = "이상" if a["condition"] == "gte" else "이하"
+                        price_info = f"{a['target_price']:,}원 {cond}"
 
-                disclosure_info = "공시ON" if a.get("notify_on_disclosure") else "공시OFF"
-                repeat_info = f"반복: {a.get('repeat_interval', '안 함')}" # 반복 정보 추가
-                
-                # 현재가 및 등락률 정보 추가
-                current_price_resp = await session.get(f"{API_URL}/symbols/{a['symbol']}/current_price_and_change", timeout=5)
-                current_price_str = "N/A"
-                change_str = ""
+                    disclosure_info = "공시ON" if a.get("notify_on_disclosure") else "공시OFF"
+                    repeat_info = f"반복: {a.get('repeat_interval', '안 함')}" # 반복 정보 추가
+                    
+                    # 현재가 및 등락률 정보 추가
+                    current_price_resp = await client.get(f"{API_URL}/symbols/{a['symbol']}/current_price_and_change", timeout=5)
+                    current_price_str = "N/A"
+                    change_str = ""
 
-                if current_price_resp.status_code == 200:
-                    current_stock_data = current_price_resp.json()
-                    if current_stock_data and current_stock_data["current_price"] is not None:
-                        current_price_str = f"{current_stock_data['current_price']:,}원"
-                        if current_stock_data["change"] is not None and current_stock_data["change_rate"] is not None:
-                            change_sign = "+" if current_stock_data["change"] >= 0 else ""
-                            change_str = f" ({change_sign}{current_stock_data['change']:,}원, {change_sign}{current_stock_data['change_rate']:.2f}%)"
-                
-                msg += (
-                    f"- {i+1}. {a['symbol']} ({a.get('name', '')}): {price_info} / {disclosure_info} / {repeat_info} {'(활성)' if a['is_active'] else '(비활성)'}\n"
-                    f"  현재가: {current_price_str}{change_str}\n"
-                )
-            context.user_data['alert_map'] = user_alerts_map # 매핑 정보 저장
-            await update.message.reply_text(msg)
-        else:
-            await update.message.reply_text(f"알림 목록 조회 실패: {resp.text}")
+                    if current_price_resp.status_code == 200:
+                        current_stock_data = current_price_resp.json()
+                        if current_stock_data and current_stock_data["current_price"] is not None:
+                            current_price_str = f"{current_stock_data['current_price']:,}원"
+                            if current_stock_data["change"] is not None and current_stock_data["change_rate"] is not None:
+                                change_sign = "+" if current_stock_data["change"] >= 0 else ""
+                                change_str = f" ({change_sign}{current_stock_data['change']:,}원, {change_sign}{current_stock_data['change_rate']:.2f}%)"
+                    
+                    msg += (
+                        f"- {i+1}. {a['symbol']} ({a.get('name', '')}): {price_info} / {disclosure_info} / {repeat_info} ({'활성' if a['is_active'] else '비활성'})
+"
+                        f"  현재가: {current_price_str}{change_str}\n"
+                    )
+                context.user_data['alert_map'] = user_alerts_map # 매핑 정보 저장
+                await update.message.reply_text(msg)
+            else:
+                await update.message.reply_text(f"알림 목록 조회 실패: {resp.text}")
     except Exception as e:
         await update.message.reply_text(f"알림 목록 조회 중 오류가 발생했습니다: {e}. 잠시 후 다시 시도해주세요.")
 
@@ -265,13 +271,14 @@ async def alert_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     symbol_to_delete = alert_map[alert_number]
     telegram_id = update.effective_user.id
     try:
-        resp = await session.delete(f"{API_URL}/alerts/{telegram_id}/{symbol_to_delete}", timeout=10)
-        if resp.status_code == 200:
-            await update.message.reply_text(f"알림 번호 {alert_number} ({symbol_to_delete}) 삭제 완료")
-            if 'alert_map' in context.user_data: # 삭제 후 맵 업데이트
-                del context.user_data['alert_map']
-        else:
-            await update.message.reply_text(f"알림 삭제 실패: {resp.text}")
+        async with get_retry_client() as client:
+            resp = await client.delete(f"{API_URL}/alerts/{telegram_id}/{symbol_to_delete}", timeout=10)
+            if resp.status_code == 200:
+                await update.message.reply_text(f"알림 번호 {alert_number} ({symbol_to_delete}) 삭제 완료")
+                if 'alert_map' in context.user_data: # 삭제 후 맵 업데이트
+                    del context.user_data['alert_map']
+            else:
+                await update.message.reply_text(f"알림 삭제 실패: {resp.text}")
     except Exception as e:
         await update.message.reply_text(f"알림 삭제 중 오류가 발생했습니다: {e}. 잠시 후 다시 시도해주세요.")
 

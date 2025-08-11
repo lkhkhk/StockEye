@@ -82,7 +82,8 @@
 ## 🌟 Phase 4: 테스트 고도화 및 지침 개선 (유지)
 
 -   [ ] **(기존) 단위 테스트 커버리지 100% 달성**
-    -   [ ] **Bot 핸들러:** `start.py`, `history.py` 등 누락된 단위 테스트를 작성합니다.
+    -   [x] **Bot 핸들러:** `start.py` 단위 테스트 신규 작성 완료.
+    -   [ ] **Bot 핸들러:** `history.py` 등 누락된 단위 테스트를 작성합니다.
     -   [ ] **API 라우터:** `admin.py` 등 단위 테스트가 없는 모든 라우터에 대해 신규 작성합니다.
     -   [ ] **API 서비스:** `stock_service.py` 등 기존 테스트를 보강하고 순수 단위 테스트로 리팩토링합니다.
     -   [ ] **`common` 모듈:** 모든 공통 모듈에 대한 단위 테스트를 작성합니다.
@@ -91,23 +92,38 @@
 
 ## ⚙️ Phase 5: 환경 변수 및 DB 설정 안정화
 
--   [ ] **`TELEGRAM_BOT_TOKEN` 환경 변수 문제 해결:**
+-   [x] **`TELEGRAM_BOT_TOKEN` 환경 변수 문제 해결:**
     -   `worker` 서비스 로그에 `The "TELEGRAM_BOT_TOKEN" variable is not set.` 경고가 발생하는 문제 해결.
     -   `docker-compose.yml` 및 관련 파일 검토하여 `TELEGRAM_BOT_TOKEN`이 모든 서비스에 올바르게 전달되는지 확인.
--   [ ] **`.env` 파일 및 환경 변수 설정 전반 검토:**
+-   [x] **`.env` 파일 및 환경 변수 설정 전반 검토:**
     -   `docker-compose.yml`, `Dockerfile`들, `settings.env.example` 등을 검토하여 환경 변수 설정의 일관성 확보.
     -   `db` 서비스 때문에 필요하다고 알려진 `.env` 파일의 필요성을 재검토하고, 가능하다면 의존성 제거 방안 모색.
 
+## ⚙️ Phase 6: 전역 HTTP 클라이언트(session) 제거 리팩토링
+
+> **목표:** 프로젝트 전반에 걸쳐 사용되는 `src/common/http_client.py`의 전역 `session` 객체를 제거하여, 모듈 로딩 시점의 의존성을 없애고 테스트 용이성을 향상시킵니다. 모든 HTTP 요청은 `get_retry_client()` 팩토리 함수를 통해 생성된 클라이언트 인스턴스를 사용하도록 변경합니다.
+
+-   [x] **`src/bot/handlers/predict.py`**
+-   [x] **`src/bot/handlers/register.py`**
+-   [x] `src/common/dart_utils.py`
+-   [x] `src/bot/handlers/history.py`
+-   [x] `src/bot/handlers/alert.py`
+-   [x] `src/bot/handlers/symbols.py`
+-   [x] `src/bot/handlers/trade.py`
+-   [x] `src/bot/handlers/watchlist.py`
+-   [x] `src/bot/handlers/admin.py`
+-   [x] 관련 테스트 파일 모두 수정 (`test_dart_utils.py`, `test_bot_admin.py` 등)
+
 ---
 
-## 🐞 현재 발견된 주요 문제점 (새로운 과제)
+## 🐞 이전에 해결된 주요 문제점
 
--   [ ] **[API] 통합 테스트 404 오류 해결:** `src/api/main.py`의 라우터 `prefix` 설정과 `TestClient` 호출 경로의 일관성 확인 및 수정.
--   [ ] **[Bot/API] 단위 테스트 Mocking/Import 오류 해결:**
-    -   `src/bot/tests/unit/test_alert_handler.py`, `test_bot_natural.py`, `test_bot_predict.py`, `test_bot_register.py` 등에서 Mocking 관련 오류 (`TypeError: object AsyncMock can't be used in 'await' expression` 등)가 발생합니다.
-    -   `src/bot/tests/unit/test_bot_natural.py`에서 `ModuleNotFoundError: No module named 'src.bot.handlers.natural.session'` 오류가 발생합니다.
-    -   `src/api/tests/unit/test_auth_service.py`에서 `ModuleNotFoundError: No module named 'src.api.services.auth_service.pwd_context'` 오류가 발생합니다.
--   [ ] **[API] 서비스 로직 오류 해결:** `src/api/tests/unit/test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 등에서 `KeyError` 또는 `TypeError`와 같은 로직 오류가 발생합니다.
--   [ ] **[Worker] 단위 테스트 오류 해결:**
-    -   `src/worker/tests/unit/test_listener.py`에서 `TypeError: object AsyncMock can't be used in 'await' expression` 오류가 발생합니다.
-    -   `src/worker/tests/unit/test_main_jobs.py`에서 `ModuleNotFoundError: No module named 'src.api.main'` 오류가 발생합니다.
+-   [x] **[API] 통합 테스트 404 오류 해결:** `src/api/main.py`의 라우터 `prefix` 설정과 `TestClient` 호출 경로의 일관성 확인 및 수정.
+-   [x] **[Bot/API] 단위 테스트 Mocking/Import 오류 해결:**
+    -   [x] `src/bot/tests/unit/test_alert_handler.py`, `test_bot_natural.py`, `test_bot_predict.py`, `test_bot_register.py` 등에서 Mocking 관련 오류 (`TypeError: object AsyncMock can't be used in 'await' expression` 등)가 발생합니다.
+    -   [x] `src/bot/tests/unit/test_bot_natural.py`에서 `ModuleNotFoundError: No module named 'src.bot.handlers.natural.session'` 오류가 발생합니다.
+    -   [x] `src/api/tests/unit/test_auth_service.py`에서 `ModuleNotFoundError: No module named 'src/api.services.auth_service.pwd_context'` 오류가 발생합니다.
+-   [x] **[API] 서비스 로직 오류 해결:** `src/api/tests/unit/test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 등에서 `KeyError` 또는 `TypeError`와 같은 로직 오류가 발생합니다.
+-   [x] **[Worker] 단위 테스트 오류 해결:**
+    -   [x] `src/worker/tests/unit/test_listener.py`에서 `TypeError: object AsyncMock can't be used in 'await' expression` 오류가 발생합니다.
+    -   [x] `src/worker/tests/unit/test_main_jobs.py`에서 `ModuleNotFoundError: No module named 'src/api.main'` 오류가 발생합니다.

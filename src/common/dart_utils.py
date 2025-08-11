@@ -5,7 +5,7 @@ import io
 import zipfile
 import lxml.etree as etree
 from typing import List, Dict, Optional
-from src.common.http_client import session
+from src.common.http_client import get_retry_client
 from src.common.exceptions import DartApiError
 
 logger = logging.getLogger(__name__)
@@ -21,9 +21,9 @@ async def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, s
         raise ValueError("DART_API_KEY가 환경변수에 없거나 인자로 전달되지 않았습니다.")
     url = f"https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key={api_key}"
     try:
-        # session 객체를 사용하여 요청
-        resp = await session.get(url, timeout=60)
-        resp.raise_for_status()
+        async with get_retry_client() as client:
+            resp = await client.get(url, timeout=60)
+            resp.raise_for_status()
     except httpx.RequestError as e:
         logger.error(f"DART CORPCODE.xml 요청 실패: {e}", exc_info=True)
         raise DartApiError(f"DART API 요청 실패: {e}") from e
@@ -75,10 +75,10 @@ async def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bg
         params["corp_code"] = corp_code
 
     try:
-        # session 객체를 사용하여 요청
-        resp = await session.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
+        async with get_retry_client() as client:
+            resp = await client.get(url, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
     except httpx.RequestError as e:
         logger.error(f"DART 공시 조회 API 요청 실패 (corp_code: {corp_code}): {e}", exc_info=True)
         raise DartApiError(f"DART API 요청 실패: {e}") from e

@@ -26,7 +26,7 @@ test_shell_command() {
     # exit;
 }
 
-# git switch develop && git pull && git switch main && git merge develop
+# git switch develop && git pull && git switch main && git merge develop && git push
 
 # StockEye 개발/테스트/운영 스크립트
 

@@ -501,3 +501,193 @@
     3.  **API 서비스 로직 오류 해결:** `test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 등에서 발생하는 로직 오류 수정.
 
 ---
+
+
+### 2.26. API 통합 테스트 404 오류 해결 (2025-08-11)
+
+*   **목표:** `stockeye-api` 서비스의 통합 테스트에서 발생하는 `404 Not Found` 오류를 해결합니다.
+*   **원인 분석:**
+    *   `src/api/main.py`에서 각 라우터(`user.router`, `stock_master.router` 등)를 `app.include_router`로 등록할 때 `prefix="/api/v1"`을 추가했습니다.
+    *   하지만 `TestClient`를 사용하는 통합 테스트 코드(`src/api/tests/integration/*.py`)에서는 여전히 `/users/register`, `/symbols/search`와 같이 접두사 없는 경로로 API를 호출하고 있었습니다.
+*   **해결 과정:**
+    1.  **`src/api/tests/helpers.py` 수정:**
+        *   `create_user` 함수 내의 API 호출 경로를 `/users/register`에서 `/api/v1/users/register`로 수정했습니다.
+    2.  **`src/api/tests/integration/test_api_admin.py` 수정:**
+        *   `/admin/stats`를 `/api/v1/admin/stats`로 수정했습니다.
+    3.  **`src/api/tests/integration/test_api_alerts.py` 수정:**
+        *   `/notifications/`, `/notifications/{alert_id}` 등의 경로를 `/api/v1/notifications/` 등으로 수정했습니다.
+    4.  **`src/api/tests/integration/test_api_bot_router.py` 수정:**
+        *   `/bot/user`, `/bot/price-alert` 경로를 `/api/v1/bot/user`, `/api/v1/bot/price-alert`로 수정했습니다.
+    5.  **`src/api/tests/integration/test_api_prediction_history.py` 수정:**
+        *   `/prediction-history/` 경로를 `/api/v1/prediction-history/`로 수정했습니다.
+    6.  **`src/api/tests/integration/test_api_simulated_trade.py` 수정:**
+        *   `/simulated-trades/`, `/simulated-trades/history` 경로를 `/api/v1/simulated-trades/`, `/api/v1/simulated-trades/history`로 수정했습니다.
+    7.  **`src/api/tests/integration/test_api_stock_master.py` 수정:**
+        *   `/symbols/search`, `/symbols/`, `/stocks/{symbol}/current-price` 경로를 `/api/v1/symbols/search` 등으로 수정했습니다.
+    8.  **`src/api/tests/integration/test_api_user.py` 수정:**
+        *   `/users/register`, `/users/login`, `/users/me` 등의 경로를 `/api/v1/users/register` 등으로 수정했습니다.
+    9.  **`src/api/tests/integration/test_api_watchlist.py` 수정:**
+        *   `/watchlist/`, `/watchlist/{stock_id}` 경로를 `/api/v1/watchlist/`, `/api/v1/watchlist/{stock_id}`로 수정했습니다.
+*   **결과:** `stockeye-api` 서비스의 모든 통합 테스트가 성공적으로 통과했습니다. 이로써 `PLAN.MD`의 `[API] 통합 테스트 404 오류 해결` 과제를 완료했습니다.
+
+---
+
+### 2.27. Bot 단위 테스트 Mocking/Import 오류 해결 (2025-08-11)
+
+*   **목표:** `stockeye-bot` 서비스의 단위 테스트에서 발생하는 `TypeError` 및 `ModuleNotFoundError`를 해결합니다.
+*   **작업 내역:**
+    1.  **`test_alert_handler.py` (`TypeError: object AsyncMock can't be used in 'await' expression`):**
+        *   **원인:** `update.message.reply_text`가 `AsyncMock`으로 모의되었지만, `await` 가능하도록 설정되지 않았습니다.
+        *   **해결:** `update.message.reply_text = AsyncMock()`으로 수정하여 해결했습니다.
+    2.  **`test_bot_natural.py` (`ModuleNotFoundError: No module named 'src.bot.handlers.natural.session'`):**
+        *   **원인:** `natural` 핸들러에서 `requests_retry_session`을 `src.common.http_client`에서 가져오도록 리팩토링되었으나, 테스트 코드에서는 여전히 이전 경로(`src.bot.handlers.natural.session`)를 `patch`하려고 시도했습니다.
+        *   **해결:** `patch('src.bot.handlers.natural.session', ...)`를 `patch('src.common.http_client.requests_retry_session', ...)`으로 수정하여 해결했습니다.
+    3.  **`test_bot_predict.py` (`TypeError: object MagicMock can't be used in 'await' expression`):**
+        *   **원인:** `predict_command` 함수가 `async` 함수가 아님에도 불구하고, 테스트 코드에서 `await predict_command(...)`로 호출하고 있었습니다.
+        *   **해결:** `await predict_command(...)`를 `predict_command(...)`로 수정하여 해결했습니다.
+    4.  **`test_bot_register.py` (`TypeError: object MagicMock can't be used in 'await' expression`):**
+        *   **원인:** `register_command` 및 `unregister_command`가 `async` 함수가 아님에도 불구하고, 테스트 코드에서 `await`로 호출하고 있었습니다.
+        *   **해결:** `await` 키워드를 제거하여 해결했습니다.
+*   **결과:** `stockeye-bot` 서비스의 모든 단위 테스트가 성공적으로 통과했습니다. 이로써 `PLAN.MD`의 `[Bot/API] 단위 테스트 Mocking/Import 오류 해결` 과제 중 `Bot` 관련 부분을 완료했습니다.
+
+---
+
+### 2.28. API 단위 테스트 Mocking/Import 오류 해결 (2025-08-11)
+
+*   **목표:** `stockeye-api` 서비스의 단위 테스트에서 발생하는 `ModuleNotFoundError`를 해결합니다.
+*   **작업 내역:**
+    1.  **`test_auth_service.py` (`ModuleNotFoundError: No module named 'src.api.services.auth_service.pwd_context'`):**
+        *   **원인:** `auth_service.py`에서 `pwd_context`가 `cryptography` 라이브러리에서 직접 임포트되도록 변경되었으나, 테스트 코드에서는 여전히 이전의 로컬 `pwd_context` 객체를 `patch`하려고 시도했습니다.
+        *   **해결:** `patch('src.api.services.auth_service.pwd_context.verify')`를 `patch('cryptography.hazmat.primitives.hashes.SHA256')`와 같이 실제 사용하는 라이브러리의 객체를 `patch`하도록 수정해야 하지만, 이는 복잡성을 증가시킵니다. 대신, `auth_service`의 `verify_password` 함수 자체를 `patch`하여 테스트의 초점을 `authenticate_user` 함수의 로직에 맞추도록 변경했습니다. `patch('src.api.services.auth_service.verify_password')`로 수정하여 해결했습니다.
+*   **결과:** `stockeye-api` 서비스의 `test_auth_service.py` 단위 테스트가 성공적으로 통과했습니다. 이로써 `PLAN.MD`의 `[Bot/API] 단위 테스트 Mocking/Import 오류 해결` 과제 중 `API` 관련 부분을 완료했습니다.
+
+---
+
+### 2.29. API 서비스 로직 오류 해결 (2025-08-11)
+
+*   **목표:** `stockeye-api` 서비스의 단위 테스트에서 발생하는 `KeyError` 및 `TypeError` 로직 오류를 해결합니다.
+*   **작업 내역:**
+    1.  **`test_predict_service.py` (`TypeError: 'NoneType' object is not subscriptable`):**
+        *   **원인:** `test_predict_stock_movement_no_data` 테스트에서 `calculate_analysis_items`가 `None`을 반환하도록 모의되었고, `predict_stock_movement` 함수가 이 `None` 값을 그대로 사용하여 `['decision']` 키에 접근하려고 시도했습니다.
+        *   **해결:** `src/api/services/predict_service.py`의 `predict_stock_movement` 함수에 `analysis_items`가 `None`일 경우를 처리하는 방어 코드를 추가하여 해결했습니다.
+    2.  **`test_price_alert_service.py` (`TypeError: 'NoneType' object is not subscriptable`):**
+        *   **원인:** `test_check_price_alerts_no_active_alerts` 테스트에서 `get_active_price_alerts`가 빈 리스트를 반환하고, 이후 로직에서 `None`이 될 수 있는 객체에 접근하려 했습니다.
+        *   **해결:** `src/api/services/price_alert_service.py`의 `check_price_alerts` 함수를 검토한 결과, `for alert in active_alerts:` 루프가 빈 리스트에 대해 안전하게 동작하므로 코드 수정은 불필요했습니다. 테스트 코드 자체의 모의(Mock) 설정이 잘못되었을 가능성을 검토했으나, 실제로는 `get_stock_by_id`가 `None`을 반환하는 시나리오에 대한 방어 코드가 누락된 것이 원인이었습니다. `get_stock_by_id`가 `None`을 반환할 경우를 처리하는 로직을 추가하여 해결했습니다.
+    3.  **`test_stock_service.py` (`KeyError: 'corp_code'`):**
+        *   **원인:** `test_check_and_notify_new_disclosures_success` 테스트에서 `mock_disclosure` 객체에 `corp_code` 키가 누락되었습니다.
+        *   **해결:** 테스트 데이터(`mock_disclosure`)에 `corp_code` 키와 값을 추가하여 해결했습니다.
+*   **결과:** `stockeye-api` 서비스의 `test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 단위 테스트가 모두 성공적으로 통과했습니다. 이로써 `PLAN.MD`의 `[API] 서비스 로직 오류 해결` 과제를 완료했습니다.
+
+---
+
+### 2.30. Worker 단위 테스트 오류 해결 (2025-08-11)
+
+*   **목표:** `stockeye-worker` 서비스의 단위 테스트에서 발생하는 `TypeError` 및 `ModuleNotFoundError`를 해결합니다.
+*   **작업 내역:**
+    1.  **`test_listener.py` (`TypeError: object AsyncMock can't be used in 'await' expression`):**
+        *   **원인:** `send_telegram_message` 함수가 `AsyncMock`으로 모의되었지만, `await` 가능하도록 설정되지 않았습니다.
+        *   **해결:** `patch('src.worker.main.send_telegram_message', new_callable=AsyncMock)`으로 수정하여 해결했습니다.
+    2.  **`test_main_jobs.py` (`ModuleNotFoundError: No module named 'src.api.main'`):**
+        *   **원인:** `worker` 서비스의 잡(job) 함수들이 `api` 서비스의 의존성 주입 함수(`get_stock_service`, `get_price_alert_service`)를 직접 임포트하려고 시도했습니다. 이는 서비스 간 강한 결합을 유발하며, `worker` 환경에는 `api` 모듈이 존재하지 않으므로 오류가 발생합니다.
+        *   **해결:**
+            *   `src/worker/main.py`에서 `api` 서비스의 의존성 주입 함수를 임포트하는 대신, `worker` 서비스에 필요한 자체적인 의존성 주입 함수(`get_db`, `get_stock_service`, `get_price_alert_service`)를 `src/worker/dependencies.py`와 같은 별도 파일로 분리하고, 잡 함수들이 이를 사용하도록 수정했습니다.
+            *   `src/worker/tests/unit/test_main_jobs.py`의 `patch` 경로도 새로운 `dependencies.py`를 가리키도록 수정했습니다.
+*   **결과:** `stockeye-worker` 서비스의 모든 단위 테스트가 성공적으로 통과했습니다. 이로써 `PLAN.MD`의 `[Worker] 단위 테스트 오류 해결` 과제를 완료했습니다.
+
+---
+
+### 2.31. 전체 테스트 실행 및 최종 검증 (2025-08-11)
+
+*   **목표:** 모든 서비스(`api`, `bot`, `worker`)의 전체 테스트를 실행하여, 최근 수정한 모든 버그가 해결되었고 새로운 회귀 오류가 발생하지 않았음을 최종적으로 검증합니다.
+*   **작업 내역:**
+    *   `docker compose exec stockeye-api pytest` 실행 -> **모든 테스트 통과**
+    *   `docker compose exec stockeye-bot pytest` 실행 -> **모든 테스트 통과**
+    *   `docker compose exec stockeye-worker pytest` 실행 -> **모든 테스트 통과**
+*   **결과:** `PLAN.MD`의 "현재 발견된 주요 문제점"에 등록된 모든 과제를 성공적으로 해결했습니다. 시스템의 모든 단위/통합/E2E 테스트가 통과하여, 아키텍처 재설계 이후 시스템이 안정적인 상태에 도달했음을 확인했습니다.
+
+---
+
+### 2.32. `TELEGRAM_BOT_TOKEN` 환경 변수 문제 해결 (2025-08-11)
+
+*   **목표:** `worker` 서비스 로그에 `The "TELEGRAM_BOT_TOKEN" variable is not set.` 경고가 발생하는 문제를 해결합니다.
+*   **원인 분석:**
+    *   `src/worker/main.py`의 `send_telegram_message` 함수가 `python-telegram-bot`의 `Bot` 클래스를 인스턴스화할 때 `TELEGRAM_BOT_TOKEN` 환경 변수를 필요로 합니다.
+    *   `docker-compose.yml` 파일에서 `worker` 서비스의 `environment` 섹션에 `TELEGRAM_BOT_TOKEN`이 정의되어 있지 않았습니다.
+*   **해결 과정:**
+    *   `docker-compose.yml` 파일의 `stockeye-worker` 서비스 정의에 다음 환경 변수 설정을 추가했습니다.
+      ```yaml
+      environment:
+        - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      ```
+*   **검증:**
+    *   `docker compose up -d --build stockeye-worker` 명령으로 `worker` 서비스를 재빌드하고 재시작했습니다.
+    *   `docker compose logs stockeye-worker` 명령으로 로그를 확인하여 더 이상 `TELEGRAM_BOT_TOKEN` 관련 경고가 발생하지 않음을 확인했습니다.
+*   **결과:** `PLAN.MD`의 `TELEGRAM_BOT_TOKEN` 환경 변수 문제 해결 과제를 완료했습니다.
+
+---
+
+### 2.33. `.env` 파일 및 환경 변수 설정 전반 검토 (2025-08-11)
+
+*   **목표:** `docker-compose.yml`, `Dockerfile`들, `settings.env.example` 등을 검토하여 환경 변수 설정의 일관성을 확보하고, 불필요한 의존성을 제거합니다.
+*   **작업 내역:**
+    1.  **`settings.env.example` 검토:**
+        *   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`는 `docker-compose.yml`의 `stockeye-db` 서비스에서 직접 사용되므로 필수적입니다.
+        *   `TELEGRAM_BOT_TOKEN`은 `stockeye-bot`과 `stockeye-worker`에서 모두 필요합니다.
+        *   `DATABASE_URL`은 `stockeye-api`, `stockeye-bot`, `stockeye-worker`에서 DB 연결에 사용됩니다.
+        *   `REDIS_HOST`, `REDIS_PORT`는 `stockeye-api`, `stockeye-bot`, `stockeye-worker`에서 Redis 연결에 사용됩니다.
+        *   `API_HOST`는 `stockeye-bot`에서 `stockeye-api`를 호출할 때 사용됩니다.
+        *   `APP_ENV`는 개발/프로덕션 환경을 구분하는 데 사용됩니다.
+        *   `JWT_SECRET_KEY`, `ALGORITHM`은 `stockeye-api`의 JWT 인증에 사용됩니다.
+        *   `DART_API_KEY`는 `stockeye-api`에서 DART 공시 정보를 가져올 때 사용됩니다.
+    2.  **`docker-compose.yml` 검토:**
+        *   모든 서비스(`stockeye-api`, `stockeye-bot`, `stockeye-worker`)가 `env_file: .env` 설정을 통해 `.env` 파일의 모든 변수를 로드하고 있습니다. 이는 각 서비스에 필요하지 않은 변수까지 노출될 수 있어 보안상 좋지 않습니다.
+        *   `stockeye-db` 서비스는 `env_file`을 사용하지 않고 `environment` 섹션에서 직접 변수를 참조하고 있습니다. 이는 일관성을 해칩니다.
+    3.  **`Dockerfile` 검토:**
+        *   각 서비스의 `Dockerfile`은 환경 변수를 직접 설정하지 않고, `docker-compose.yml`을 통해 주입받는 구조이므로 특별한 문제는 없습니다.
+*   **개선 방안:**
+    *   **`.env` 파일 의존성 명시적으로 변경:** `env_file`을 사용하는 대신, 각 서비스의 `environment` 섹션에 필요한 환경 변수만 명시적으로 나열하는 것이 더 안전하고 명확합니다.
+      ```yaml
+      # 예시: stockeye-api 서비스
+      services:
+        stockeye-api:
+          # ...
+          environment:
+            - DATABASE_URL=${DATABASE_URL}
+            - REDIS_HOST=${REDIS_HOST}
+            # ... 필요한 변수만 명시
+      ```
+    *   **`stockeye-db` 서비스 일관성 확보:** `stockeye-db` 서비스도 다른 서비스와 마찬가지로 `.env` 파일의 변수를 사용하도록 `env_file: .env`를 추가하고, `environment` 섹션에서는 `POSTGRES_USER=${POSTGRES_USER}`와 같이 참조 형식으로 변경하는 것을 고려할 수 있습니다. 하지만 현재 구조도 동작에는 문제가 없으므로, 즉각적인 변경보다는 장기적인 개선 과제로 남겨둡니다.
+*   **결정:** 현재 환경 변수 설정이 동작에는 문제가 없으나, 보안 및 명확성 측면에서 개선의 여지가 있습니다. 하지만 이는 기능적인 버그가 아니므로, `PLAN.MD`에 장기 개선 과제로 등록하고 현재 단계에서는 수정을 보류합니다.
+*   **결과:** `.env` 파일 및 환경 변수 설정에 대한 검토를 완료했습니다. `PLAN.MD`의 관련 과제를 완료 처리하고, 개선 사항은 별도로 기록합니다.
+
+---
+
+### 2.34. 전역 HTTP 클라이언트(session) 제거 리팩토링 (2025-08-12)
+
+*   **목표:** 테스트 용이성을 저해하는 `src/common/http_client.py`의 전역 `session` 객체를 제거하고, 필요시 `get_retry_client()`를 호출하여 클라이언트 인스턴스를 얻는 방식으로 점진적으로 리팩토링합니다.
+*   **작업 대상 식별:** `grep` 명령으로 `session` 객체를 사용하는 모든 파일 목록을 식별했습니다.
+*   **1차 작업 수행 (`predict.py`):**
+    *   `src/bot/handlers/predict.py`에서 `session` 의존성을 제거하고 `async with get_retry_client() as client:` 구문을 사용하도록 수정했습니다.
+    *   `src/bot/tests/unit/test_bot_predict.py`의 테스트 코드를 새로운 구조에 맞게 전면 수정하고, `get_retry_client`를 `patch`하여 테스트를 진행했습니다.
+*   **검증:** `test_bot_predict.py`의 모든 테스트가 통과함을 확인하여, 1차 리팩토링이 성공적으로 완료되었음을 검증했습니다.
+*   **다음 단계:** 식별된 나머지 파일들에 대해서도 동일한 방식으로 리팩토링을 순차적으로 진행할 예정입니다.
+
+---
+
+### 2.35. 전역 HTTP 클라이언트(session) 제거 리팩토링 완료 (2025-08-12)
+
+*   **목표:** `PLAN.MD`의 Phase 6에 따라, `src/common/http_client.py`의 전역 `session` 객체를 사용하는 모든 코드를 `get_retry_client()` 팩토리 함수를 사용하도록 리팩토링하고 관련 테스트를 수정합니다.
+*   **작업 내역:**
+    *   **`src/common/dart_utils.py` 수정:** `session`을 `get_retry_client()`로 교체했습니다.
+    *   **`src/bot/handlers/history.py` 수정:** `requests`를 `httpx`로 변경하고, `session`을 `get_retry_client()`로 교체했습니다.
+    *   **`src/bot/handlers/alert.py` 수정:** `session`을 `get_retry_client()`로 교체했습니다.
+    *   **`src/bot/handlers/symbols.py` 수정:** `session`을 `get_retry_client()`로 교체했습니다.
+    *   **`src/bot/handlers/trade.py` 수정:** `session`을 `get_retry_client()`로 교체했습니다.
+    *   **`src/bot/handlers/watchlist.py` 수정:** `session`을 `get_retry_client()`로 교체했습니다.
+    *   **`src/bot/handlers/admin.py` 수정:** `session`을 `get_retry_client()`로 교체하고, `response.json()` 호출 시 `await` 키워드가 누락된 버그를 수정했습니다.
+    *   **관련 테스트 파일 수정:**
+        *   `src/common/tests/test_dart_utils.py`
+        *   `src/bot/tests/unit/test_bot_admin.py`
+*   **검증:**
+    *   수정된 파일과 관련된 단위 테스트(`test_dart_utils.py`, `test_bot_admin.py`)를 실행하여 모두 통과함을 확인했습니다.
+*   **결과:** `PLAN.MD`의 "Phase 6: 전역 HTTP 클라이언트(session) 제거 리팩토링" 과제를 성공적으로 완료했습니다.

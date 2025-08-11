@@ -6,6 +6,15 @@ from telegram.ext import ContextTypes
 from src.bot.handlers import admin
 from src.bot.handlers.admin import API_URL
 
+@pytest.fixture
+def mock_get_retry_client():
+    with patch('src.bot.handlers.admin.get_retry_client') as mock_client:
+        async_mock_client = AsyncMock()
+        mock_method = AsyncMock()
+        async_mock_client.__aenter__.return_value = mock_method
+        mock_client.return_value = async_mock_client
+        yield mock_method
+
 class TestBotAdmin:
     """관리자 봇 명령어 테스트"""
 
@@ -35,10 +44,9 @@ class TestBotAdmin:
         mock_create_task.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.common.http_client.session.post')
-    async def test_run_update_master_and_notify_failure(self, mock_post):
+    async def test_run_update_master_and_notify_failure(self, mock_get_retry_client):
         """종목마스터 갱신 실패(비동기) 테스트"""
-        mock_post.side_effect = Exception("Test Error")
+        mock_get_retry_client.post.side_effect = Exception("Test Error")
         await admin.run_update_master_and_notify(self.context, self.update.effective_chat.id)
         self.context.bot.send_message.assert_called_once_with(
             chat_id=self.update.effective_chat.id,
@@ -58,10 +66,9 @@ class TestBotAdmin:
         mock_create_task.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.common.http_client.session.post')
-    async def test_run_update_price_and_notify_failure(self, mock_post):
+    async def test_run_update_price_and_notify_failure(self, mock_get_retry_client):
         """일별시세 갱신 실패(비동기) 테스트"""
-        mock_post.side_effect = Exception("Price Update Error")
+        mock_get_retry_client.post.side_effect = Exception("Price Update Error")
         await admin.run_update_price_and_notify(self.context, self.update.effective_chat.id)
         self.context.bot.send_message.assert_called_once_with(
             chat_id=self.update.effective_chat.id,
@@ -69,51 +76,48 @@ class TestBotAdmin:
         )
 
     @pytest.mark.asyncio
-    @patch('src.common.http_client.session.get')
     @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_show_schedules_success(self, mock_get):
+    async def test_admin_show_schedules_success(self, mock_get_retry_client):
         """스케줄러 상태 조회 성공 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "jobs": [{"id": "sample_job", "next_run_time": "2025-01-20T10:01:00", "trigger": "interval[0:01:00]"}]
         }
-        mock_get.return_value = mock_response
+        mock_get_retry_client.get.return_value = mock_response
         await admin.admin_show_schedules(self.update, self.context)
-        mock_get.assert_called_once_with(f"{API_URL}/admin/schedule/status", timeout=10)
+        mock_get_retry_client.get.assert_called_once_with(f"{API_URL}/admin/schedule/status", timeout=10)
         expected_message = "⏰ **스케줄러 잡 목록**\n\n- **ID:** `sample_job`\n  **다음 실행:** `2025-01-20T10:01:00`\n  **트리거:** `interval[0:01:00]`\n"
         self.context.bot.send_message.assert_called_once_with(
             chat_id=self.update.effective_chat.id, text=expected_message, parse_mode='Markdown'
         )
 
     @pytest.mark.asyncio
-    @patch('src.common.http_client.session.post')
     @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_trigger_job_success(self, mock_post):
+    async def test_admin_trigger_job_success(self, mock_get_retry_client):
         """잡 수동 실행 성공 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"job_id": "update_master_job", "message": "Job 'update_master_job'가 수동으로 실행되었습니다."}
-        mock_post.return_value = mock_response
+        mock_get_retry_client.post.return_value = mock_response
         self.update.message.text = "/trigger_job update_master_job"
         await admin.admin_trigger_job(self.update, self.context)
-        mock_post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/update_master_job", timeout=10)
+        mock_get_retry_client.post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/update_master_job", timeout=10)
         expected_message = "✅ 잡 실행 완료!\n🔧 잡 ID: update_master_job\n💬 메시지: Job 'update_master_job'가 수동으로 실행되었습니다."
         self.context.bot.send_message.assert_called_once_with(
             chat_id=self.update.effective_chat.id, text=expected_message
         )
 
     @pytest.mark.asyncio
-    @patch('src.common.http_client.session.post')
     @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_trigger_job_invalid_job(self, mock_post):
+    async def test_admin_trigger_job_invalid_job(self, mock_get_retry_client):
         """존재하지 않는 잡 실행 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 404
-        mock_post.return_value = mock_response
+        mock_get_retry_client.post.return_value = mock_response
         self.update.message.text = "/trigger_job nonexistent_job"
         await admin.admin_trigger_job(self.update, self.context)
-        mock_post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/nonexistent_job", timeout=10)
+        mock_get_retry_client.post.assert_called_once_with(f"{API_URL}/admin/schedule/trigger/nonexistent_job", timeout=10)
         self.context.bot.send_message.assert_called_once_with(
             chat_id=self.update.effective_chat.id, text="❌ 잡을 찾을 수 없습니다: nonexistent_job"
         )
@@ -138,16 +142,15 @@ class TestBotAdmin:
         )
 
     @pytest.mark.asyncio
-    @patch('src.common.http_client.session.get')
     @patch('src.bot.handlers.admin.ADMIN_ID', '12345')
-    async def test_admin_stats_success(self, mock_get):
+    async def test_admin_stats_success(self, mock_get_retry_client):
         """관리자 통계 조회 성공 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"user_count": 5, "trade_count": 25, "prediction_count": 15}
-        mock_get.return_value = mock_response
+        mock_get_retry_client.get.return_value = mock_response
         await admin.admin_stats(self.update, self.context)
-        mock_get.assert_called_once_with(f"{API_URL}/admin/admin_stats", timeout=10)
+        mock_get_retry_client.get.assert_called_once_with(f"{API_URL}/admin/admin_stats", timeout=10)
         expected_message = "📊 **시스템 통계**\n\n👥 사용자 수: 5명\n💰 모의매매 기록: 25건\n🔮 예측 기록: 15건"
         self.context.bot.send_message.assert_called_once_with(
             chat_id=self.update.effective_chat.id, text=expected_message, parse_mode='Markdown'

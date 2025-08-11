@@ -2,7 +2,7 @@ import os
 import logging
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
-from src.common.http_client import session
+from src.common.http_client import get_retry_client
 import httpx
 
 API_HOST = os.getenv("API_HOST", "localhost")
@@ -101,19 +101,20 @@ async def symbols_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_offset = context.user_data.get('symbols_offset', 0)
 
     try:
-        response = await session.get(f"{API_URL}/symbols/?limit={PAGE_SIZE}&offset={current_offset}", timeout=10)
-        logger.info(f"API Response Status: {response.status_code}")
-        logger.info(f"API Response Text: {response.text}")
-        
-        if response.status_code == 200:
-            symbols_data = response.json()
-            logger.info(f"API Response JSON: {symbols_data}")
+        async with get_retry_client() as client:
+            response = await client.get(f"{API_URL}/symbols/?limit={PAGE_SIZE}&offset={current_offset}", timeout=10)
+            logger.info(f"API Response Status: {response.status_code}")
+            logger.info(f"API Response Text: {response.text}")
             
-            msg, reply_markup = await _get_symbols_message_and_keyboard(symbols_data, current_offset)
-            await reply_target.reply_text(msg, reply_markup=reply_markup)
-        else:
-            logger.error(f"종목 목록 조회 실패: API 응답 코드 {response.status_code}, 응답 본문: {response.text}")
-            await reply_target.reply_text(f"종목 목록 조회 실패: API 응답 코드 {response.status_code}")
+            if response.status_code == 200:
+                symbols_data = response.json()
+                logger.info(f"API Response JSON: {symbols_data}")
+                
+                msg, reply_markup = await _get_symbols_message_and_keyboard(symbols_data, current_offset)
+                await reply_target.reply_text(msg, reply_markup=reply_markup)
+            else:
+                logger.error(f"종목 목록 조회 실패: API 응답 코드 {response.status_code}, 응답 본문: {response.text}")
+                await reply_target.reply_text(f"종목 목록 조회 실패: API 응답 코드 {response.status_code}")
     except Exception as e:
         logger.error(f"Unknown Error in symbols_command: {e}", exc_info=True)
         await reply_target.reply_text(f"종목 목록 조회 실패: 알 수 없는 오류가 발생했습니다.")
@@ -126,18 +127,19 @@ async def symbols_pagination_callback(update: Update, context: ContextTypes.DEFA
     context.user_data['symbols_offset'] = new_offset
 
     try:
-        response = await session.get(f"{API_URL}/symbols/?limit={PAGE_SIZE}&offset={new_offset}", timeout=10)
-        logger.info(f"API Response Status (pagination): {response.status_code}")
-        logger.info(f"API Response Text (pagination): {response.text}")
+        async with get_retry_client() as client:
+            response = await client.get(f"{API_URL}/symbols/?limit={PAGE_SIZE}&offset={new_offset}", timeout=10)
+            logger.info(f"API Response Status (pagination): {response.status_code}")
+            logger.info(f"API Response Text (pagination): {response.text}")
 
-        if response.status_code == 200:
-            symbols_data = response.json()
-            logger.info(f"API Response JSON (pagination): {symbols_data}")
+            if response.status_code == 200:
+                symbols_data = response.json()
+                logger.info(f"API Response JSON (pagination): {symbols_data}")
 
-            msg, reply_markup = await _get_symbols_message_and_keyboard(symbols_data, new_offset)
-            await query.edit_message_text(msg, reply_markup=reply_markup)
-        else:
-            await query.edit_message_text(f"페이지 이동 실패: API 응답 코드 {response.status_code}")
+                msg, reply_markup = await _get_symbols_message_and_keyboard(symbols_data, new_offset)
+                await query.edit_message_text(msg, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(f"페이지 이동 실패: API 응답 코드 {response.status_code}")
     except Exception as e:
         logger.error(f"Unknown Error in symbols_pagination_callback: {e}", exc_info=True)
         await query.edit_message_text(f"페이지 이동 실패: 알 수 없는 오류가 발생했습니다.")
@@ -162,19 +164,20 @@ async def symbols_search_command(update: Update, context: ContextTypes.DEFAULT_T
     current_offset = context.user_data.get(f'symbols_search_offset_{query_str}', 0)
 
     try:
-        response = await session.get(f"{API_URL}/symbols/search", params={"query": query_str, "limit": PAGE_SIZE, "offset": current_offset}, timeout=10)
-        logger.info(f"API Response Status (search): {response.status_code}")
-        logger.info(f"API Response Text (search): {response.text}")
+        async with get_retry_client() as client:
+            response = await client.get(f"{API_URL}/symbols/search", params={"query": query_str, "limit": PAGE_SIZE, "offset": current_offset}, timeout=10)
+            logger.info(f"API Response Status (search): {response.status_code}")
+            logger.info(f"API Response Text (search): {response.text}")
 
-        if response.status_code == 200:
-            search_data = response.json()
-            logger.info(f"API Response JSON (search): {search_data}")
+            if response.status_code == 200:
+                search_data = response.json()
+                logger.info(f"API Response JSON (search): {search_data}")
 
-            msg, reply_markup = await _get_search_results_message_and_keyboard(search_data, query_str, current_offset)
-            await reply_target.reply_text(msg, reply_markup=reply_markup)
-        else:
-            logger.error(f"종목 검색 실패: API 응답 코드 {response.status_code}, 응답 본문: {response.text}")
-            await reply_target.reply_text(f"종목 검색 실패: API 응답 코드 {response.status_code}")
+                msg, reply_markup = await _get_search_results_message_and_keyboard(search_data, query_str, current_offset)
+                await reply_target.reply_text(msg, reply_markup=reply_markup)
+            else:
+                logger.error(f"종목 검색 실패: API 응답 코드 {response.status_code}, 응답 본문: {response.text}")
+                await reply_target.reply_text(f"종목 검색 실패: API 응답 코드 {response.status_code}")
     except httpx.RequestError as e:
         await reply_target.reply_text(f"종목 검색 실패: API 요청 오류가 발생했습니다.")
     except Exception as e:
@@ -193,18 +196,19 @@ async def symbols_search_pagination_callback(update: Update, context: ContextTyp
     context.user_data[f'symbols_search_offset_{query_str}'] = new_offset
 
     try:
-        response = await session.get(f"{API_URL}/symbols/search", params={"query": query_str, "limit": PAGE_SIZE, "offset": new_offset}, timeout=10)
-        logger.info(f"API Response Status (search pagination): {response.status_code}")
-        logger.info(f"API Response Text (search pagination): {response.text}")
+        async with get_retry_client() as client:
+            response = await client.get(f"{API_URL}/symbols/search", params={"query": query_str, "limit": PAGE_SIZE, "offset": new_offset}, timeout=10)
+            logger.info(f"API Response Status (search pagination): {response.status_code}")
+            logger.info(f"API Response Text (search pagination): {response.text}")
 
-        if response.status_code == 200:
-            search_data = response.json()
-            logger.info(f"API Response JSON (search pagination): {search_data}")
+            if response.status_code == 200:
+                search_data = response.json()
+                logger.info(f"API Response JSON (search pagination): {search_data}")
 
-            msg, reply_markup = await _get_search_results_message_and_keyboard(search_data, query_str, new_offset)
-            await query.edit_message_text(msg, reply_markup=reply_markup)
-        else:
-            await query.edit_message_text(f"검색 페이지 이동 실패: API 응답 코드 {response.status_code}")
+                msg, reply_markup = await _get_search_results_message_and_keyboard(search_data, query_str, new_offset)
+                await query.edit_message_text(msg, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(f"검색 페이지 이동 실패: API 응답 코드 {response.status_code}")
     except Exception as e:
         logger.error(f"Unknown Error in symbols_search_pagination_callback: {e}", exc_info=True)
         await query.edit_message_text(f"검색 페이지 이동 실패: 알 수 없는 오류가 발생했습니다.")
@@ -220,31 +224,32 @@ async def symbol_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     query_str = context.args[0]
 
     try:
-        response = await session.get(f"{API_URL}/symbols/search", params={"query": query_str, "limit": 5000, "offset": 0}, timeout=10) # 첫 페이지 검색
-        if response.status_code == 200:
-            search_data = response.json()
-            items = search_data.get('items', [])
-            total_count = search_data.get('total_count', 0)
-            
-            if not items:
-                await reply_target.reply_text("해당 종목을 찾을 수 없습니다.")
-                return
+        async with get_retry_client() as client:
+            response = await client.get(f"{API_URL}/symbols/search", params={"query": query_str, "limit": 5000, "offset": 0}, timeout=10) # 첫 페이지 검색
+            if response.status_code == 200:
+                search_data = response.json()
+                items = search_data.get('items', [])
+                total_count = search_data.get('total_count', 0)
+                
+                if not items:
+                    await reply_target.reply_text("해당 종목을 찾을 수 없습니다.")
+                    return
 
-            # 정확히 일치하는 종목을 찾기 위한 필터링
-            exact_match = [item for item in items if item['symbol'].lower() == query_str.lower() or item['name'].lower() == query_str.lower()]
+                # 정확히 일치하는 종목을 찾기 위한 필터링
+                exact_match = [item for item in items if item['symbol'].lower() == query_str.lower() or item['name'].lower() == query_str.lower()]
 
-            if exact_match and len(exact_match) == 1:
-                # 정확히 일치하는 단일 종목 정보 표시
-                info = exact_match[0]
-                msg = f"[종목 상세]\n코드: {info['symbol']}\n이름: {info['name']}\n시장: {info.get('market','')}"
-                await reply_target.reply_text(msg)
+                if exact_match and len(exact_match) == 1:
+                    # 정확히 일치하는 단일 종목 정보 표시
+                    info = exact_match[0]
+                    msg = f"[종목 상세]\n코드: {info['symbol']}\n이름: {info['name']}\n시장: {info.get('market','')}"
+                    await reply_target.reply_text(msg)
+                else:
+                    # 부분 일치 또는 여러 결과가 나온 경우 리스트 표시
+                    msg, reply_markup = await _get_search_results_message_and_keyboard(search_data, query_str, 0)
+                    await reply_target.reply_text(msg, reply_markup=reply_markup)
             else:
-                # 부분 일치 또는 여러 결과가 나온 경우 리스트 표시
-                msg, reply_markup = await _get_search_results_message_and_keyboard(search_data, query_str, 0)
-                await reply_target.reply_text(msg, reply_markup=reply_markup)
-        else:
-            logger.error(f"종목 상세 조회 중 오류: API 응답 코드 {response.status_code}, 응답 본문: {response.text}")
-            await reply_target.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (API 응답 코드: {response.status_code})")
+                logger.error(f"종목 상세 조회 중 오류: API 응답 코드 {response.status_code}, 응답 본문: {response.text}")
+                await reply_target.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (API 응답 코드: {response.status_code})")
     except httpx.RequestError as e:
         await reply_target.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (API 요청 오류)")
     except Exception as e:

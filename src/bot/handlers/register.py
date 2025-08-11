@@ -1,41 +1,42 @@
+import httpx
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
-import os
-from src.common.http_client import session
+from telegram.ext import ContextTypes
+from src.common.http_client import get_retry_client
 
-async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    API_HOST = os.getenv("API_HOST", "localhost")
-    api_url = f"http://{API_HOST}:8000"
+async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """텔레그램 ID를 시스템에 등록합니다."""
     telegram_id = str(update.effective_chat.id)
-    # 알림 수신 동의 (is_active=True)
-    payload = {"telegram_id": telegram_id, "is_active": True}
-    # 인증 없이 telegram_id만 등록 (실제 서비스에서는 인증 필요)
     try:
-        resp = await session.put(f"{api_url}/users/telegram_register", json=payload, timeout=10)
-        if resp.status_code == 200:
-            await update.message.reply_text("알림 수신 동의가 완료되었습니다. (텔레그램 알림 ON)")
-        else:
-            await update.message.reply_text(f"알림 동의 실패: {resp.text}")
-    except Exception as e:
-        await update.message.reply_text(f"알림 해제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+        async with get_retry_client() as client:
+            response = await client.put(
+                "/api/v1/users/telegram_register",
+                json={"telegram_id": telegram_id, "is_active": True}
+            )
+            response.raise_for_status()
+            await update.message.reply_text("알림 등록이 완료되었습니다. 이제부터 주가 알림을 받을 수 있습니다.")
+    except httpx.HTTPStatusError as e:
+        error_message = e.response.json().get("detail", f"HTTP 오류 {e.response.status_code}")
+        await update.message.reply_text(f"등록 중 오류가 발생했습니다: {error_message}")
+    except httpx.RequestError:
+        await update.message.reply_text("등록 중 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+    except Exception:
+        await update.message.reply_text("등록 중 알 수 없는 오류가 발생했습니다.")
 
-async def unregister(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    API_HOST = os.getenv("API_HOST", "localhost")
-    api_url = f"http://{API_HOST}:8000"
+async def unregister_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """시스템에서 텔레그램 ID를 비활성화합니다."""
     telegram_id = str(update.effective_chat.id)
-    # 알림 수신 해제 (is_active=False)
-    payload = {"telegram_id": telegram_id, "is_active": False}
     try:
-        resp = await session.put(f"{api_url}/users/telegram_register", json=payload, timeout=10)
-        if resp.status_code == 200:
-            await update.message.reply_text("알림 수신 동의가 해제되었습니다. (텔레그램 알림 OFF)")
-        else:
-            await update.message.reply_text(f"알림 해제 실패: {resp.text}")
-    except Exception as e:
-        await update.message.reply_text(f"알림 해제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
-
-def get_register_handler():
-    return CommandHandler("register", register)
-
-def get_unregister_handler():
-    return CommandHandler("unregister", unregister) 
+        async with get_retry_client() as client:
+            response = await client.put(
+                "/api/v1/users/telegram_register",
+                json={"telegram_id": telegram_id, "is_active": False}
+            )
+            response.raise_for_status()
+            await update.message.reply_text("알림을 비활성화했습니다. 더 이상 주가 알림을 받지 않습니다.")
+    except httpx.HTTPStatusError as e:
+        error_message = e.response.json().get("detail", f"HTTP 오류 {e.response.status_code}")
+        await update.message.reply_text(f"알림 비활성화 중 오류가 발생했습니다: {error_message}")
+    except httpx.RequestError:
+        await update.message.reply_text("알림 비활성화 중 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+    except Exception:
+        await update.message.reply_text("알림 비활성화 중 알 수 없는 오류가 발생했습니다.")

@@ -4,7 +4,6 @@ import os
 import httpx
 import zipfile
 import io
-import lxml.etree as etree
 from src.common.dart_utils import dart_get_all_stocks, dart_get_disclosures
 from src.common.exceptions import DartApiError
 
@@ -14,13 +13,18 @@ def mock_env_vars():
         yield
 
 @pytest.fixture
-def mock_session_get():
-    with patch('src.common.http_client.session.get', new_callable=AsyncMock) as mock_get:
+def mock_get_retry_client():
+    with patch('src.common.dart_utils.get_retry_client') as mock_client:
+        # __aenter__와 __aexit__를 포함하는 AsyncMock을 설정합니다.
+        async_mock_client = AsyncMock()
+        mock_get = AsyncMock()
+        async_mock_client.__aenter__.return_value = mock_get
+        mock_client.return_value = async_mock_client
         yield mock_get
 
 class TestDartUtils:
     @pytest.mark.asyncio
-    async def test_dart_get_all_stocks_success(self, mock_session_get):
+    async def test_dart_get_all_stocks_success(self, mock_get_retry_client):
         # Mocking the zip file content
         mock_zip_content = io.BytesIO()
         with zipfile.ZipFile(mock_zip_content, 'w') as zf:
@@ -50,7 +54,7 @@ class TestDartUtils:
         mock_response = MagicMock()
         mock_response.content = mock_zip_content.read()
         mock_response.raise_for_status = MagicMock()
-        mock_session_get.return_value = mock_response
+        mock_get_retry_client.get.return_value = mock_response
 
         stocks = await dart_get_all_stocks()
 
@@ -59,7 +63,7 @@ class TestDartUtils:
         assert stocks[0]["name"] == "삼성전자"
         assert stocks[1]["symbol"] == "035720"
         assert stocks[1]["name"] == "카카오"
-        mock_session_get.assert_called_once_with("https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=test_api_key", timeout=60)
+        mock_get_retry_client.get.assert_called_once_with("https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=test_api_key", timeout=60)
 
     @pytest.mark.asyncio
     async def test_dart_get_all_stocks_api_key_missing(self):
@@ -68,13 +72,13 @@ class TestDartUtils:
                 await dart_get_all_stocks()
 
     @pytest.mark.asyncio
-    async def test_dart_get_all_stocks_request_error(self, mock_session_get):
-        mock_session_get.side_effect = httpx.RequestError("Network error", request=httpx.Request("GET", "http://test.com"))
+    async def test_dart_get_all_stocks_request_error(self, mock_get_retry_client):
+        mock_get_retry_client.get.side_effect = httpx.RequestError("Network error", request=httpx.Request("GET", "http://test.com"))
         with pytest.raises(DartApiError, match="DART API 요청 실패"):
             await dart_get_all_stocks()
 
     @pytest.mark.asyncio
-    async def test_dart_get_all_stocks_zip_file_missing_xml(self, mock_session_get):
+    async def test_dart_get_all_stocks_zip_file_missing_xml(self, mock_get_retry_client):
         mock_zip_content = io.BytesIO()
         with zipfile.ZipFile(mock_zip_content, 'w') as zf:
             zf.writestr('other.xml', '<data/>')
@@ -83,13 +87,13 @@ class TestDartUtils:
         mock_response = MagicMock()
         mock_response.content = mock_zip_content.read()
         mock_response.raise_for_status = MagicMock()
-        mock_session_get.return_value = mock_response
+        mock_get_retry_client.get.return_value = mock_response
 
         with pytest.raises(RuntimeError, match="ZIP 파일 내에 CORPCODE.xml이 없습니다."):
             await dart_get_all_stocks()
 
     @pytest.mark.asyncio
-    async def test_dart_get_disclosures_success(self, mock_session_get):
+    async def test_dart_get_disclosures_success(self, mock_get_retry_client):
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "status": "000",
@@ -99,13 +103,13 @@ class TestDartUtils:
             ]
         }
         mock_response.raise_for_status = MagicMock()
-        mock_session_get.return_value = mock_response
+        mock_get_retry_client.get.return_value = mock_response
 
         disclosures = await dart_get_disclosures(corp_code="00123456")
 
         assert len(disclosures) == 1
         assert disclosures[0]["corp_name"] == "삼성전자"
-        mock_session_get.assert_called_once()
+        mock_get_retry_client.get.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_dart_get_disclosures_api_key_missing(self):
@@ -114,20 +118,20 @@ class TestDartUtils:
                 await dart_get_disclosures(corp_code="00123456")
 
     @pytest.mark.asyncio
-    async def test_dart_get_disclosures_request_error(self, mock_session_get):
-        mock_session_get.side_effect = httpx.RequestError("Network error", request=httpx.Request("GET", "http://test.com"))
+    async def test_dart_get_disclosures_request_error(self, mock_get_retry_client):
+        mock_get_retry_client.get.side_effect = httpx.RequestError("Network error", request=httpx.Request("GET", "http://test.com"))
         with pytest.raises(DartApiError, match="DART API 요청 실패"):
             await dart_get_disclosures(corp_code="00123456")
 
     @pytest.mark.asyncio
-    async def test_dart_get_disclosures_api_error_response(self, mock_session_get):
+    async def test_dart_get_disclosures_api_error_response(self, mock_get_retry_client):
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "status": "001",
             "message": "API 호출 오류"
         }
         mock_response.raise_for_status = MagicMock()
-        mock_session_get.return_value = mock_response
+        mock_get_retry_client.get.return_value = mock_response
 
         with pytest.raises(DartApiError, match="API 호출 오류"):
             await dart_get_disclosures(corp_code="00123456")
