@@ -76,7 +76,34 @@
         *   **테스트 데이터 시딩 불일치:** `api` 서비스 시작 시 `StockMaster` 테이블에 테스트 데이터가 이미 존재한다고 판단하여 시딩을 건너뛰었으나, 실제 검색 시 데이터가 조회되지 않는 문제 발생. (시딩 로직 보강 완료)
         *   **`predict_service` 로직 오류:** `predict_stock_movement` 함수가 `calculate_analysis_items`의 결과를 `None`으로 잘못 판단하여 "예측 불가"를 반환하는 문제 발생. (`predict_service` 로직 수정 완료)
         *   **E2E 테스트 실패 지속:** 위 모든 수정에도 불구하고 E2E 테스트가 동일한 오류로 계속 실패하고 있음. 이는 DB 환경, Docker 네트워크, 또는 `pytest`와 `asyncio`의 상호작용 등 더 근본적인 환경적 문제일 가능성이 높음.
+    -   [x] **[완료] 사용자 데이터 연동 기능 정상화:**
+    -   **대상:** `alert`, `history`, `trade`, `watchlist` 등
+    -   **해결 방안:** `telegram_id` 기반의 사용자 식별 로직을 `api` 서비스에 중앙화하여 구현했던 내용을 새로운 아키텍처에 맞게 재검증하고 안정화합니다.
+    -   **검증:** 각 기능에 대한 **Bot-API-Worker 연동 E2E 테스트 코드를 반드시 작성**하여 버그 재발을 방지합니다.
+    -   **현황:** 봇을 통한 API 인증 및 잡 트리거 기능 정상 작동 확인.
+
+-   [x] **[완료] `natural` 핸들러 API 응답 형식 불일치 문제 해결:**
+    -   **해결:** `natural.py`에서 API 응답(`{"items": [...]}`)을 올바르게 파싱하도록 수정합니다.
+    -   **검증:** E2E 테스트를 통해 자연어 처리 기능의 정상 동작을 확인합니다.
+
+-   [x] **[완료] 예측 이력 저장을 위한 `user_id` 전달:**
+    -   **현황:** `predict`, `natural` 핸들러에서 `/predict` API 호출 시 `telegram_id`를 포함하고, `api`는 이를 `user_id`로 변환하여 이력을 저장하도록 하는 기능 구현 중.
+    -   **발생 문제:**
+        *   **API 라우터 경로 불일치:** `bot`에서 `/predict`로 호출했으나 `api` 라우터가 `/predict/`로 설정되어 `307 Temporary Redirect` 발생 및 POST 본문 유실. (`/predict`로 수정 완료)
+        *   **테스트 데이터 시딩 불일치:** `api` 서비스 시작 시 `StockMaster` 테이블에 테스트 데이터가 이미 존재한다고 판단하여 시딩을 건너뛰었으나, 실제 검색 시 데이터가 조회되지 않는 문제 발생. (시딩 로직 보강 완료)
+        *   **`predict_service` 로직 오류:** `predict_stock_movement` 함수가 `calculate_analysis_items`의 결과를 `None`으로 잘못 판단하여 "예측 불가"를 반환하는 문제 발생. (`predict_service` 로직 수정 완료)
+        *   **E2E 테스트 실패 지속:** 위 모든 수정에도 불구하고 E2E 테스트가 동일한 오류로 계속 실패하고 있음. 이는 DB 환경, Docker 네트워크, 또는 `pytest`와 `asyncio`의 상호작용 등 더 근본적인 환경적 문제일 가능성이 높음.
     -   **해결:** `httpx.Response.ok` 속성 Deprecated 문제로 확인되어, `response.is_success` 또는 `response.status_code < 400`으로 변경하여 해결했습니다.
+    -   **검증:** `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트 통과 확인.
+    -   **현황:** 공시 데이터 저장 및 알림 기능 정상 작동 확인.
+
+-   [x] **[완료] 봇 관리자 명령어(`show_schedules`) 오류 해결:**
+    -   **문제:** `show_schedules` 명령어 실행 시 `404 Not Found` 오류 발생.
+    -   **원인:** 아키텍처 변경 (`api` -> `worker`로 스케줄러 이전) 후, `bot`이 `worker`와 통신하는 방법이 구현되지 않음.
+    -   **해결 계획:**
+        1.  `worker` 서비스에 FastAPI를 도입하여 스케줄러 제어용 API를 구현합니다.
+        2.  `api` 서비스에 `worker` API를 호출하는 프록시 엔드포인트를 추가합니다.
+        3.  `bot` 핸들러가 `api` 서비스의 프록시 엔드포인트를 호출하도록 수정합니다.
     -   **검증:** `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트 통과 확인.
 
 -   [x] **[완료] 봇 관리자 명령어(`show_schedules`) 오류 해결:**
@@ -124,12 +151,15 @@
 
 ## ✨ Phase 7: 향후 개선 과제
 
+-   [ ] **API 인증 문제 (curl) 추가 디버깅:** (우선순위 낮음, 봇을 통한 기능은 정상 작동하므로)
+-   [ ] **단위/통합 테스트에서 `test_page_limit` 활용:**
+-   [ ] **DART API 최적화 (last_rcept_no) 추가 검증:**
 -   [ ] **[신규] 알림 시스템 고도화:**
     -   **목표:** 현재 텔레그램에 종속된 알림 시스템을 다중 채널(이메일, SMS, 디스코드 등)을 지원하는 유연한 구조로 리팩토링합니다.
     -   **구현 방향:**
         1.  API가 Redis에 발행하는 메시지를 `{"user_id": ..., "message": ...}`와 같이 일반화합니다.
         2.  Worker는 이 메시지를 받아, DB에서 사용자의 알림 설정을 조회한 후, 설정된 모든 채널로 알림을 발송하는 "알림 라우터" 역할을 수행하도록 변경합니다.
-        3.  사용자가 자신의 알림 채널을 설정할 수 있는 API를 구현합니다.
+        3.  사용자가 자신의 알림 채널을 설정할 수 있는 API를 구현합니다。
     -   **관련 문서:** `docs/archive/notification_system_architecture.md`
 
 ---
@@ -161,4 +191,47 @@
             -   `src/bot/handlers/admin.py`의 `admin_trigger_job` 함수를 Worker의 새로운 JSON 응답 형식에 맞게 메시지 포맷팅 부분을 수정하여, `job_id`와 `triggered_at` 등의 정보가 정확히 표시되도록 합니다.
         3.  **검증:**
             -   `docker compose`를 통해 전체 서비스를 재기동하고, 실제 봇 명령어를 통해 E2E 테스트를 수행하여 최종 결과를 검증합니다.
-            -   `worker` 서비스의 로그를 확인하여 잡 실행 과정에서 오류가 없는지 확인합니다.
+            -   `worker` 서비스의 로그를 확인하여 잡 실행 과정에서 오류가 없는지 확인합니다。
+
+## Phase 8: 리소스 최적화 과제
+
+### 8.1. `worker` 서비스 '종목마스터 갱신' OOM 문제 해결 (완료)
+
+*   **문제:** Oracle VM 환경에서 '종목마스터 갱신' 관리자 명령어 실행 시 `worker` 서비스가 메모리 부족으로 다운되는 문제 발생. `src/common/dart_utils.py`의 `dart_get_all_stocks` 함수가 `CORPCODE.xml` 파일을 메모리에 통째로 로드하여 파싱하는 비효율적인 방식이 원인.
+*   **해결:** `src/common/dart_utils.py` 파일을 수정하여 `dart_get_all_stocks` 함수에서 XML 파싱 방식을 `lxml.etree.iterparse`를 사용한 **스트리밍 파싱**으로 변경. 메모리 사용량을 획기적으로 줄임.
+*   **관련 파일:** `src/common/dart_utils.py`
+*   **검증:** Docker Compose 환경에서 성공적으로 검증 완료.
+
+### 8.2. `일별 시세 갱신` 작업 리소스 최적화 (완료)
+
+*   **과제 ID:** OPT-001
+*   **문제:** `src/api/services/stock_service.py`의 `update_daily_prices` 함수는 DB의 모든 종목을 한 번에 가져와 `yfinance`를 통해 일별 시세를 갱신합니다. 종목 수가 증가할수록 메모리 사용량 및 처리 시간이 선형적으로 증가하여 OOM 발생 가능성이 높았습니다.
+*   **해결 방안:**
+    1.  **배치 처리 (Batch Processing):** `StockMaster`를 한 번에 모두 가져오지 않고, 일정 개수(100개)씩 끊어서 처리하도록 변경.
+    2.  **벌크 삽입 (Bulk Insertion):** `db.add()` 대신 `db.bulk_save_objects()`를 사용하여 일별 시세 데이터를 한 번에 DB에 삽입하여 성능 및 메모리 효율 개선.
+*   **관련 파일:** `src/api/services/stock_service.py`
+*   **상태:** 과제 완료 및 Docker Compose 환경에서 성공적으로 검증 완료.
+
+### 8.3. `전체 공시 갱신` 작업 리소스 최적화 (완료)
+
+*   **과제 ID:** OPT-002
+*   **문제:** `src/api/services/stock_service.py`의 `update_disclosures_for_all_stocks` 함수가 DART API에서 대량의 공시 데이터를 가져오고, DB에 이미 저장된 **모든 공시 접수번호**를 메모리에 로드하여 중복을 확인합니다. 공시 데이터가 많아질 경우 메모리 사용량이 급증하여 OOM 발생 가능성이 있었습니다.
+*   **해결 방안:**
+    1.  **DART API 호출 최적화:** `dart_utils.py`의 `dart_get_disclosures` 함수에 `last_rcept_no` 파라미터를 추가하고, `stock_service.py`에서 `SystemConfig`에 저장된 `last_checked_rcept_no`를 이 파라미터로 전달하도록 수정했습니다. 이를 통해 DART API에서 마지막으로 확인된 공시 이후의 데이터만 가져오도록 최적화했습니다.
+    2.  **기존 공시 확인 최적화:** `check_and_notify_new_disclosures` 함수 내에서 DART에서 가져온 공시 중 DB에 이미 존재하는 공시를 필터링하는 로직을 개선했습니다.
+*   **관련 파일:** `src/api/services/stock_service.py`, `src/common/dart_utils.py`
+*   **상태:** 과제 완료 및 Docker Compose 환경에서 성공적으로 검증 완료.
+
+### 8.4. `가격 알림 확인` 작업 내 쿼리 최적화 (진행 예정)
+
+*   **과제 ID:** OPT-003
+*   **문제:** `src/api/services/price_alert_service.py`의 `check_and_notify_price_alerts` 함수 내에서 `db.query(DailyPrice).filter(DailyPrice.symbol.in_(symbols_to_check)).order_by(DailyPrice.date.desc()).all()` 쿼리가 각 종목별 최신 가격을 효율적으로 가져오지 못하고, `symbols_to_check`의 크기가 커질 경우 쿼리 성능에 영향을 줄 수 있습니다.
+*   **해결 방안:** 각 종목별 최신 가격을 효율적으로 가져오도록 쿼리를 최적화 (예: 서브쿼리 또는 `DISTINCT ON` 사용).
+*   **관련 파일:** `src/api/services/price_alert_service.py`
+*   **상태:** 과제 등록 및 진행 예정.
+
+---
+
+**[중요] 리소스 관리 및 향후 계획:**
+
+Oracle VM 환경에서 안정적인 서비스 운영을 위해 리소스 관리는 매우 중요합니다. 이번 분석을 통해 식별된 모든 잠재적 병목 지점들은 `PLAN.MD`에 `OPT-XXX` 과제로 명확히 등록되었습니다. 앞으로 이 과제들을 우선순위에 따라 순차적으로 개선 작업을 진행할 예정입니다. 지속적인 모니터링과 최적화를 통해 시스템의 안정성과 성능을 확보해 나가겠습니다.

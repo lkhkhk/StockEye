@@ -46,7 +46,8 @@ class StockService:
             # 2. 최신 공시 조회
             logger.info("DART에서 최신 공시 목록을 조회합니다.")
             try:
-                latest_disclosures = await dart_get_disclosures(corp_code=None, max_count=15)
+                latest_disclosures = await dart_get_disclosures(corp_code=None, last_rcept_no=last_checked_rcept_no)
+                logger.debug(f"dart_get_disclosures 호출 직후 latest_disclosures 길이: {len(latest_disclosures)}") # Added debug log
                 logger.debug(f"DART에서 조회된 최신 공시 수: {len(latest_disclosures)}")
             except DartApiError as e:
                 if e.status_code == '020': # 사용한도 초과
@@ -59,85 +60,140 @@ class StockService:
                 logger.info("새로운 공시가 없습니다.")
                 return
 
-            # 3. 최초 실행 시 기준점 설정 (DB에 값이 없을 때)
+            # 3. 신규 공시 필터링 및 최초 실행 시 기준점 설정
             if last_checked_rcept_no is None:
-                new_rcept_no = latest_disclosures[0]['rcept_no']
+                new_disclosures = latest_disclosures
+                logger.info(f"최초 실행으로 모든 공시 ({len(new_disclosures)}건)를 신규로 간주합니다.")
+                # Set the initial last_checked_rcept_no for the SystemConfig
+                new_rcept_no_for_config = latest_disclosures[0]['rcept_no']
                 if last_checked_config:
-                    last_checked_config.value = new_rcept_no
+                    last_checked_config.value = new_rcept_no_for_config
                 else:
-                    db.add(SystemConfig(key='last_checked_rcept_no', value=new_rcept_no))
+                    last_checked_config = SystemConfig(key='last_checked_rcept_no', value=new_rcept_no_for_config)
+                    db.add(last_checked_config)
                 db.commit()
-                logger.info(f"최초 실행. 기준 접수번호를 {new_rcept_no}로 DB에 설정합니다.")
-                logger.debug("check_and_notify_new_disclosures 함수 종료 (최초 실행 설정).")
-                return
+                logger.info(f"최초 실행. 기준 접수번호를 {new_rcept_no_for_config}로 DB에 설정합니다.")
+            else:
+                new_disclosures = [d for d in latest_disclosures if d['rcept_no'] > last_checked_rcept_no]
+                if not new_disclosures:
+                    logger.info(f"신규 공시가 없습니다. (DB 기준: {last_checked_rcept_no})")
+                    logger.debug("check_and_notify_new_disclosures 함수 종료 (신규 공시 없음).")
+                    return
 
-            # 4. 신규 공시 필터링
-            new_disclosures = [d for d in latest_disclosures if d['rcept_no'] > last_checked_rcept_no]
-            if not new_disclosures:
-                logger.info(f"신규 공시가 없습니다. (DB 기준: {last_checked_rcept_no})")
-                logger.debug("check_and_notify_new_disclosures 함수 종료 (신규 공시 없음).")
-                return
-
-            logger.info(f"{len(new_disclosures)}건의 신규 공시를 발견했습니다.")
+            logger.info(f"{len(new_disclosures)}건의 신규 공시를 발견했습니다. DB에 저장 및 알림을 시작합니다.")
             logger.debug(f"신규 공시 목록: {[d['rcept_no'] for d in new_disclosures]}")
             
-            total_notified_users = 0
-            
-            # 4. 신규 공시별로 구독자에게 알림 전송
-            for disclosure in reversed(new_disclosures):
-                stock_code = disclosure.get('stock_code')
-                logger.debug(f"공시 처리 중: corp_name={disclosure.get('corp_name')}, report_nm={disclosure.get('report_nm')}, stock_code={stock_code}")
-                if not stock_code:
-                    logger.debug(f"상장되지 않은 기업 공시 건너뛰기: {disclosure.get('corp_name')}")
-                    continue # 상장되지 않은 기업의 공시는 건너뜀
+            disclosures_to_add = []
+            inserted_count = 0
+            skipped_count = 0
 
-                # 해당 종목의 공시를 구독한 사용자 조회
-                subscriptions = db.query(PriceAlert).filter(
-                    PriceAlert.symbol == stock_code,
-                    PriceAlert.notify_on_disclosure == True,
-                    PriceAlert.is_active == True
-                ).all()
-                logger.debug(f"종목 {stock_code}의 공시 알림 구독자 수: {len(subscriptions)}")
+            for item in new_disclosures:
+                rcept_no = item.get('rcept_no')
+                stock_code = item.get('stock_code')
 
-                if not subscriptions:
-                    logger.debug(f"종목 {stock_code}에 대한 활성 공시 알림 구독자가 없습니다.")
+                # Skip if no rcept_no or no stock_code (should ideally not happen with new_disclosures)
+                if not rcept_no or not stock_code:
+                    skipped_count += 1
+                    logger.debug(f"공시 항목에 rcept_no 또는 stock_code 없음 (신규 공시 필터링 후): {item}")
                     continue
 
-                user_ids = [sub.user_id for sub in subscriptions]
-                users = db.query(User).filter(User.id.in_(user_ids)).all()
-                
-                notified_count_per_disclosure = 0
-                for user in users:
-                    if user.telegram_id:
-                        msg = (
-                            f"🔔 [{disclosure['corp_name']}] 신규 공시\n\n"
-                            f"📑 {disclosure['report_nm']}\n"
-                            f"🕒 {disclosure['rcept_dt']}\n"
-                            f"🔗 https://dart.fss.or.kr/dsaf001/main.do?rcpNo={disclosure['rcept_no']}"
-                        )
-                        send_telegram_message(user.telegram_id, msg)
-                        notified_count_per_disclosure += 1
-                        logger.debug(f"공시 알림 전송: user_id={user.id}, telegram_id={user.telegram_id}, symbol={stock_code}")
-                
-                total_notified_users += notified_count_per_disclosure
-                logger.info(f"'{disclosure['corp_name']}' 공시를 {notified_count_per_disclosure}명에게 알렸습니다.")
+                # Check if already exists in DB (double-check, though new_disclosures should prevent this)
+                existing = db.query(Disclosure).filter(Disclosure.rcept_no == rcept_no).first()
+                if existing:
+                    skipped_count += 1
+                    logger.debug(f"기존 공시 건너뛰기 (신규 공시 필터링 후): {rcept_no}")
+                    continue
 
-            # 5. 관리자에게 요약 리포트 전송
+                try:
+                    disclosed_at = datetime.strptime(item.get('rcept_dt'), "%Y%m%d")
+                except (ValueError, TypeError):
+                    logger.warning(f"날짜 파싱 실패: {item.get('rcept_dt')}, 현재 시간으로 대체합니다.")
+                    disclosed_at = datetime.now()
+
+                new_disclosure_obj = Disclosure(
+                    stock_code=stock_code,
+                    corp_code=item.get('corp_code'),
+                    title=item.get('report_nm', ''),
+                    rcept_no=rcept_no,
+                    disclosed_at=disclosed_at,
+                    url=f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}",
+                    disclosure_type=_parse_disclosure_type(item.get('report_nm', ''))
+                )
+                disclosures_to_add.append(new_disclosure_obj)
+            
+            if disclosures_to_add:
+                db.bulk_save_objects(disclosures_to_add)
+                db.commit()
+                inserted_count = len(disclosures_to_add)
+                logger.info(f"신규 공시 {inserted_count}건을 DB에 추가했습니다. (건너뜀: {skipped_count}건)")
+            else:
+                logger.info(f"DB에 추가할 신규 공시가 없습니다. (건너뜀: {skipped_count}건)")
+
+            total_notified_users = 0
+            
+            # 5. 신규 공시별로 구독자에게 알림 전송 (inserted_count > 0 인 경우에만)
+            if inserted_count > 0:
+                for disclosure in reversed(disclosures_to_add): # Iterate over actually inserted disclosures
+                    stock_code = disclosure.stock_code # Use the object's attribute
+                    logger.debug(f"공시 알림 처리 중: corp_code={disclosure.corp_code}, title={disclosure.title}, stock_code={stock_code}")
+                    if not stock_code:
+                        logger.debug(f"상장되지 않은 기업 공시 알림 건너뛰기: {disclosure.corp_code}")
+                        continue
+
+                    subscriptions = db.query(PriceAlert).filter(
+                        PriceAlert.symbol == stock_code,
+                        PriceAlert.notify_on_disclosure == True,
+                        PriceAlert.is_active == True
+                    ).all()
+                    logger.debug(f"종목 {stock_code}의 공시 알림 구독자 수: {len(subscriptions)}")
+
+                    if not subscriptions:
+                        logger.debug(f"종목 {stock_code}에 대한 활성 공시 알림 구독자가 없습니다.")
+                        continue
+
+                    user_ids = [sub.user_id for sub in subscriptions]
+                    users = db.query(User).filter(User.id.in_(user_ids)).all()
+                    
+                    notified_count_per_disclosure = 0
+                    for user in users:
+                        if user.telegram_id:
+                            msg = (
+                                f"🔔 [{disclosure.corp_code}] 신규 공시\n\n" # Use corp_code as name might not be available
+                                f"📑 {disclosure.title}\n"
+                                f"🕒 {disclosure.disclosed_at.strftime('%Y%m%d')}\n"
+                                f"🔗 {disclosure.url}"
+                            )
+                            await send_telegram_message(user.telegram_id, msg)
+                            notified_count_per_disclosure += 1
+                            logger.debug(f"공시 알림 전송: user_id={user.id}, telegram_id={user.telegram_id}, symbol={stock_code}")
+                    
+                    total_notified_users += notified_count_per_disclosure
+                    logger.info(f"'{disclosure.corp_code}' 공시를 {notified_count_per_disclosure}명에게 알렸습니다.")
+
+            # 6. 관리자에게 요약 리포트 전송
             admin_id = os.getenv("TELEGRAM_ADMIN_ID")
             if admin_id:
                 summary_msg = (
                     f"📈 공시 알림 요약 리포트\n\n"
                     f"- 발견된 신규 공시: {len(new_disclosures)}건\n"
+                    f"- DB에 추가된 공시: {inserted_count}건\n"
                     f"- 총 알림 발송 건수: {total_notified_users}건"
                 )
-                send_telegram_message(int(admin_id), summary_msg)
+                await send_telegram_message(int(admin_id), summary_msg)
                 logger.debug(f"관리자({admin_id})에게 공시 알림 요약 리포트 전송 완료.")
             
-            # 6. 마지막 확인 번호 DB에 갱신
-            newest_rcept_no = new_disclosures[0]['rcept_no']
-            last_checked_config.value = newest_rcept_no
-            db.commit()
-            logger.info(f"마지막 확인 접수번호를 {newest_rcept_no}로 DB에 갱신합니다.")
+            # 7. 마지막 확인 번호 DB에 갱신 (실제로 DB에 추가된 공시 중 가장 최신 번호로 갱신)
+            if inserted_count > 0:
+                newest_rcept_no = max(d.rcept_no for d in disclosures_to_add) # Get max rcept_no from inserted
+                if last_checked_config:
+                    last_checked_config.value = newest_rcept_no
+                else: # Should not happen if last_checked_rcept_no was None initially
+                    db.add(SystemConfig(key='last_checked_rcept_no', value=newest_rcept_no))
+                db.commit()
+                logger.info(f"마지막 확인 접수번호를 {newest_rcept_no}로 DB에 갱신합니다.")
+            else:
+                logger.info("DB에 추가된 공시가 없어 마지막 확인 접수번호를 갱신하지 않습니다.")
+            
             logger.debug("check_and_notify_new_disclosures 함수 종료 (정상 완료).")
 
         except Exception as e:
@@ -291,52 +347,68 @@ class StockService:
         logger.debug("update_daily_prices 호출.")
         updated_count = 0
         error_stocks = []
+        batch_size = 100 # Define batch size
+        offset = 0
+        
         try:
-            stocks = db.query(StockMaster).all()
-            logger.debug(f"DB에서 {len(stocks)}개 종목 가져옴.")
+            while True:
+                # Fetch stocks in batches
+                stocks_batch = db.query(StockMaster).offset(offset).limit(batch_size).all()
+                if not stocks_batch:
+                    break # No more stocks to process
 
-            for stock in stocks:
-                logger.debug(f"종목 {stock.symbol} ({stock.name}) 일별시세 갱신 시작.")
-                try:
-                    # yfinance를 사용하여 일별 시세 데이터 가져오기
-                    # 한국 주식의 경우 종목코드 뒤에 .KS (코스피) 또는 .KQ (코스닥)를 붙여야 함
-                    # 여기서는 간단히 .KS를 붙이는 것으로 가정
-                    ticker = f"{stock.symbol}.KS"
-                    data = yf.download(ticker, start=datetime.now() - timedelta(days=30), end=datetime.now())
-                    
-                    if data.empty:
-                        logger.warning(f"종목 {stock.symbol} ({ticker})에 대한 일별시세 데이터가 없습니다.")
+                logger.debug(f"DB에서 {len(stocks_batch)}개 종목 (offset: {offset}) 가져옴.")
+                prices_to_add = [] # List to collect DailyPrice objects for bulk insertion
+
+                for stock in stocks_batch:
+                    logger.debug(f"종목 {stock.symbol} ({stock.name}) 일별시세 갱신 시작.")
+                    try:
+                        # yfinance를 사용하여 일별 시세 데이터 가져오기
+                        ticker = f"{stock.symbol}.KS"
+                        data = yf.download(ticker, start=datetime.now() - timedelta(days=30), end=datetime.now())
+                        
+                        if data.empty:
+                            logger.warning(f"종목 {stock.symbol} ({ticker})에 대한 일별시세 데이터가 없습니다.")
+                            error_stocks.append(stock.symbol)
+                            continue
+
+                        for index, row in data.iterrows():
+                            target_date = index.date()
+                            
+                            existing_price = db.query(DailyPrice).filter(
+                                DailyPrice.symbol == stock.symbol,
+                                DailyPrice.date == target_date
+                            ).first()
+                            
+                            if not existing_price:
+                                new_price = DailyPrice(
+                                    symbol=stock.symbol,
+                                    date=target_date,
+                                    open=float(row['Open']),
+                                    high=float(row['High']),
+                                    low=float(row['Low']),
+                                    close=float(row['Close']),
+                                    volume=int(row['Volume']),
+                                    created_at=datetime.now()
+                                )
+                                prices_to_add.append(new_price) # Collect for bulk insertion
+                                updated_count += 1
+                                logger.debug(f"새 일별시세 추가 예정: {stock.symbol} - {target_date}")
+                    except Exception as e:
+                        logger.error(f"일별시세 갱신 중 '{stock.symbol}' 처리에서 오류 발생: {e}")
                         error_stocks.append(stock.symbol)
-                        continue
+                
+                # Bulk insert after processing each batch of stocks
+                if prices_to_add:
+                    db.bulk_save_objects(prices_to_add)
+                    db.commit() # Commit after each batch
+                    logger.info(f"배치 처리 완료: {len(prices_to_add)}개 일별시세 데이터 삽입.")
+                else:
+                    db.rollback() # Rollback if no prices were added in this batch (e.g., all existed or errors)
 
-                    for index, row in data.iterrows():
-                        target_date = index.date()
-                        
-                        existing_price = db.query(DailyPrice).filter(
-                            DailyPrice.symbol == stock.symbol,
-                            DailyPrice.date == target_date
-                        ).first()
-                        
-                        if not existing_price:
-                            new_price = DailyPrice(
-                                symbol=stock.symbol,
-                                date=target_date,
-                                open=float(row['Open']),
-                                high=float(row['High']),
-                                low=float(row['Low']),
-                                close=float(row['Close']),
-                                volume=int(row['Volume']),
-                                created_at=datetime.now()
-                            )
-                            db.add(new_price)
-                            updated_count += 1
-                            logger.debug(f"새 일별시세 추가: {stock.symbol} - {target_date}")
-                except Exception as e:
-                    logger.error(f"일별시세 갱신 중 '{stock.symbol}' 처리에서 오류 발생: {e}")
-                    error_stocks.append(stock.symbol)
-            
-            db.commit()
-            logger.info(f"일별시세 갱신 완료: {updated_count}개 데이터 처리. 오류: {len(error_stocks)}개 종목")
+                offset += batch_size # Move to the next batch
+
+            logger.info(f"일별시세 갱신 완료. 총 {updated_count}개 데이터 처리. 오류: {len(error_stocks)}개 종목")
             return {"success": True, "updated_count": updated_count, "errors": error_stocks}
         except Exception as e:
             db.rollback()
@@ -357,33 +429,50 @@ class StockService:
             disclosures_from_dart = await dart_get_disclosures(
                 corp_code=None, 
                 bgn_de=bgn_de.strftime("%Y%m%d"), 
-                end_de=end_de.strftime("%Y%m%d"), 
-                max_count=10000
+                end_de=end_de.strftime("%Y%m%d")
             )
             logger.info(f"DART에서 {len(disclosures_from_dart)}건의 공시를 조회했습니다.")
 
             if not disclosures_from_dart:
                 return result
 
-            # 2. DB에 이미 저장된 공시 접수번호(rcept_no) 목록 조회
-            existing_rcept_nos = {r[0] for r in db.query(Disclosure.rcept_no).all()}
-            logger.debug(f"DB에 저장된 공시 수: {len(existing_rcept_nos)}")
+            # Collect rcept_nos from DART disclosures that are candidates for insertion
+            candidate_rcept_nos = []
+            for item in disclosures_from_dart:
+                rcept_no = item.get('rcept_no')
+                stock_code = item.get('stock_code')
+                
+                # Only consider disclosures with a receipt number and stock code
+                if rcept_no and stock_code:
+                    candidate_rcept_nos.append(rcept_no)
+                else:
+                    # Increment skipped count for items without rcept_no or stock_code
+                    result['skipped'] += 1 
+                    logger.debug(f"공시 항목에 rcept_no 또는 stock_code 없음: {item}")
 
-            # 3. DB에 없는 신규 공시만 필터링
+            # Batch size for checking existing disclosures in DB
+            db_check_batch_size = 1000
+            existing_rcept_nos_in_db = set()
+
+            # Query DB in batches to find existing disclosures among candidates
+            for i in range(0, len(candidate_rcept_nos), db_check_batch_size):
+                batch_rcept_nos = candidate_rcept_nos[i:i + db_check_batch_size]
+                existing_in_batch = db.query(Disclosure.rcept_no).filter(Disclosure.rcept_no.in_(batch_rcept_nos)).all()
+                existing_rcept_nos_in_db.update([r[0] for r in existing_in_batch])
+            
+            logger.debug(f"DB에 이미 존재하는 공시 수 (후보군 중): {len(existing_rcept_nos_in_db)}")
+
+            # Filter new disclosures to add based on DB check
             new_disclosures_to_add = []
             for item in disclosures_from_dart:
                 rcept_no = item.get('rcept_no')
-                if not rcept_no or rcept_no in existing_rcept_nos:
+                stock_code = item.get('stock_code')
+
+                # Skip if no rcept_no, no stock_code, or already exists in DB
+                if not rcept_no or not stock_code or rcept_no in existing_rcept_nos_in_db:
                     result['skipped'] += 1
                     continue
-                
-                # 종목 코드가 없는 비상장사 공시는 건너뜀
-                stock_code = item.get('stock_code')
-                if not stock_code:
-                    logger.debug(f"종목 코드가 없는 공시 건너뛰기: {item.get('corp_name')} - {item.get('report_nm')}")
-                    continue
 
-                # disclosed_at 파싱
                 try:
                     disclosed_at = datetime.datetime.strptime(item.get('rcept_dt'), "%Y%m%d")
                 except (ValueError, TypeError):
@@ -400,7 +489,6 @@ class StockService:
                     disclosure_type=_parse_disclosure_type(item.get('report_nm', ''))
                 )
                 new_disclosures_to_add.append(new_disclosure)
-                existing_rcept_nos.add(rcept_no) # 중복 추가 방지
 
             # 4. 신규 공시 일괄 추가
             if new_disclosures_to_add:

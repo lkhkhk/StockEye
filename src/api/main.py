@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 # 'auth' 라우터 임포트 추가
 from src.api.routers import user, notification, predict, watchlist, simulated_trade, prediction_history, admin, stock_master, bot_router, auth
@@ -32,7 +33,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+# Define the security scheme for JWT Bearer token
+security_scheme = HTTPBearer()
+
+app = FastAPI(
+    # Define security schemes for OpenAPI (Swagger UI)
+    security=[{"BearerAuth": []}], # Apply globally, or per-route with Depends(security_scheme)
+    # Define components for security schemes
+    components={
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter your JWT token in the format **Bearer &lt;token>**"
+            }
+        }
+    }
+)
 
 def seed_test_data(db: Session):
     """테스트용 StockMaster 및 DailyPrice 데이터를 시딩하는 함수"""
@@ -45,9 +63,9 @@ def seed_test_data(db: Session):
         stocks = [
             StockMaster(symbol="005930", name="삼성전자", market="KOSPI"),
             StockMaster(symbol="000660", name="SK하이닉스", market="KOSPI"),
-            StockMaster(symbol="035720", name="카카오", market="KOSPI"),
-            StockMaster(symbol="005380", name="현대차", market="KOSPI"),
-            StockMaster(symbol="000270", name="기아", market="KOSPI"),
+                        StockMaster(symbol="035720", name="카카오", market="KOSPI"),
+                        StockMaster(symbol="005380", name="현대차", market="KOSPI"),
+                        StockMaster(symbol="000270", name="기아", market="KOSPI"),
             # StockMaster(symbol="GOOG", name="Alphabet Inc.", market="NASDAQ"),
             # StockMaster(symbol="AAPL", name="Apple Inc.", market="NASDAQ"),
             # StockMaster(symbol="MSFT", name="Microsoft Corp.", market="NASDAQ"),
