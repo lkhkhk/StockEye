@@ -8,10 +8,9 @@ from dotenv import load_dotenv
 from handlers.history import history_command
 from handlers.help import help_command
 from handlers.admin import (
-    health_command, admin_stats, admin_update_master, admin_update_price, 
-    admin_show_schedules, admin_trigger_job, admin_update_disclosure, 
-    update_disclosure_callback, test_notify_command, admin_command,
-    trigger_job_callback
+    health_command, admin_stats, admin_show_schedules, 
+    admin_trigger_job, trigger_job_callback,
+    test_notify_command, admin_command
 )
 from handlers.predict import predict_command
 from handlers.watchlist import watchlist_add_command, watchlist_remove_command, watchlist_get_command
@@ -72,17 +71,13 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("admin", admin_command)) # /admin 명령어 추가
     app.add_handler(CommandHandler("health", health_command))
     app.add_handler(CommandHandler("admin_stats", admin_stats))
-    app.add_handler(CommandHandler("update_master", admin_update_master))
-    app.add_handler(CommandHandler("update_price", admin_update_price))
     app.add_handler(CommandHandler("show_schedules", admin_show_schedules))
     app.add_handler(CommandHandler("trigger_job", admin_trigger_job))
-    app.add_handler(CommandHandler("update_disclosure", admin_update_disclosure))
 
     # Callback Query Handlers
     app.add_handler(CallbackQueryHandler(symbols_pagination_callback, pattern="^symbols_page_"))
     app.add_handler(CallbackQueryHandler(symbol_info_callback, pattern="^symbol_info_"))
     app.add_handler(CallbackQueryHandler(symbols_search_pagination_callback, pattern="^symbols_search_page_"))
-    app.add_handler(CallbackQueryHandler(update_disclosure_callback, pattern="^update_disclosure_"))
     app.add_handler(CallbackQueryHandler(trigger_job_callback, pattern="^trigger_job_"))
     app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_select_")) # 더 구체적인 패턴으로 수정
     app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_price_"))

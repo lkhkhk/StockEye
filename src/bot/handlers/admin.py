@@ -1,7 +1,6 @@
 import os
 import httpx
 import logging
-import asyncio
 from functools import wraps
 from typing import Optional
 from datetime import datetime
@@ -53,26 +52,14 @@ def admin_only(func):
         return await func(update, context, *args, **kwargs)
     return wrapped
 
+# --- 관리자 명령어 텍스트 ---
 ADMIN_COMMANDS_TEXT = (
-    "[관리자 전용 명령어 안내]\n" 
-    "\n" 
-    "**시스템 관리**\n" 
-    "- /admin_stats : 전체 시스템 통계 조회\n" 
-    "- /show_schedules : 스케줄러 상태 및 등록된 잡 목록 조회\n" 
-    "- /trigger_job [job_id] : 특정 스케줄러 잡 수동 실행 (예: /trigger_job update_master_job)\n" 
-    "\n" 
-    "**데이터 갱신**\n" 
-    "- /update_master : 전체 종목 마스터 데이터 갱신 (신규/변경 종목 반영)\n" 
-    "- /update_price : 전체 종목 일별 시세 데이터 갱신\n" 
-    "- /update_disclosure [종목코드|종목명|고유번호] : 특정 종목 공시 이력 수동 갱신 (입력 없으면 전체 처리)\n" 
-    "\n" 
-    "**테스트 및 디버그**\n" 
-    "- /test_notify : 공시 알림 테스트 메시지 전송\n" 
-    "- /health : API 서비스 헬스 체크\n" 
-    "\n" 
-    "**참고:**\n" 
-    "- 데이터 갱신과 같은 대량 작업은 시간이 소요될 수 있으며, 작업 시작 및 완료 시 별도 안내 메시지가 전송됩니다.\n" 
-    "- 관리자 외 사용자는 접근할 수 없습니다."
+    "[관리자 전용 명령어 안내]\n"
+    "\n"
+    "**시스템 관리**\n"
+    "- /admin_stats          : 전체 시스템 통계 조회\n"
+    "- /show_schedules       : 스케줄러 상태 및 등록된 잡 목록 조회 (잡 즉시 실행 가능)\n"
+    "- /trigger_job [job_id] : (비상용) 특정 스케줄러 잡 ID로 수동 실행\n"
 )
 
 @admin_only
@@ -90,68 +77,6 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"서비스 상태: {data.get('status', 'unknown')}")
     except Exception as e:
         await update.message.reply_text(f"헬스체크에 실패했습니다. 서버 상태를 확인해주세요.")
-
-@admin_only
-@ensure_user_registered
-async def admin_update_master(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id=chat_id, text="종목마스터 갱신을 시작합니다. 완료되면 결과를 안내드리겠습니다.")
-    asyncio.create_task(run_update_master_and_notify(context, int(chat_id)))
-
-async def run_update_master_and_notify(context, chat_id: int):
-    token = await get_auth_token(chat_id)
-    if not token:
-        await context.bot.send_message(chat_id=chat_id, text="❌ 인증 토큰 발급에 실패하여 작업을 진행할 수 없습니다.")
-        return
-
-    headers = {"Authorization": f"Bearer {token}"}
-    try:
-        async with get_retry_client() as client:
-            response = await client.post(f"{API_V1_URL}/admin/update_master", headers=headers, timeout=60)
-            if response.status_code == 200:
-                result = response.json()
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=(f"✅ 종목마스터 갱신 완료!\n" 
-                          f"📊 처리된 종목: {result['updated_count']}개\n" 
-                          f"⏰ 시간: {result['timestamp']}")
-                )
-            else:
-                await context.bot.send_message(chat_id=chat_id, text=f"❌ 갱신 실패: {response.status_code} {response.text}")
-    except Exception as e:
-        logger.error(f"종목마스터 갱신(비동기) 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=chat_id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
-
-@admin_only
-@ensure_user_registered
-async def admin_update_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id=chat_id, text="일별시세 갱신을 시작합니다. 완료되면 결과를 안내드리겠습니다.")
-    asyncio.create_task(run_update_price_and_notify(context, int(chat_id)))
-
-async def run_update_price_and_notify(context, chat_id: int):
-    token = await get_auth_token(chat_id)
-    if not token:
-        await context.bot.send_message(chat_id=chat_id, text="❌ 인증 토큰 발급에 실패하여 작업을 진행할 수 없습니다.")
-        return
-
-    headers = {"Authorization": f"Bearer {token}"}
-    try:
-        async with get_retry_client() as client:
-            response = await client.post(f"{API_V1_URL}/admin/update_price", headers=headers, timeout=60)
-            if response.status_code == 200:
-                result = response.json()
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=(f"✅ 일별시세 갱신 완료!\n" 
-                          f"📊 처리된 데이터: {result['updated_count']}개\n" 
-                          f"⏰ 시간: {result['timestamp']}")
-                )
-            else:
-                await context.bot.send_message(chat_id=chat_id, text=f"❌ 갱신 실패: {response.status_code} {response.text}")
-    except Exception as e:
-        logger.error(f"일별시세 갱신(비동기) 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=chat_id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
 @admin_only
 @ensure_user_registered
@@ -301,88 +226,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"통계 조회 중 오류: {str(e)}")
         await update.message.reply_text("통계 조회 중 오류가 발생했습니다.")
 
-@admin_only
-@ensure_user_registered
-async def admin_update_disclosure(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    args = context.args
-    if args:
-        code_or_name = args[0]
-        async with get_retry_client() as client:
-            search_resp = await client.get(f"{API_V1_URL}/symbols/search", params={"query": code_or_name}, timeout=10)
-            if search_resp.status_code == 200:
-                stocks = search_resp.json()
-                if isinstance(stocks, list) and len(stocks) > 1:
-                    keyboard = []
-                    for stock in stocks[:10]:
-                        btn_text = f"{stock.get('name','')}"
-                        callback_data = f"update_disclosure_{stock.get('symbol','')}"
-                        keyboard.append([InlineKeyboardButton(btn_text, callback_data=callback_data)])
-                    reply_markup = InlineKeyboardMarkup(keyboard)
-                    await context.bot.send_message(chat_id=chat_id, text="여러 종목이 검색되었습니다. 갱신할 종목을 선택하세요:", reply_markup=reply_markup)
-                    return
-    
-    await context.bot.send_message(chat_id=chat_id, text="공시 이력 갱신을 시작합니다. 완료되면 결과를 안내드리겠습니다.")
-    asyncio.create_task(run_update_disclosure_and_notify(context, int(chat_id), args))
 
-async def run_update_disclosure_and_notify(context, chat_id: int, args: list):
-    token = await get_auth_token(chat_id)
-    if not token:
-        await context.bot.send_message(chat_id=chat_id, text="❌ 인증 토큰 발급에 실패하여 작업을 진행할 수 없습니다.")
-        return
-
-    headers = {"Authorization": f"Bearer {token}"}
-    code_or_name = args[0] if args else None
-    
-    try:
-        async with get_retry_client() as client:
-            params = {"code_or_name": code_or_name} if code_or_name else {}
-            response = await client.post(f"{API_V1_URL}/admin/update_disclosure", headers=headers, params=params, timeout=60)
-            if response.status_code == 200:
-                result = response.json()
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=(f"✅ 공시 이력 갱신 완료!\n" 
-                          f"➕ 추가: {result.get('inserted', 0)}건\n" 
-                          f"⏩ 중복: {result.get('skipped', 0)}건\n" 
-                          f"⚠️ 에러: {len(result.get('errors', []))}건")
-                )
-            else:
-                await context.bot.send_message(chat_id=chat_id, text=f"❌ 갱신 실패: {response.status_code} {response.text}")
-    except Exception as e:
-        logger.error(f"공시 이력 갱신(비동기) 중 오류: {str(e)}")
-        await context.bot.send_message(chat_id=chat_id, text=f"오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
-
-@ensure_user_registered
-async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    token = await get_auth_token(query.from_user.id)
-    if not token:
-        await query.edit_message_text("❌ 인증 토큰 발급에 실패했습니다.")
-        return
-
-    headers = {"Authorization": f"Bearer {token}"}
-    try:
-        data = query.data
-        if data.startswith("update_disclosure_"):
-            symbol = data.replace("update_disclosure_", "")
-            async with get_retry_client() as client:
-                response = await client.post(f"{API_V1_URL}/admin/update_disclosure", headers=headers, params={"code_or_name": symbol}, timeout=60)
-                if response.status_code == 200:
-                    result = response.json()
-                    await query.edit_message_text(
-                        f"✅ 공시 이력 갱신 완료!\n" 
-                        f"➕ 추가: {result.get('inserted', 0)}건\n" 
-                        f"⏩ 중복: {result.get('skipped', 0)}건\n" 
-                        f"⚠️ 에러: {len(result.get('errors', []))}건"
-                    )
-                else:
-                    await query.edit_message_text(f"공시 이력 갱신 중 오류가 발생했습니다: {response.status_code} {response.text}")
-    except Exception as e:
-        logger.error(f"공시 이력 갱신(버튼) 중 오류: {str(e)}")
-        await query.edit_message_text("공시 이력 갱신(버튼) 중 오류가 발생했습니다.")
 
 @admin_only
 @ensure_user_registered
@@ -400,12 +244,6 @@ def get_admin_handler():
 def get_health_handler():
     return CommandHandler("health", health_command)
 
-def get_admin_update_master_handler():
-    return CommandHandler("update_master", admin_update_master)
-
-def get_admin_update_price_handler():
-    return CommandHandler("update_price", admin_update_price)
-
 def get_admin_show_schedules_handler():
     return CommandHandler("show_schedules", admin_show_schedules)
 
@@ -417,12 +255,6 @@ def get_trigger_job_callback_handler():
 
 def get_admin_stats_handler():
     return CommandHandler("admin_stats", admin_stats)
-
-def get_admin_update_disclosure_handler():
-    return CommandHandler("update_disclosure", admin_update_disclosure)
-
-def get_update_disclosure_callback_handler():
-    return CallbackQueryHandler(update_disclosure_callback, pattern="^update_disclosure_")
 
 def get_test_notify_handler():
     return CommandHandler("test_notify", test_notify_command)

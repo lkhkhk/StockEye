@@ -87,8 +87,10 @@ async def update_stock_master_job(chat_id: int = None):
         except StopIteration:
             pass
         if chat_id:
-            status = "성공" if success else "실패"
-            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            if success:
+                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
+            else:
+                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
             r = redis.from_url(f"redis://{REDIS_HOST}")
             await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
@@ -101,7 +103,7 @@ async def update_daily_price_job(chat_id: int = None):
     stock_service = StockService()
     success = False
     try:
-        await stock_service.update_all_daily_prices(db)
+        await stock_service.update_daily_prices(db)
         success = True
     except Exception as e:
         logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
@@ -111,8 +113,10 @@ async def update_daily_price_job(chat_id: int = None):
         except StopIteration:
             pass
         if chat_id:
-            status = "성공" if success else "실패"
-            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            if success:
+                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
+            else:
+                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
             r = redis.from_url(f"redis://{REDIS_HOST}")
             await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
@@ -135,8 +139,10 @@ async def check_disclosures_job(chat_id: int = None):
         except StopIteration:
             pass
         if chat_id:
-            status = "성공" if success else "실패"
-            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            if success:
+                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
+            else:
+                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
             r = redis.from_url(f"redis://{REDIS_HOST}")
             await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
@@ -196,8 +202,10 @@ async def check_price_alerts_job(chat_id: int = None):
         except StopIteration:
             pass
         if chat_id:
-            status = "성공" if success else "실패"
-            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            if success:
+                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
+            else:
+                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
             r = redis.from_url(f"redis://{REDIS_HOST}")
             await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
