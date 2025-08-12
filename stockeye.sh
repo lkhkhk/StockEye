@@ -72,10 +72,11 @@ build_and_restart() {
 
 # API 서비스 테스트 실행
 run_api_tests() {
-    echo -e "${YELLOW}>>> API 서비스 테스트 실행...${NC}"
+    local env=${1:-development} # 기본값 development
+    echo -e "${YELLOW}>>> API 서비스 테스트 실행 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
     # API 컨테이너의 작업 디렉토리가 /app/src/api 이므로, tests/ 로 경로 지정
-    docker compose exec api pytest tests/
+    APP_ENV=$env docker compose exec api pytest tests/
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}>>> API 서비스 테스트 통과.${NC}"
     else
@@ -86,10 +87,11 @@ run_api_tests() {
 
 # Bot 서비스 테스트 실행
 run_bot_tests() {
-    echo -e "${YELLOW}>>> Bot 서비스 테스트 실행...${NC}"
+    local env=${1:-development} # 기본값 development
+    echo -e "${YELLOW}>>> Bot 서비스 테스트 실행 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
     # Bot 컨테이너의 작업 디렉토리가 /app 이므로, src/bot/tests/ 로 경로 지정
-    docker compose exec bot pytest src/bot/tests/
+    APP_ENV=$env docker compose exec bot pytest src/bot/tests/
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}>>> Bot 서비스 테스트 통과.${NC}"
     else
@@ -101,8 +103,8 @@ run_bot_tests() {
 # 모든 테스트 실행
 run_all_tests() {
     echo -e "${YELLOW}>>> 모든 서비스 테스트 실행...${NC}"
-    run_api_tests
-    run_bot_tests
+    run_api_tests $@
+    run_bot_tests $@
     echo -e "${GREEN}>>> 모든 서비스 테스트 완료.${NC}"
 }
 
@@ -125,15 +127,16 @@ build_and_restart_service() {
 # Docker 환경 정리
 clean_env() {
     local is_clear_db=${1:-N} # 기본값 N
-    echo -e "${RED}>>> 경고: 이 작업은 모든 Docker 컨테이너, 네트워크, 볼륨을 영구적으로 삭제합니다.${NC}"
+    local env=${2:-development} # 기본값 development
+    echo -e "${RED}>>> 경고: 이 작업은 모든 Docker 컨테이너, 네트워크, 볼륨을 영구적으로 삭제합니다. (환경: $env)...${NC}"
     if [[ "$is_clear_db" == [yY] ]]; then
-        echo -e "${RED}>>> 데이터베이스 데이터도 삭제되므로 주의하십시오.${NC}"
+        echo -e "${RED}>>> 데이터베이스 데이터도 삭제되므로 주의하십시오. (환경: $env)...${NC}"
     fi
     read -p "정말 진행하시겠습니까? (y/N): " confirm
     if [[ "$confirm" == [yY] || "$confirm" == [yY][eE][sS] ]]; then
-        echo -e "${YELLOW}>>> Docker 환경 정리 중...${NC}"
+        echo -e "${YELLOW}>>> Docker 환경 정리 중(환경: $env)...${NC}"
         cd "$PROJECT_ROOT" || exit 1
-        docker compose down --volumes --remove-orphans
+        APP_ENV=$env docker docker compose down --volumes --remove-orphans
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}>>> Docker 환경 정리 완료.${NC}"
             if [[ "$is_clear_db" == [yY] ]]; then
@@ -166,9 +169,14 @@ show_help() {
     echo ""
     echo "예시:"
     echo "  ./$0 build"
+    echo "  ./$0 build production"
+    echo "  ./$0 [api|bot|worker] production"
+    echo "  ./$0 build production"
     echo "  ./$0 all-test"
+    echo "  ./$0 all-test production"
     echo "  ./$0 clean"
-}
+    echo "  ./$0 clean Y production" 
+    }
 
 # 메인 로직
 main() {
@@ -177,14 +185,16 @@ main() {
             shift 
             build_and_restart "$@" # 환경 인자 전달
             ;;
+        all-test)
+            run_all_tests "$@" # 환경 인자 전달
+            ;;
         api-test)
-            run_api_tests
+            shift 
+            run_api_tests "$@" # 환경 인자 전달
             ;;
         bot-test)
-            run_bot_tests
-            ;;
-        all-test)
-            run_all_tests
+            shift 
+            run_bot_tests "$@" # 환경 인자 전달
             ;;
         service)
             shift 
