@@ -168,15 +168,29 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
             if response.status_code == 200:
                 result = response.json()
                 jobs = result.get('jobs', [])
-                message = "⏰ **스케줄러 잡 목록**\n\n" 
+                
                 if not jobs:
-                    message += "실행 중인 잡이 없습니다."
-                else:
-                    for job in jobs:
-                        message += f"- **ID:** `{job['id']}`\n" 
-                        message += f"  **다음 실행:** `{job['next_run_time']}`\n" 
-                        message += f"  **트리거:** `{job['trigger']}`\n"
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='Markdown')
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text="⏰ 실행 중인 스케줄 잡이 없습니다.")
+                    return
+
+                keyboard = []
+                message = "⏰ **스케줄러 잡 목록**\n\n"
+                for job in jobs:
+                    job_id = job.get('id', 'N/A')
+                    job_name = job.get('name', job_id)
+                    next_run_time = job.get('next_run_time', 'N/A')
+                    if next_run_time != 'N/A':
+                        next_run_time = datetime.fromisoformat(next_run_time).strftime('%Y-%m-%d %H:%M:%S')
+
+                    message += f"🔹 **{job_name}**\n"
+                    message += f"   - ID: `{job_id}`\n"
+                    message += f"   - 다음 실행: {next_run_time}\n"
+                    
+                    button = InlineKeyboardButton(f"▶️ 즉시 실행: {job_name}", callback_data=f"trigger_job_{job_id}")
+                    keyboard.append([button])
+
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=message, reply_markup=reply_markup, parse_mode='Markdown')
             else:
                 await update.message.reply_text(f"조회 실패: {response.status_code} {response.text}")
     except Exception as e:
@@ -228,7 +242,43 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"잡 실행 중 오류: {str(e)}")
         await update.message.reply_text("잡 수동 실행 중 오류가 발생했습니다.")
 
+@admin_only
+@ensure_user_registered
+async def trigger_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer(text="잡 실행을 요청합니다...")
 
+    job_id = query.data.replace("trigger_job_", "")
+    chat_id = update.effective_chat.id
+
+    token = await get_auth_token(chat_id)
+    if not token:
+        await context.bot.send_message(chat_id=chat_id, text="❌ 인증 토큰 발급에 실패했습니다.")
+        return
+
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        async with get_retry_client() as client:
+            response = await client.post(
+                f"{API_V1_URL}/admin/schedule/trigger/{job_id}",
+                headers=headers,
+                json={"chat_id": chat_id},
+                timeout=10
+            )
+            if response.status_code == 200:
+                message = (
+                    f"✅ 잡 실행 요청 접수\n"
+                    f"- 잡 ID: `{job_id}`\n\n"
+                    f"완료 시 별도 알림이 전송됩니다."
+                )
+                await context.bot.send_message(chat_id=chat_id, text=message, parse_mode='Markdown')
+            elif response.status_code == 404:
+                await context.bot.send_message(chat_id=chat_id, text=f"❌ 잡을 찾을 수 없습니다: {job_id}")
+            else:
+                await context.bot.send_message(chat_id=chat_id, text=f"❌ 실행 실패: {response.status_code} {response.text}")
+    except Exception as e:
+        logger.error(f"잡 실행(콜백) 중 오류: {str(e)}")
+        await context.bot.send_message(chat_id=chat_id, text="잡 수동 실행(콜백) 중 오류가 발생했습니다.")
 
 @admin_only
 @ensure_user_registered
@@ -361,6 +411,9 @@ def get_admin_show_schedules_handler():
 
 def get_admin_trigger_job_handler():
     return CommandHandler("trigger_job", admin_trigger_job)
+
+def get_trigger_job_callback_handler():
+    return CallbackQueryHandler(trigger_job_callback, pattern="^trigger_job_")
 
 def get_admin_stats_handler():
     return CommandHandler("admin_stats", admin_stats)

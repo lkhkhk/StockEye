@@ -19,6 +19,7 @@ async def get_scheduler_status():
     
     jobs = []
     for job in scheduler.get_jobs():
+        logger.debug(f"Job: {job.id}, Name: {job.name}")
         jobs.append({
             "id": job.id,
             "name": job.name,

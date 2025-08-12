@@ -44,10 +44,10 @@ async def lifespan(app: FastAPI):
     logger.info("Starting worker service...")
     
     # Add scheduler jobs
-    scheduler.add_job(update_stock_master_job, 'cron', hour=7, minute=0, id='update_stock_master_job')
-    scheduler.add_job(update_daily_price_job, 'cron', hour=18, minute=0, id='update_daily_price_job')
-    scheduler.add_job(check_disclosures_job, 'interval', minutes=240, id='check_disclosures_job')
-    scheduler.add_job(check_price_alerts_job, 'interval', minutes=1, id='check_price_alerts_job')
+    scheduler.add_job(update_stock_master_job, 'cron', hour=7, minute=0, id='update_stock_master_job', name='종목 마스터 갱신')
+    scheduler.add_job(update_daily_price_job, 'cron', hour=18, minute=0, id='update_daily_price_job', name='일별 시세 갱신')
+    scheduler.add_job(check_disclosures_job, 'interval', minutes=240, id='check_disclosures_job', name='최신 공시 확인')
+    scheduler.add_job(check_price_alerts_job, 'interval', minutes=1, id='check_price_alerts_job', name='가격 알림 확인')
     
     # Start scheduler
     scheduler.start()

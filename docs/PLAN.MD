@@ -79,7 +79,7 @@
     -   **해결:** `httpx.Response.ok` 속성 Deprecated 문제로 확인되어, `response.is_success` 또는 `response.status_code < 400`으로 변경하여 해결했습니다.
     -   **검증:** `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트 통과 확인.
 
--   [ ] **[진행중] 봇 관리자 명령어(`show_schedules`) 오류 해결:**
+-   [x] **[완료] 봇 관리자 명령어(`show_schedules`) 오류 해결:**
     -   **문제:** `show_schedules` 명령어 실행 시 `404 Not Found` 오류 발생.
     -   **원인:** 아키텍처 변경 (`api` -> `worker`로 스케줄러 이전) 후, `bot`이 `worker`와 통신하는 방법이 구현되지 않음.
     -   **해결 계획:**
@@ -149,7 +149,7 @@
 
 ## 🐞 2025-08-12: `trigger_job` 명령어 버그 수정
 
--   **[완료] 봇 관리자 명령어(`trigger_job`) 오류 해결:**
+-   **[완료] 봇 관리자 명령어(`trigger_job`) 오류 해결 및 기능 개선:**
     -   **문제:** `trigger_job [job_id]` 봇 명령어가 "잡 실행 완료" 메시지를 반환하지만, 실제로는 잡이 실행되지 않습니다.
     -   **원인 분석:**
         1.  `src/worker/routers/scheduler.py`의 `trigger_scheduler_job` 함수가 기존 잡을 즉시 실행(`modify`)하는 대신, 일회성으로 실행되는 새로운 잡을 추가(`add_job`)하고 있어, 의도대로 동작하지 않습니다.
