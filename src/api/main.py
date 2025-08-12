@@ -48,11 +48,11 @@ def seed_test_data(db: Session):
             StockMaster(symbol="035720", name="카카오", market="KOSPI"),
             StockMaster(symbol="005380", name="현대차", market="KOSPI"),
             StockMaster(symbol="000270", name="기아", market="KOSPI"),
-            StockMaster(symbol="GOOG", name="Alphabet Inc.", market="NASDAQ"),
-            StockMaster(symbol="AAPL", name="Apple Inc.", market="NASDAQ"),
-            StockMaster(symbol="MSFT", name="Microsoft Corp.", market="NASDAQ"),
-            StockMaster(symbol="AMZN", name="Amazon.com Inc.", market="NASDAQ"),
-            StockMaster(symbol="NFLX", name="Netflix Inc.", market="NASDAQ"),
+            # StockMaster(symbol="GOOG", name="Alphabet Inc.", market="NASDAQ"),
+            # StockMaster(symbol="AAPL", name="Apple Inc.", market="NASDAQ"),
+            # StockMaster(symbol="MSFT", name="Microsoft Corp.", market="NASDAQ"),
+            # StockMaster(symbol="AMZN", name="Amazon.com Inc.", market="NASDAQ"),
+            # StockMaster(symbol="NFLX", name="Netflix Inc.", market="NASDAQ"),
         ]
         db.add_all(stocks)
         db.commit()
@@ -93,6 +93,9 @@ def seed_test_data(db: Session):
 
 @app.on_event("startup")
 def on_startup():
+    # Ensure tables are created for all environments
+    Base.metadata.create_all(bind=engine)
+    
     if APP_ENV == "development":
         db = SessionLocal()
         seed_test_data(db)
