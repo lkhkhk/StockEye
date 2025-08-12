@@ -1,5 +1,6 @@
 import pytest
 import json
+import redis
 from unittest.mock import patch, AsyncMock, MagicMock
 from src.worker.main import notification_listener
 
@@ -18,8 +19,9 @@ async def test_notification_listener(mock_send_telegram_message, mock_redis_from
     ])
 
     
-    mock_redis_from_url.return_value = AsyncMock()
-    mock_redis_from_url.return_value.pubsub.return_value = mock_pubsub
+    mock_redis_conn = AsyncMock(spec=redis.Redis)
+    mock_redis_conn.pubsub.return_value = mock_pubsub
+    mock_redis_from_url.return_value = mock_redis_conn
 
     # Set TELEGRAM_BOT_TOKEN environment variable for the test
     with patch.dict('os.environ', {'TELEGRAM_BOT_TOKEN': 'test_token'}):
@@ -27,7 +29,7 @@ async def test_notification_listener(mock_send_telegram_message, mock_redis_from
 
     # Assertions
     mock_redis_from_url.assert_called_once_with('redis://localhost', decode_responses=True)
-    mock_redis_conn.pubsub.assert_called_once()
+    mock_redis_from_url.return_value.pubsub.assert_called_once()
     mock_pubsub.subscribe.assert_awaited_once_with('notifications')
     
     # Verify send_telegram_message was called with correct arguments

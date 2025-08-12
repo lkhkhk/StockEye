@@ -145,3 +145,20 @@
 -   [x] **[Worker] 단위 테스트 오류 해결:**
     -   [x] `src/worker/tests/unit/test_listener.py`에서 `TypeError: object AsyncMock can't be used in 'await' expression` 오류가 발생합니다.
     -   [x] `src/worker/tests/unit/test_main_jobs.py`에서 `ModuleNotFoundError: No module named 'src.api.main'` 오류가 발생합니다.
+---
+
+## 🐞 2025-08-12: `trigger_job` 명령어 버그 수정
+
+-   **[완료] 봇 관리자 명령어(`trigger_job`) 오류 해결:**
+    -   **문제:** `trigger_job [job_id]` 봇 명령어가 "잡 실행 완료" 메시지를 반환하지만, 실제로는 잡이 실행되지 않습니다.
+    -   **원인 분석:**
+        1.  `src/worker/routers/scheduler.py`의 `trigger_scheduler_job` 함수가 기존 잡을 즉시 실행(`modify`)하는 대신, 일회성으로 실행되는 새로운 잡을 추가(`add_job`)하고 있어, 의도대로 동작하지 않습니다.
+    -   **해결 계획:**
+        1.  **Worker 로직 수정:**
+            -   `src/worker/routers/scheduler.py`의 `trigger_scheduler_job` 함수를 `job.modify(next_run_time=datetime.now(job.next_run_time.tzinfo))`를 사용하도록 수정하여, 잡이 즉시 실행되도록 올바르게 변경합니다.
+            -   실행 결과를 명확하게 나타내는 JSON 응답(예: `{"job_id": job.id, "message": "Job triggered successfully", "triggered_at": ...}`)을 반환하도록 수정합니다.
+        2.  **Bot 핸들러 수정:**
+            -   `src/bot/handlers/admin.py`의 `admin_trigger_job` 함수를 Worker의 새로운 JSON 응답 형식에 맞게 메시지 포맷팅 부분을 수정하여, `job_id`와 `triggered_at` 등의 정보가 정확히 표시되도록 합니다.
+        3.  **검증:**
+            -   `docker compose`를 통해 전체 서비스를 재기동하고, 실제 봇 명령어를 통해 E2E 테스트를 수행하여 최종 결과를 검증합니다.
+            -   `worker` 서비스의 로그를 확인하여 잡 실행 과정에서 오류가 없는지 확인합니다.

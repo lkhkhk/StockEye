@@ -4,6 +4,7 @@ import logging
 import asyncio
 from functools import wraps
 from typing import Optional
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 from src.common.http_client import get_retry_client
@@ -53,24 +54,24 @@ def admin_only(func):
     return wrapped
 
 ADMIN_COMMANDS_TEXT = (
-    "[관리자 전용 명령어 안내]\n"
-    "\n"
-    "**시스템 관리**\n"
-    "- /admin_stats : 전체 시스템 통계 조회\n"
-    "- /show_schedules : 스케줄러 상태 및 등록된 잡 목록 조회\n"
-    "- /trigger_job [job_id] : 특정 스케줄러 잡 수동 실행 (예: /trigger_job update_master_job)\n"
-    "\n"
-    "**데이터 갱신**\n"
-    "- /update_master : 전체 종목 마스터 데이터 갱신 (신규/변경 종목 반영)\n"
-    "- /update_price : 전체 종목 일별 시세 데이터 갱신\n"
-    "- /update_disclosure [종목코드|종목명|고유번호] : 특정 종목 공시 이력 수동 갱신 (입력 없으면 전체 처리)\n"
-    "\n"
-    "**테스트 및 디버그**\n"
-    "- /test_notify : 공시 알림 테스트 메시지 전송\n"
-    "- /health : API 서비스 헬스 체크\n"
-    "\n"
-    "**참고:**\n"
-    "- 데이터 갱신과 같은 대량 작업은 시간이 소요될 수 있으며, 작업 시작 및 완료 시 별도 안내 메시지가 전송됩니다.\n"
+    "[관리자 전용 명령어 안내]\n" 
+    "\n" 
+    "**시스템 관리**\n" 
+    "- /admin_stats : 전체 시스템 통계 조회\n" 
+    "- /show_schedules : 스케줄러 상태 및 등록된 잡 목록 조회\n" 
+    "- /trigger_job [job_id] : 특정 스케줄러 잡 수동 실행 (예: /trigger_job update_master_job)\n" 
+    "\n" 
+    "**데이터 갱신**\n" 
+    "- /update_master : 전체 종목 마스터 데이터 갱신 (신규/변경 종목 반영)\n" 
+    "- /update_price : 전체 종목 일별 시세 데이터 갱신\n" 
+    "- /update_disclosure [종목코드|종목명|고유번호] : 특정 종목 공시 이력 수동 갱신 (입력 없으면 전체 처리)\n" 
+    "\n" 
+    "**테스트 및 디버그**\n" 
+    "- /test_notify : 공시 알림 테스트 메시지 전송\n" 
+    "- /health : API 서비스 헬스 체크\n" 
+    "\n" 
+    "**참고:**\n" 
+    "- 데이터 갱신과 같은 대량 작업은 시간이 소요될 수 있으며, 작업 시작 및 완료 시 별도 안내 메시지가 전송됩니다.\n" 
     "- 관리자 외 사용자는 접근할 수 없습니다."
 )
 
@@ -111,8 +112,8 @@ async def run_update_master_and_notify(context, chat_id: int):
                 result = response.json()
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=(f"✅ 종목마스터 갱신 완료!\n"
-                          f"📊 처리된 종목: {result['updated_count']}개\n"
+                    text=(f"✅ 종목마스터 갱신 완료!\n" 
+                          f"📊 처리된 종목: {result['updated_count']}개\n" 
                           f"⏰ 시간: {result['timestamp']}")
                 )
             else:
@@ -142,8 +143,8 @@ async def run_update_price_and_notify(context, chat_id: int):
                 result = response.json()
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=(f"✅ 일별시세 갱신 완료!\n"
-                          f"📊 처리된 데이터: {result['updated_count']}개\n"
+                    text=(f"✅ 일별시세 갱신 완료!\n" 
+                          f"📊 처리된 데이터: {result['updated_count']}개\n" 
                           f"⏰ 시간: {result['timestamp']}")
                 )
             else:
@@ -167,13 +168,13 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
             if response.status_code == 200:
                 result = response.json()
                 jobs = result.get('jobs', [])
-                message = "⏰ **스케줄러 잡 목록**\n\n"
+                message = "⏰ **스케줄러 잡 목록**\n\n" 
                 if not jobs:
                     message += "실행 중인 잡이 없습니다."
                 else:
                     for job in jobs:
-                        message += f"- **ID:** `{job['id']}`\n"
-                        message += f"  **다음 실행:** `{job['next_run_time']}`\n"
+                        message += f"- **ID:** `{job['id']}`\n" 
+                        message += f"  **다음 실행:** `{job['next_run_time']}`\n" 
                         message += f"  **트리거:** `{job['trigger']}`\n"
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='Markdown')
             else:
@@ -199,18 +200,35 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         job_id = parts[1]
+        chat_id = update.effective_chat.id
+        
         async with get_retry_client() as client:
-            response = await client.post(f"{API_V1_URL}/admin/schedule/trigger/{job_id}", headers=headers, timeout=10)
+            response = await client.post(
+                f"{API_V1_URL}/admin/schedule/trigger/{job_id}", 
+                headers=headers, 
+                json={"chat_id": chat_id},
+                timeout=10
+            )
             if response.status_code == 200:
-                result = response.json()
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ 잡 실행 완료!\n🔧 잡 ID: {result.get('job_id', 'N/A')}\n💬 메시지: {result.get('message', '-')}")
+                message = (
+                    f"✅ 잡 실행 요청 접수\n"
+                    f"- 잡 ID: `{job_id}`\n\n"
+                    f"완료 시 별도 알림이 전송됩니다."
+                )
+                await context.bot.send_message(
+                    chat_id=chat_id, 
+                    text=message,
+                    parse_mode='Markdown'
+                )
             elif response.status_code == 404:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 잡을 찾을 수 없습니다: {job_id}")
+                await context.bot.send_message(chat_id=chat_id, text=f"❌ 잡을 찾을 수 없습니다: {job_id}")
             else:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 실행 실패: {response.status_code} {response.text}")
+                await context.bot.send_message(chat_id=chat_id, text=f"❌ 실행 실패: {response.status_code} {response.text}")
     except Exception as e:
         logger.error(f"잡 실행 중 오류: {str(e)}")
         await update.message.reply_text("잡 수동 실행 중 오류가 발생했습니다.")
+
+
 
 @admin_only
 @ensure_user_registered
@@ -274,9 +292,9 @@ async def run_update_disclosure_and_notify(context, chat_id: int, args: list):
                 result = response.json()
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=(f"✅ 공시 이력 갱신 완료!\n"
-                          f"➕ 추가: {result.get('inserted', 0)}건\n"
-                          f"⏩ 중복: {result.get('skipped', 0)}건\n"
+                    text=(f"✅ 공시 이력 갱신 완료!\n" 
+                          f"➕ 추가: {result.get('inserted', 0)}건\n" 
+                          f"⏩ 중복: {result.get('skipped', 0)}건\n" 
                           f"⚠️ 에러: {len(result.get('errors', []))}건")
                 )
             else:
@@ -305,9 +323,9 @@ async def update_disclosure_callback(update: Update, context: ContextTypes.DEFAU
                 if response.status_code == 200:
                     result = response.json()
                     await query.edit_message_text(
-                        f"✅ 공시 이력 갱신 완료!\n"
-                        f"➕ 추가: {result.get('inserted', 0)}건\n"
-                        f"⏩ 중복: {result.get('skipped', 0)}건\n"
+                        f"✅ 공시 이력 갱신 완료!\n" 
+                        f"➕ 추가: {result.get('inserted', 0)}건\n" 
+                        f"⏩ 중복: {result.get('skipped', 0)}건\n" 
                         f"⚠️ 에러: {len(result.get('errors', []))}건"
                     )
                 else:

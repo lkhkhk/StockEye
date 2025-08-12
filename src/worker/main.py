@@ -68,61 +68,87 @@ app.include_router(scheduler_router.router, prefix="/api/v1")
 
 # --- Scheduler Jobs ---
 
-async def update_stock_master_job():
+async def update_stock_master_job(chat_id: int = None):
     """종목마스터 정보 갱신 잡"""
-    logger.info(f"[APScheduler] 종목마스터 갱신 잡 실행: {datetime.now()}")
+    job_name = "종목마스터 갱신"
+    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
     db_gen = get_db()
     db = next(db_gen)
     stock_service = StockService()
+    success = False
     try:
         await stock_service.update_stock_master(db)
+        success = True
     except Exception as e:
-        logger.error(f"종목마스터 갱신 잡 실행 중 오류: {e}", exc_info=True)
+        logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
     finally:
         try:
             next(db_gen, None)
         except StopIteration:
             pass
+        if chat_id:
+            status = "성공" if success else "실패"
+            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            r = redis.from_url(f"redis://{REDIS_HOST}")
+            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
-async def update_daily_price_job():
+async def update_daily_price_job(chat_id: int = None):
     """일별시세 갱신 잡"""
-    logger.info(f"[APScheduler] 일별시세 갱신 잡 실행: {datetime.now()}")
+    job_name = "일별시세 갱신"
+    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
     db_gen = get_db()
     db = next(db_gen)
     stock_service = StockService()
+    success = False
     try:
         await stock_service.update_all_daily_prices(db)
+        success = True
     except Exception as e:
-        logger.error(f"일별시세 갱신 잡 실행 중 오류: {e}", exc_info=True)
+        logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
     finally:
         try:
             next(db_gen, None)
         except StopIteration:
             pass
+        if chat_id:
+            status = "성공" if success else "실패"
+            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            r = redis.from_url(f"redis://{REDIS_HOST}")
+            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
-async def check_disclosures_job():
+async def check_disclosures_job(chat_id: int = None):
     """최신 공시 확인 및 알림 잡"""
-    logger.info(f"[APScheduler] 최신 공시 확인 잡 실행: {datetime.now()}")
+    job_name = "최신 공시 확인"
+    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
     db_gen = get_db()
     db = next(db_gen)
     stock_service = StockService()
+    success = False
     try:
         await stock_service.check_and_notify_new_disclosures(db)
+        success = True
     except Exception as e:
-        logger.error(f"최신 공시 확인 잡 실행 중 오류: {e}", exc_info=True)
+        logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
     finally:
         try:
             next(db_gen, None)
         except StopIteration:
             pass
+        if chat_id:
+            status = "성공" if success else "실패"
+            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            r = redis.from_url(f"redis://{REDIS_HOST}")
+            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
-async def check_price_alerts_job():
+async def check_price_alerts_job(chat_id: int = None):
     """가격 알림 조건 확인 및 알림 잡"""
-    logger.info(f"[APScheduler] 가격 알림 체크 잡 실행: {datetime.now()}")
+    job_name = "가격 알림 확인"
+    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
     db_gen = get_db()
     db = next(db_gen)
     alert_service = PriceAlertService()
     stock_service = StockService()
+    success = False
     try:
         active_alerts = alert_service.get_all_active_alerts(db)
         alerts_by_symbol = {}
@@ -160,14 +186,20 @@ async def check_price_alerts_job():
                 logger.error(f"가격 알림 확인 중 '{symbol}' 처리 오류: {e}", exc_info=True)
                 continue
         db.commit()
+        success = True
     except Exception as e:
-        logger.error(f"가격 알림 체크 잡 실행 중 상위 레벨 오류: {e}", exc_info=True)
+        logger.error(f"{job_name} 잡 실행 중 상위 레벨 오류: {e}", exc_info=True)
         db.rollback()
     finally:
         try:
             next(db_gen, None)
         except StopIteration:
             pass
+        if chat_id:
+            status = "성공" if success else "실패"
+            msg = f"✅ 작업 완료: {job_name} 실행이 {status}적으로 끝났습니다."
+            r = redis.from_url(f"redis://{REDIS_HOST}")
+            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
 
 async def notification_listener():
     """Redis 'notifications' 채널을 구독하고 메시지를 처리합니다."""

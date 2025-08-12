@@ -2,6 +2,8 @@
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db, Base, engine
 from src.api.models.user import User
@@ -21,6 +23,9 @@ APP_ENV = os.getenv("APP_ENV", "development")
 WORKER_HOST = os.getenv("WORKER_HOST", "localhost")
 WORKER_PORT = 8001
 WORKER_API_URL = f"http://{WORKER_HOST}:{WORKER_PORT}/api/v1"
+
+class TriggerJobRequest(BaseModel):
+    chat_id: Optional[int] = None
 
 def get_stock_service():
     return StockService()
@@ -161,11 +166,11 @@ async def get_schedule_status(user: User = Depends(get_current_active_admin_user
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
 
 @router.post("/schedule/trigger/{job_id}", tags=["admin"])
-async def trigger_schedule_job(job_id: str, user: User = Depends(get_current_active_admin_user)):
+async def trigger_schedule_job(job_id: str, request: TriggerJobRequest, user: User = Depends(get_current_active_admin_user)):
     """워커의 특정 스케줄러 잡 수동 실행"""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{WORKER_API_URL}/scheduler/trigger/{job_id}")
+            response = await client.post(f"{WORKER_API_URL}/scheduler/trigger/{job_id}", json=request.dict())
             response.raise_for_status()
             return response.json()
     except httpx.RequestError as e:
