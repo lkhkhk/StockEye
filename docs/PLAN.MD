@@ -79,6 +79,14 @@
     -   **해결:** `httpx.Response.ok` 속성 Deprecated 문제로 확인되어, `response.is_success` 또는 `response.status_code < 400`으로 변경하여 해결했습니다.
     -   **검증:** `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트 통과 확인.
 
+-   [ ] **[진행중] 봇 관리자 명령어(`show_schedules`) 오류 해결:**
+    -   **문제:** `show_schedules` 명령어 실행 시 `404 Not Found` 오류 발생.
+    -   **원인:** 아키텍처 변경 (`api` -> `worker`로 스케줄러 이전) 후, `bot`이 `worker`와 통신하는 방법이 구현되지 않음.
+    -   **해결 계획:**
+        1.  `worker` 서비스에 FastAPI를 도입하여 스케줄러 제어용 API를 구현합니다.
+        2.  `api` 서비스에 `worker` API를 호출하는 프록시 엔드포인트를 추가합니다.
+        3.  `bot` 핸들러가 `api` 서비스의 프록시 엔드포인트를 호출하도록 수정합니다.
+
 ## 🌟 Phase 4: 테스트 고도화 및 지침 개선 (유지)
 
 -   [ ] **(기존) 단위 테스트 커버리지 100% 달성**
@@ -114,6 +122,16 @@
 -   [x] `src/bot/handlers/admin.py`
 -   [x] 관련 테스트 파일 모두 수정 (`test_dart_utils.py`, `test_bot_admin.py` 등)
 
+## ✨ Phase 7: 향후 개선 과제
+
+-   [ ] **[신규] 알림 시스템 고도화:**
+    -   **목표:** 현재 텔레그램에 종속된 알림 시스템을 다중 채널(이메일, SMS, 디스코드 등)을 지원하는 유연한 구조로 리팩토링합니다.
+    -   **구현 방향:**
+        1.  API가 Redis에 발행하는 메시지를 `{"user_id": ..., "message": ...}`와 같이 일반화합니다.
+        2.  Worker는 이 메시지를 받아, DB에서 사용자의 알림 설정을 조회한 후, 설정된 모든 채널로 알림을 발송하는 "알림 라우터" 역할을 수행하도록 변경합니다.
+        3.  사용자가 자신의 알림 채널을 설정할 수 있는 API를 구현합니다.
+    -   **관련 문서:** `docs/archive/notification_system_architecture.md`
+
 ---
 
 ## 🐞 이전에 해결된 주요 문제점
@@ -122,7 +140,7 @@
 -   [x] **[Bot/API] 단위 테스트 Mocking/Import 오류 해결:**
     -   [x] `src/bot/tests/unit/test_alert_handler.py`, `test_bot_natural.py`, `test_bot_predict.py`, `test_bot_register.py` 등에서 Mocking 관련 오류 (`TypeError: object AsyncMock can't be used in 'await' expression` 등)가 발생합니다.
     -   [x] `src/bot/tests/unit/test_bot_natural.py`에서 `ModuleNotFoundError: No module named 'src.bot.handlers.natural.session'` 오류가 발생합니다.
-    -   [x] `src/api/tests/unit/test_auth_service.py`에서 `ModuleNotFoundError: No module named 'src/api.services.auth_service.pwd_context'` 오류가 발생합니다.
+    -   [x] `src/api/tests/unit/test_auth_service.py`에서 `ModuleNotFoundError: No module named 'src.api.services.auth_service.pwd_context'` 오류가 발생합니다.
 -   [x] **[API] 서비스 로직 오류 해결:** `src/api/tests/unit/test_predict_service.py`, `test_price_alert_service.py`, `test_stock_service.py` 등에서 `KeyError` 또는 `TypeError`와 같은 로직 오류가 발생합니다.
 -   [x] **[Worker] 단위 테스트 오류 해결:**
     -   [x] `src/worker/tests/unit/test_listener.py`에서 `TypeError: object AsyncMock can't be used in 'await' expression` 오류가 발생합니다.

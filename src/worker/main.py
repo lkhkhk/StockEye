@@ -6,18 +6,17 @@ import json
 from logging.handlers import RotatingFileHandler
 import sys
 from datetime import datetime
+from contextlib import asynccontextmanager
 
-# APScheduler
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from fastapi import FastAPI
 
-# Database
 from src.common.db_connector import get_db
-
-# Services
 from src.api.services.price_alert_service import PriceAlertService
 from src.api.services.stock_service import StockService
 from src.api.models.user import User
 from src.common.notify_service import send_telegram_message
+from src.worker.routers import scheduler as scheduler_router
+from src.worker.scheduler_instance import scheduler # Import scheduler from the new file
 
 # 로깅 설정
 APP_ENV = os.getenv("APP_ENV", "development")
@@ -39,6 +38,33 @@ logger = logging.getLogger(__name__)
 # 환경 변수
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting worker service...")
+    
+    # Add scheduler jobs
+    scheduler.add_job(update_stock_master_job, 'cron', hour=7, minute=0, id='update_stock_master_job')
+    scheduler.add_job(update_daily_price_job, 'cron', hour=18, minute=0, id='update_daily_price_job')
+    scheduler.add_job(check_disclosures_job, 'interval', minutes=240, id='check_disclosures_job')
+    scheduler.add_job(check_price_alerts_job, 'interval', minutes=1, id='check_price_alerts_job')
+    
+    # Start scheduler
+    scheduler.start()
+    logger.info("APScheduler started.")
+
+    # Start notification listener
+    redis_listener_task = asyncio.create_task(notification_listener())
+    
+    yield
+    
+    logger.info("Shutting down worker service...")
+    scheduler.shutdown()
+    redis_listener_task.cancel()
+
+app = FastAPI(lifespan=lifespan)
+app.include_router(scheduler_router.router, prefix="/api/v1")
+
 
 # --- Scheduler Jobs ---
 
@@ -123,7 +149,6 @@ async def check_price_alerts_job():
                         user = db.query(User).filter(User.id == alert.user_id).first()
                         if user and user.telegram_id:
                             msg = f"🔔 가격 알림: {alert.symbol}\n현재가 {current_price}원이 목표가 {alert.target_price}({alert.condition})에 도달했습니다."
-                            # Publish to redis instead of sending directly
                             r = redis.from_url(f"redis://{REDIS_HOST}")
                             await r.publish("notifications", json.dumps({"chat_id": user.telegram_id, "text": msg}, ensure_ascii=False))
                         
@@ -163,24 +188,13 @@ async def notification_listener():
                     await send_telegram_message(chat_id, text)
                     logger.info(f"Sent message to {chat_id}: {text}")
             await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            logger.info("Notification listener task cancelled.")
+            break
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)
             await asyncio.sleep(5)
 
-async def main():
-    """메인 실행 함수"""
-    logger.info("Starting worker service...")
-    
-    scheduler = AsyncIOScheduler(timezone='Asia/Seoul')
-    scheduler.add_job(update_stock_master_job, 'cron', hour=7, minute=0, id='update_stock_master_job')
-    scheduler.add_job(update_daily_price_job, 'cron', hour=18, minute=0, id='update_daily_price_job')
-    scheduler.add_job(check_disclosures_job, 'interval', minutes=240, id='check_disclosures_job')
-    scheduler.add_job(check_price_alerts_job, 'interval', minutes=1, id='check_price_alerts_job')
-    # scheduler.start() # 관리자가 활성화하기 전까지 자동 시작 비활성화
-    logger.info("APScheduler initialized but not started.")
-
-    # 알림 리스너 실행
-    await notification_listener()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+@app.get("/")
+def read_root():
+    return {"message": "Worker service is running"}

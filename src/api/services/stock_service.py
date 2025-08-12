@@ -5,6 +5,7 @@ from src.common.db_connector import get_db
 import yfinance as yf
 import logging
 from datetime import datetime, timedelta
+import re
 
 from src.common.dart_utils import dart_get_all_stocks
 from src.api.models.disclosure import Disclosure
@@ -15,6 +16,14 @@ from src.api.models.system_config import SystemConfig
 from src.common.exceptions import DartApiError
 
 logger = logging.getLogger(__name__)
+
+def _parse_disclosure_type(report_nm: str) -> str:
+    """공시 보고서명에서 '[기재정정]'과 같은 접두사를 제거하고 보고서 유형을 추출합니다."""
+    if not report_nm:
+        return ''
+    # 정규식으로 대괄호로 묶인 접두사 제거 (예: [기재정정] 사업보고서 -> 사업보고서)
+    # 양쪽 공백도 제거
+    return re.sub(r'^\s*\[[^\]]+\]\s*', '', report_nm).strip()
 
 class StockService:
     def __init__(self):
@@ -388,7 +397,7 @@ class StockService:
                     rcept_no=rcept_no,
                     disclosed_at=disclosed_at,
                     url=f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}",
-                    disclosure_type=item.get('report_nm', '')
+                    disclosure_type=_parse_disclosure_type(item.get('report_nm', ''))
                 )
                 new_disclosures_to_add.append(new_disclosure)
                 existing_rcept_nos.add(rcept_no) # 중복 추가 방지
@@ -447,7 +456,7 @@ class StockService:
                     rcept_no=rcept_no,
                     disclosed_at=disclosed_at,
                     url=f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}",
-                    disclosure_type=item.get('report_nm', '')
+                    disclosure_type=_parse_disclosure_type(item.get('report_nm', ''))
                 )
                 db.add(disclosure)
                 result['inserted'] += 1

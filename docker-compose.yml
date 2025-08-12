@@ -6,7 +6,7 @@ services:
     container_name: stockeye-api
     ports:
       - "8000:8000"
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
     env_file:
       - .env.${APP_ENV:-development}
     environment:
@@ -17,6 +17,7 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
       - REDIS_HOST=stockeye-redis
+      - WORKER_HOST=stockeye-worker
     depends_on:
       stockeye-db:
         condition: service_healthy
@@ -95,7 +96,9 @@ services:
       context: .
       dockerfile: src/worker/Dockerfile
     container_name: stockeye-worker
-    command: python main.py
+    command: uvicorn src.worker.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
     env_file:
       - .env.${APP_ENV:-development}
     environment:
@@ -106,13 +109,15 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
       - REDIS_HOST=stockeye-redis
-      
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     depends_on:
       - stockeye-redis
       - stockeye-db
     volumes:
       - ./src/worker:/app/src/worker
       - ./src/common:/app/src/common
+      - ./src/api/services:/app/src/api/services
+      - ./src/api/models:/app/src/api/models
       - ./logs:/logs
     networks:
       - stockeye-network

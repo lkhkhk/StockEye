@@ -12,11 +12,15 @@ from src.api.models.stock_master import StockMaster
 from src.api.services.stock_service import StockService
 from datetime import datetime
 import os
+import httpx
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
 
 APP_ENV = os.getenv("APP_ENV", "development")
+WORKER_HOST = os.getenv("WORKER_HOST", "localhost")
+WORKER_PORT = 8001
+WORKER_API_URL = f"http://{WORKER_HOST}:{WORKER_PORT}/api/v1"
 
 def get_stock_service():
     return StockService()
@@ -141,3 +145,31 @@ async def update_disclosure(
     except Exception as e:
         logger.error(f"update_disclosure 엔드포인트에서 오류 발생: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+@router.get("/schedule/status", tags=["admin"])
+async def get_schedule_status(user: User = Depends(get_current_active_admin_user)):
+    """워커의 스케줄러 상태 및 잡 목록 조회"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{WORKER_API_URL}/scheduler/status")
+            response.raise_for_status()
+            return response.json()
+    except httpx.RequestError as e:
+        logger.error(f"워커 스케줄러 상태 조회 실패: {e}")
+        raise HTTPException(status_code=502, detail="워커 서비스에 연결할 수 없습니다.")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+@router.post("/schedule/trigger/{job_id}", tags=["admin"])
+async def trigger_schedule_job(job_id: str, user: User = Depends(get_current_active_admin_user)):
+    """워커의 특정 스케줄러 잡 수동 실행"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{WORKER_API_URL}/scheduler/trigger/{job_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.RequestError as e:
+        logger.error(f"워커 잡 실행 실패: {e}")
+        raise HTTPException(status_code=502, detail="워커 서비스에 연결할 수 없습니다.")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)

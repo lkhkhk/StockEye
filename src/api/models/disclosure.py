@@ -10,6 +10,6 @@ class Disclosure(Base):
     rcept_no = Column(String(20), nullable=False, unique=True)   # DART 접수번호(공시 고유)
     disclosed_at = Column(DateTime, nullable=False, index=True)  # 공시 일시
     url = Column(String(300), nullable=False)
-    disclosure_type = Column(String(50), nullable=True)          # 보고서 유형 등
+    disclosure_type = Column(String(200), nullable=True)          # 보고서 유형 등
     created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False) 
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)

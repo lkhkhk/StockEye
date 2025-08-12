@@ -124,8 +124,11 @@ build_and_restart_service() {
 
 # Docker 환경 정리
 clean_env() {
+    local is_clear_db=${1:-N} # 기본값 N
     echo -e "${RED}>>> 경고: 이 작업은 모든 Docker 컨테이너, 네트워크, 볼륨을 영구적으로 삭제합니다.${NC}"
-    echo -e "${RED}>>> 데이터베이스 데이터도 삭제되므로 주의하십시오.${NC}"
+    if [[ "$is_clear_db" == [yY] ]]; then
+        echo -e "${RED}>>> 데이터베이스 데이터도 삭제되므로 주의하십시오.${NC}"
+    fi
     read -p "정말 진행하시겠습니까? (y/N): " confirm
     if [[ "$confirm" == [yY] || "$confirm" == [yY][eE][sS] ]]; then
         echo -e "${YELLOW}>>> Docker 환경 정리 중...${NC}"
@@ -133,8 +136,13 @@ clean_env() {
         docker compose down --volumes --remove-orphans
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}>>> Docker 환경 정리 완료.${NC}"
-            sudo rm -rf ./db/* ./logs/*
-            echo -e "${GREEN}>>> DB files, logs 삭제 완료.${NC}"
+            if [[ "$is_clear_db" == [yY] ]]; then
+                sudo rm -rf ./db/* ./logs/*
+                echo -e "${GREEN}>>> DB files, logs 삭제 완료.${NC}"
+            else
+                sudo rm -rf ./logs/*
+                echo -e "${GREEN}>>> logs 삭제 완료.${NC}"
+            fi
         else
             echo -e "${RED}>>> Docker 환경 정리 실패.${NC}"
             exit 1
@@ -183,7 +191,8 @@ main() {
             build_and_restart_service "$@" # 환경 인자 전달
             ;;
         clean)
-            clean_env
+            shift 
+            clean_env "$@" # 환경 인자 전달
             ;;
         help)
             show_help

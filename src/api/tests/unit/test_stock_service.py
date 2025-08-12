@@ -9,6 +9,7 @@ from src.api.models.stock_master import StockMaster
 from src.api.models.user import User
 from src.api.models.price_alert import PriceAlert
 from src.api.models.daily_price import DailyPrice
+from src.api.models.disclosure import Disclosure
 import os
 import yfinance as yf
 import pandas as pd
@@ -720,3 +721,44 @@ class TestStockService:
         assert "DART API Error" in result["errors"][0]
         mock_dart_get_disclosures.assert_called_once_with("000003", max_count=10)
         mock_db.rollback.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('src.api.services.stock_service.dart_get_disclosures')
+    async def test_update_disclosures_parses_disclosure_type(self, mock_dart_get_disclosures, stock_service):
+        """공시 갱신 시 disclosure_type이 올바르게 파싱되는지 테스트"""
+        # GIVEN
+        mock_db = MagicMock()
+        mock_dart_get_disclosures.return_value = [
+            {"rcept_no": "4", "corp_name": "회사4", "report_nm": "[기재정정]사업보고서", "rcept_dt": "20230104"}
+        ]
+        mock_db.query.return_value.filter.return_value.first.return_value = None # 기존 공시 없음
+
+        # WHEN
+        await stock_service.update_disclosures(mock_db, corp_code="000004", stock_code="000004", stock_name="회사4")
+
+        # THEN
+        mock_db.add.assert_called_once()
+        added_disclosure = mock_db.add.call_args[0][0]
+        assert added_disclosure.title == "[기재정정]사업보고서"
+        assert added_disclosure.disclosure_type == "사업보고서"
+
+    @pytest.mark.asyncio
+    @patch('src.api.services.stock_service.dart_get_disclosures')
+    async def test_update_disclosures_for_all_stocks_parses_disclosure_type(self, mock_dart_get_disclosures, stock_service):
+        """전체 공시 갱신 시 disclosure_type이 올바르게 파싱되는지 테스트"""
+        # GIVEN
+        mock_db = MagicMock()
+        mock_dart_get_disclosures.return_value = [
+            {"rcept_no": "5", "corp_name": "회사5", "report_nm": "[첨부정정]반기보고서", "rcept_dt": "20230105", "stock_code": "000005"}
+        ]
+        mock_db.query.return_value.all.return_value = [] # 기존 공시 없음
+
+        # WHEN
+        await stock_service.update_disclosures_for_all_stocks(mock_db)
+
+        # THEN
+        mock_db.bulk_save_objects.assert_called_once()
+        saved_disclosures = mock_db.bulk_save_objects.call_args[0][0]
+        assert len(saved_disclosures) == 1
+        assert saved_disclosures[0].title == "[첨부정정]반기보고서"
+        assert saved_disclosures[0].disclosure_type == "반기보고서"
