@@ -28,26 +28,28 @@ async def dart_get_all_stocks(api_key: Optional[str] = None) -> List[Dict[str, s
         logger.error(f"DART CORPCODE.xml 요청 실패: {e}", exc_info=True)
         raise DartApiError(f"DART API 요청 실패: {e}") from e
     zip_content = resp.content
+    corp_data = []
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
         if 'CORPCODE.xml' not in z.namelist():
             raise RuntimeError("ZIP 파일 내에 CORPCODE.xml이 없습니다.")
         with z.open('CORPCODE.xml') as xml_file:
-            xml_content = xml_file.read()
-    root = etree.fromstring(xml_content)
-    corp_data = []
-    for corp in root.xpath('//list'):
-        corp_code = corp.xpath('./corp_code/text()')
-        corp_name = corp.xpath('./corp_name/text()')
-        stock_code = corp.xpath('./stock_code/text()')
-        if corp_code and corp_name:
-            data = {
-                'corp_code': corp_code[0].strip(),
-                'name': corp_name[0].strip(),
-                'symbol': stock_code[0].strip() if stock_code and stock_code[0].strip() else None
-            }
-            # 6자리 숫자 종목코드만 추가
-            if data['symbol'] and data['symbol'].isdigit() and len(data['symbol']) == 6:
-                corp_data.append(data)
+            # Use iterparse for memory-efficient parsing
+            for event, elem in etree.iterparse(xml_file, tag='list'):
+                corp_code = elem.find('corp_code').text if elem.find('corp_code') is not None else None
+                corp_name = elem.find('corp_name').text if elem.find('corp_name') is not None else None
+                stock_code = elem.find('stock_code').text if elem.find('stock_code') is not None else None
+
+                if corp_code and corp_name:
+                    data = {
+                        'corp_code': corp_code.strip(),
+                        'name': corp_name.strip(),
+                        'symbol': stock_code.strip() if stock_code else None
+                    }
+                    # 6자리 숫자 종목코드만 추가
+                    if data['symbol'] and data['symbol'].isdigit() and len(data['symbol']) == 6:
+                        corp_data.append(data)
+                # Clear the element from memory to free up resources
+                elem.clear()
     return corp_data
 
 async def dart_get_disclosures(corp_code: str, api_key: Optional[str] = None, bgn_de: Optional[str] = None, end_de: Optional[str] = None, max_count: int = 10) -> List[Dict[str, str]]:
