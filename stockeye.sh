@@ -136,7 +136,7 @@ clean_env() {
     if [[ "$confirm" == [yY] || "$confirm" == [yY][eE][sS] ]]; then
         echo -e "${YELLOW}>>> Docker 환경 정리 중(환경: $env)...${NC}"
         cd "$PROJECT_ROOT" || exit 1
-        APP_ENV=$env docker docker compose down --volumes --remove-orphans
+        APP_ENV=$env docker compose down --volumes --remove-orphans
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}>>> Docker 환경 정리 완료.${NC}"
             if [[ "$is_clear_db" == [yY] ]]; then
