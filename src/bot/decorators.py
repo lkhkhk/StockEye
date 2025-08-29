@@ -33,7 +33,7 @@ def ensure_user_registered(func):
                     logger.debug(f"사용자 등록/확인 성공: telegram_id={user_id}")
 
         except Exception as e:
-            logger.error(f"사용자 등록/확인 중 예외 발생: {e}")
+            logger.error(f"사용자 등록/확인 중 예외 발생:", exc_info=True)
         
         # 원래 핸들러 함수 실행
         return await func(update, context, *args, **kwargs)

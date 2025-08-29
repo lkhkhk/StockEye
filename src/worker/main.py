@@ -218,7 +218,7 @@ async def notification_listener():
         r = await redis.from_url(f"redis://{REDIS_HOST}", decode_responses=True)
         logger.info("[Listener] Redis connection successful.")
         
-        pubsub = await r.pubsub()
+        pubsub = r.pubsub()
         await pubsub.subscribe("notifications")
         logger.info(f"Subscribed to 'notifications' channel on {REDIS_HOST}")
 

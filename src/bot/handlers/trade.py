@@ -22,9 +22,10 @@ async def trade_simulate_command(update: Update, context: ContextTypes.DEFAULT_T
             "quantity": int(quantity)
         }
         async with get_retry_client() as client:
-            response = await client.post(f"{API_URL}/trade/simulate", json=payload, timeout=10)
+            response = await client.post(f"{API_URL}/api/v1/simulated-trade/", json=payload, timeout=10)
             if response.status_code < 400:
-                await update.message.reply_text(response.json().get("message", "모의 거래 기록 완료"))
+                data = await response.json()
+                await update.message.reply_text(data.get("message", "모의 거래 기록 완료"))
             else:
                 await update.message.reply_text(f"모의 거래 기록 실패: API 응답 코드 {response.status_code}")
     except Exception as e:
@@ -34,9 +35,9 @@ async def trade_history_command(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id
     try:
         async with get_retry_client() as client:
-            response = await client.get(f"{API_URL}/trade/history/{user_id}", timeout=10)
+            response = await client.get(f"{API_URL}/api/v1/simulated-trade/history/{user_id}", timeout=10)
             if response.status_code < 400:
-                data = response.json()
+                data = await response.json()
                 trades = data.get("trades", [])
                 if not trades:
                     await update.message.reply_text("모의 거래 기록이 없습니다.")

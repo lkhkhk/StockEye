@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from telegram import Update, Message, Chat, User
 from telegram.ext import ContextTypes
+import httpx # Added this import
 
 from src.bot.handlers import history
 from src.bot.handlers.history import API_URL
@@ -32,6 +33,7 @@ class TestBotHistory:
         """예측 이력이 있는 경우 성공 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock() # Added to prevent RuntimeWarning
         mock_response.json.return_value = {
             "history": [
                 {"created_at": "2025-01-01T12:00:00", "symbol": "005930", "prediction": "상승"},
@@ -52,6 +54,7 @@ class TestBotHistory:
         """예측 이력이 없는 경우 성공 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock() # Added to prevent RuntimeWarning
         mock_response.json.return_value = {"history": []}
         mock_get_retry_client.get.return_value = mock_response
 
@@ -62,21 +65,41 @@ class TestBotHistory:
     @pytest.mark.asyncio
     async def test_history_command_api_request_error(self, mock_get_retry_client):
         """API 요청 실패 시 오류 메시지 테스트"""
-        mock_get_retry_client.get.side_effect = Exception("API Error")
+        mock_get_retry_client.get.side_effect = httpx.RequestError("API Error", request=MagicMock())
 
         await history.history_command(self.update, self.context)
 
-        self.update.message.reply_text.assert_called_once_with("예측 이력 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+        self.update.message.reply_text.assert_called_once_with(f"서버 통신 중 오류가 발생했습니다: API Error")
 
     @pytest.mark.asyncio
     async def test_history_command_api_http_error(self, mock_get_retry_client):
         """API가 HTTP 오류를 반환할 때 테스트"""
         mock_response = AsyncMock()
         mock_response.status_code = 500
-        mock_response.raise_for_status.side_effect = Exception("Server Error")
+        mock_response.raise_for_status = MagicMock(side_effect=httpx.HTTPStatusError("Server Error", request=MagicMock(), response=mock_response))
         mock_get_retry_client.get.return_value = mock_response
 
         await history.history_command(self.update, self.context)
         
+        self.update.message.reply_text.assert_called_once_with("예측 이력 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+
+    @pytest.mark.asyncio
+    async def test_history_command_malformed_history_data(self, mock_get_retry_client):
+        """이력 데이터에 예상 키가 누락된 경우 오류 처리 테스트"""
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock() # Added to prevent RuntimeWarning
+        # Simulate malformed data: missing 'symbol' key in one record
+        mock_response.json.return_value = {
+            "history": [
+                {"created_at": "2025-01-01T12:00:00", "symbol": "005930", "prediction": "상승"},
+                {"created_at": "2025-01-02T12:00:00", "prediction": "하락"} # Missing 'symbol'
+            ]
+        }
+        mock_get_retry_client.get.return_value = mock_response
+
+        await history.history_command(self.update, self.context)
+
+        # Expect the generic error message due to KeyError
         self.update.message.reply_text.assert_called_once_with("예측 이력 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 

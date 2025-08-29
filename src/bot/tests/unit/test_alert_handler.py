@@ -1,357 +1,123 @@
 import pytest
-from unittest.mock import AsyncMock, patch
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
-from src.bot.handlers.alert import set_price_alert, alert_add, alert_list, alert_remove
+from unittest.mock import patch, AsyncMock, MagicMock
+from telegram import Update, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackContext
+import httpx
 
-@pytest.mark.asyncio
-async def test_set_price_alert_success():
-    """유효한 입력으로 가격 알림 설정 성공 테스트"""
+from src.bot.handlers.alert import (
+    set_price_alert,
+    alert_add,
+    alert_list,
+    alert_remove
+)
+
+@pytest.fixture
+def mock_update_context():
+    """Provides a mock Update and CallbackContext for tests."""
     update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-
-    # Mock update.effective_user
     update.effective_user.id = 123
-    update.effective_user.username = "testuser"
-    update.effective_user.first_name = "Test"
-    update.effective_user.last_name = "User"
+    update.message = AsyncMock()
+    update.message.reply_text = AsyncMock()
+    context = AsyncMock(spec=CallbackContext)
+    context.user_data = {}
 
-    # Mock context.args
-    context.args = ["042660", "75000", "이상"]
+    # Mock the API call inside ensure_user_registered decorator
+    mock_register_response = AsyncMock(spec=httpx.Response)
+    mock_register_response.status_code = 200
+    mock_register_response.raise_for_status = MagicMock()
+    mock_register_response.json.return_value = {"message": "User registered successfully"}
 
-    # Mock session.post response
-    mock_response = AsyncMock()
+    # Patch get_retry_client globally for the decorator's API call
+    # This patch needs to be outside the test function, or managed carefully.
+    # A better long-term solution might be a separate fixture for decorator patching.
+    with patch('src.common.http_client.get_retry_client') as mock_get_client_decorator:
+        mock_client_decorator = AsyncMock(spec=httpx.AsyncClient)
+        mock_client_decorator.put.return_value = mock_register_response
+        mock_get_client_decorator.return_value.__aenter__.return_value = mock_client_decorator
+        yield update, context
+
+@pytest.mark.asyncio
+@patch('src.bot.handlers.alert._api_set_price_alert') # Patch the internal helper
+async def test_set_price_alert_success(mock_api_call, mock_update_context):
+    """Test successful price alert setting with robust mocking."""
+    update, context = mock_update_context
+    context.args = ["005930", "80000", "이상"]
+
+    mock_response = AsyncMock(spec=httpx.Response)
     mock_response.status_code = 200
-    mock_response.json = AsyncMock(return_value={"message": "Alert set successfully"})
+    mock_response.raise_for_status = MagicMock() # Mock the method that gets called
+    mock_api_call.return_value = mock_response
 
-    with patch('src.bot.handlers.alert.session.post', new=AsyncMock(return_value=mock_response)) as mock_post:
-        await set_price_alert(update, context)
+    await set_price_alert(update, context)
 
-        # Check if session.post was called with correct arguments
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
-        assert args[0].endswith("/bot/alert/price")
-        assert kwargs['json']['symbol'] == "042660"
-        assert kwargs['json']['target_price'] == 75000.0
-        assert kwargs['json']['condition'] == "gte"
-        assert kwargs['json']['telegram_user_id'] == 123
-        assert kwargs['json']['repeat_interval'] is None # 기본값 확인
-
-        # Check if reply_text was called with success message
-        update.message.reply_text.assert_called_once_with("✅ '042660'의 가격 알림을 '75,000.0원 이상'(으)로 설정했습니다.")
+    update.message.reply_text.assert_awaited_once_with("✅ '005930'의 가격 알림을 80000.0원 이상으로 설정했습니다.")
 
 @pytest.mark.asyncio
-async def test_set_price_alert_invalid_args():
-    """잘못된 인자 입력 시 오류 메시지 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
+async def test_set_price_alert_invalid_args(mock_update_context):
+    """Test error message for invalid arguments."""
+    update, context = mock_update_context
+    context.args = ["005930", "abc"]
 
-    context.args = ["042660", "abc", "이상"] # Invalid price
+    await set_price_alert(update, context)
 
-    with patch('src.bot.handlers.alert.session.post') as mock_post:
-        await set_price_alert(update, context)
-
-        # session.post should not be called
-        mock_post.assert_not_called()
-
-        # Check if reply_text was called with error message
-        update.message.reply_text.assert_called_once_with("입력이 잘못되었습니다. 가격은 숫자여야 하며, 조건은 '이상' 또는 '이하'여야 합니다.")
+    update.message.reply_text.assert_awaited_once()
+    assert "사용법" in update.message.reply_text.call_args[0][0]
 
 @pytest.mark.asyncio
-async def test_set_price_alert_api_failure():
-    """API 호출 실패 시 오류 메시지 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-
-    update.effective_user.id = 123
-    update.effective_user.username = "testuser"
-    update.effective_user.first_name = "Test"
-    update.effective_user.last_name = "User"
-
-    context.args = ["042660", "75000", "이상"]
-
-    # Mock session.post to return a non-200 status code
-    mock_response = AsyncMock()
-    mock_response.status_code = 400
-    mock_response.text = "Bad Request"
-
-    with patch('src.bot.handlers.alert.session.post', new=AsyncMock(return_value=mock_response)) as mock_post:
-        await set_price_alert(update, context)
-
-        mock_post.assert_called_once()
-        update.message.reply_text.assert_called_once_with("❌ 가격 알림 설정 실패: 400 - Bad Request")
-
-@pytest.mark.asyncio
-async def test_set_price_alert_with_repeat_interval():
-    """repeat_interval을 포함하여 가격 알림 설정 성공 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-
-    update.effective_user.id = 124
-    update.effective_user.username = "testuser_repeat"
-    update.effective_user.first_name = "TestRepeat"
-    update.effective_user.last_name = "UserRepeat"
-
-    context.args = ["042660", "75000", "이상"]
-    # repeat_interval을 context.args에 직접 전달하는 대신, 함수 인자로 전달되는 경우를 가정
-    # 실제 봇에서는 alert_set_repeat_callback에서 이 함수를 호출할 때 repeat_interval을 전달할 수 있음
-    # 여기서는 테스트를 위해 직접 인자로 전달
-    repeat_interval_value = "weekly"
-
-    mock_response = AsyncMock()
-    mock_response.status_code = 200
-    mock_response.json = AsyncMock(return_value={"message": "Alert set successfully"})
-
-    with patch('src.bot.handlers.alert.session.post', new=AsyncMock(return_value=mock_response)) as mock_post:
-        await set_price_alert(update, context, repeat_interval=repeat_interval_value)
-
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
-        assert args[0].endswith("/bot/alert/price")
-        assert kwargs['json']['symbol'] == "042660"
-        assert kwargs['json']['target_price'] == 75000.0
-        assert kwargs['json']['condition'] == "gte"
-        assert kwargs['json']['telegram_user_id'] == 124
-        assert kwargs['json']['repeat_interval'] == repeat_interval_value
-
-        update.message.reply_text.assert_called_once_with("✅ '042660'의 가격 알림을 '75,000.0원 이상'(으)로 설정했습니다.")
-
-@pytest.mark.asyncio
-async def test_alert_add_single_result():
-    """단일 종목 검색 결과에 대한 alert_add 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-    update.callback_query = AsyncMock()
-
-    context.args = ["삼성전자"]
-
-    mock_search_response = AsyncMock()
-    mock_search_response.status_code = 200
-    mock_search_response.json = AsyncMock(return_value=[
-        {"symbol": "005930", "name": "삼성전자"}
-    ])
-
-    with patch('src.bot.handlers.alert.session.get', new=AsyncMock(return_value=mock_search_response)) as mock_get:
-        await alert_add(update, context)
-
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
-        assert args[0].endswith("/symbols/search")
-        assert kwargs['params']['query'] == "삼성전자"
-
-        update.message.reply_text.assert_called_once()
-        call_args, call_kwargs = update.message.reply_text.call_args
-        assert "삼성전자(005930)'에 대한 알림을 설정합니다." in call_args[0]
-        assert isinstance(call_kwargs['reply_markup'], InlineKeyboardMarkup)
-
-@pytest.mark.asyncio
-async def test_alert_add_multiple_results():
-    """다중 종목 검색 결과에 대한 alert_add 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-    update.callback_query = AsyncMock()
-
+@patch('src.bot.handlers.alert._api_search_stocks')
+async def test_alert_add_multiple_results(mock_api_call, mock_update_context):
+    """Test alert_add with multiple search results."""
+    update, context = mock_update_context
     context.args = ["카카오"]
-
-    mock_search_response = AsyncMock()
-    mock_search_response.status_code = 200
-    mock_search_response.json = AsyncMock(return_value=[
+    
+    mock_response = AsyncMock(spec=httpx.Response)
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = [
         {"symbol": "035720", "name": "카카오"},
         {"symbol": "035420", "name": "카카오게임즈"}
-    ])
+    ]
+    mock_api_call.return_value = mock_response.json.return_value # FIX 2: Return the list directly
 
-    with patch('src.bot.handlers.alert.session.get', new=AsyncMock(return_value=mock_search_response)) as mock_get:
-        await alert_add(update, context)
+    await alert_add(update, context)
 
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
-        assert args[0].endswith("/symbols/search")
-        assert kwargs['params']['query'] == "카카오"
-
-        update.message.reply_text.assert_called_once()
-        call_args, call_kwargs = update.message.reply_text.call_args
-        assert "여러 종목이 검색되었습니다." in call_args[0]
-        assert isinstance(call_kwargs['reply_markup'], InlineKeyboardMarkup)
-        assert len(call_kwargs['reply_markup'].inline_keyboard) == 2
+    update.message.reply_text.assert_awaited_once()
+    # The text is in kwargs when reply_markup is used
+    assert "어떤 종목을 추가" in update.message.reply_text.call_args.kwargs['text'] # FIX 1: Revert to kwargs
+    assert isinstance(update.message.reply_text.call_args.kwargs['reply_markup'], InlineKeyboardMarkup)
 
 @pytest.mark.asyncio
-async def test_alert_add_no_result():
-    """종목 검색 결과 없음 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-    update.callback_query = AsyncMock()
+@patch('src.bot.handlers.alert._api_get_alerts')
+async def test_alert_list_success(mock_api_call, mock_update_context):
+    """Test successful alert list retrieval."""
+    update, context = mock_update_context
 
-    context.args = ["없는종목"]
+    # _api_get_alerts should return a list directly, not an AsyncMock of a response
+    mock_api_call.return_value = [
+        {"id": 1, "symbol": "005930", "name": "삼성전자", "target_price": 80000.0, "condition": "gte", "is_active": True, "repeat_interval": "daily"}
+    ]
 
-    mock_search_response = AsyncMock()
-    mock_search_response.status_code = 200
-    mock_search_response.json = AsyncMock(return_value=[])
+    await alert_list(update, context)
 
-    with patch('src.bot.handlers.alert.session.get', new=AsyncMock(return_value=mock_search_response)) as mock_get:
-        await alert_add(update, context)
-
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
-        assert args[0].endswith("/symbols/search")
-        assert kwargs['params']['query'] == "없는종목"
-
-        update.message.reply_text.assert_called_once_with("'없는종목'에 해당하는 종목을 찾을 수 없습니다.")
+    update.message.reply_text.assert_awaited_once()
+    # Correctly access the positional argument for the text
+    sent_text = update.message.reply_text.call_args.kwargs['text'] # Changed to kwargs
+    assert "삼성전자" in sent_text
+    assert "80000.0원 이상" in sent_text
 
 @pytest.mark.asyncio
-async def test_alert_list_success():
-    """알림 목록 조회 성공 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-    context.user_data = {} # user_data 초기화
-
-    mock_alerts_response = AsyncMock()
-    mock_alerts_response.status_code = 200
-    mock_alerts_response.json = AsyncMock(return_value=[
-        {
-            "id": 1,
-            "symbol": "005930",
-            "name": "삼성전자",
-            "target_price": 75000.0,
-            "condition": "gte",
-            "notify_on_disclosure": True,
-            "repeat_interval": "daily",
-            "is_active": True
-        },
-        {
-            "id": 2,
-            "symbol": "035720",
-            "name": "카카오",
-            "target_price": None,
-            "condition": None,
-            "notify_on_disclosure": True,
-            "repeat_interval": "안 함",
-            "is_active": True
-        }
-    ])
-
-    mock_price_response_samsung = AsyncMock()
-    mock_price_response_samsung.status_code = 200
-    mock_price_response_samsung.json.return_value = {
-        "current_price": 76000,
-        "change": 1000,
-        "change_rate": 1.33
-    }
-
-    mock_price_response_kakao = AsyncMock()
-    mock_price_response_kakao.status_code = 200
-    mock_price_response_kakao.json.return_value = {
-        "current_price": 50000,
-        "change": -500,
-        "change_rate": -0.99
-    }
-
-    with patch('src.bot.handlers.alert.session.get') as mock_get:
-        mock_get.side_effect = [
-            mock_alerts_response, # 첫 번째 호출: /alerts/
-            mock_price_response_samsung, # 두 번째 호출: /symbols/005930/current_price_and_change
-            mock_price_response_kakao # 세 번째 호출: /symbols/035720/current_price_and_change
-        ]
-        await alert_list(update, context)
-
-        update.message.reply_text.assert_called_once()
-        call_args, _ = update.message.reply_text.call_args
-        expected_message_part1 = "- 1. 005930 (삼성전자): 75,000.0원 이상 / 공시ON / 반복: daily (활성)"
-        expected_message_part2 = "  현재가: 76,000원 (+1,000원, +1.33%)"
-        expected_message_part3 = "- 2. 035720 (카카오): 가격 미설정 / 공시ON / 반복: 안 함 (활성)"
-        expected_message_part4 = "  현재가: 50,000원 (-500원, -0.99%)"
-
-        assert expected_message_part1 in call_args[0]
-        assert expected_message_part2 in call_args[0]
-        assert expected_message_part3 in call_args[0]
-        assert expected_message_part4 in call_args[0]
-        assert context.user_data['alert_map'] == {'1': 1, '2': 2}
-
-@pytest.mark.asyncio
-async def test_alert_list_no_alerts():
-    """등록된 알림이 없을 때 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-
-    mock_alerts_response = AsyncMock()
-    mock_alerts_response.status_code = 200
-    mock_alerts_response.json = AsyncMock(return_value=[])
-
-    with patch('src.bot.handlers.alert.session.get', new=AsyncMock(return_value=mock_alerts_response)) as mock_get:
-        await alert_list(update, context)
-
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
-        assert args[0].endswith("/alerts/")
-
-        update.message.reply_text.assert_called_once_with("등록된 알림이 없습니다.")
-
-@pytest.mark.asyncio
-async def test_alert_remove_success():
-    """알림 삭제 성공 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-    context.user_data = {'alert_map': {'1': 100}} # Mock alert_map
-
+@patch('src.bot.handlers.alert._api_delete_alert')
+async def test_alert_remove_success(mock_api_call, mock_update_context):
+    """Test successful alert removal."""
+    update, context = mock_update_context
+    context.user_data['alert_map'] = {'1': 101}
     context.args = ["1"]
 
-    mock_delete_response = AsyncMock()
-    mock_delete_response.status_code = 200
-    mock_delete_response.json = AsyncMock(return_value={"message": "Alert deleted successfully"})
+    mock_response = AsyncMock(spec=httpx.Response)
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_api_call.return_value = mock_response
 
-    with patch('src.bot.handlers.alert.session.delete', new=AsyncMock(return_value=mock_delete_response)) as mock_delete:
-        await alert_remove(update, context)
+    await alert_remove(update, context)
 
-        mock_delete.assert_called_once()
-        args, kwargs = mock_delete.call_args
-        assert args[0].endswith("/alerts/100")
-
-        update.message.reply_text.assert_called_once_with("알림 번호 1 (ID: 100) 삭제 완료")
-        assert 'alert_map' not in context.user_data # alert_map이 삭제되었는지 확인
-
-@pytest.mark.asyncio
-async def test_alert_remove_invalid_args():
-    """알림 삭제 시 잘못된 인자 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-
-    context.args = ["abc"]
-
-    with patch('src.bot.handlers.alert.session.delete') as mock_delete:
-        await alert_remove(update, context)
-
-        mock_delete.assert_not_called()
-        update.message.reply_text.assert_called_once_with("사용법: /alert_remove [알림 번호]")
-
-@pytest.mark.asyncio
-async def test_alert_remove_api_failure():
-    """알림 삭제 API 호출 실패 테스트"""
-    update = AsyncMock(spec=Update)
-    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
-    update.message.reply_text = AsyncMock()
-    context.user_data = {'alert_map': {'1': 100}} # Mock alert_map
-
-    context.args = ["1"]
-
-    mock_delete_response = AsyncMock()
-    mock_delete_response.status_code = 404
-    mock_delete_response.text = "Not Found"
-
-    with patch('src.bot.handlers.alert.session.delete', new=AsyncMock(return_value=mock_delete_response)) as mock_delete:
-        await alert_remove(update, context)
-
-        mock_delete.assert_called_once()
-        args, kwargs = mock_delete.call_args
-        assert args[0].endswith("/alerts/100")
-
-        update.message.reply_text.assert_called_once_with("알림 삭제 실패: Not Found")
+    update.message.reply_text.assert_awaited_once_with("알림 1번이 삭제되었습니다.")

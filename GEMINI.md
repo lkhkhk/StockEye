@@ -112,7 +112,7 @@ graph TD
 
 6.  **Mocking 전략:**
     *   **`httpx` 클라이언트 Mocking:** `httpx`와 같이 `async with` 컨텍스트 매니저를 사용하는 외부 라이브러리를 모의(mock)할 때, 컨텍스트 매니저 자체(`get_retry_client`)를 모의하려고 시도하면 `status_code`와 같은 속성이 제대로 전달되지 않는 문제가 발생할 수 있습니다.
-    *   **해결책:** 이 경우, `@patch('httpx.AsyncClient.get')` 또는 `@patch('httpx.AsyncClient.post')`와 같이 **라이브러리의 저수준 메서드를 직접 패치**하는 것이 더 안정적이고 효과적입니다. 이 방법은 복잡한 컨텍스트 매니저의 내부 동작을 우회하고, 테스트의 의도를 명확하게 유지하는 데 도움이 됩니다.
+    *   **해결책:** 이 경우, `@patch('httpx.AsyncClient.get')` 또는 `@patch('httpx.AsyncClient.post')`와 같이 **라이브러리의 저수준 메서드를 직접 패치**하는 것이 더 안정적이고 효과적입니다. 더 자세한 내용은 [httpx Mocking 가이드](docs/mocking_guide.md)를 참조하십시오.
 
 ---
 

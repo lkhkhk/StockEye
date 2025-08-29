@@ -54,11 +54,11 @@ def admin_only(func):
 
 # --- 관리자 명령어 텍스트 ---
 ADMIN_COMMANDS_TEXT = (
-    "[관리자 전용 명령어 안내]\n"
-    "\n"
-    "**시스템 관리**\n"
-    "- /admin_stats          : 전체 시스템 통계 조회\n"
-    "- /show_schedules       : 스케줄러 상태 및 등록된 잡 목록 조회 (잡 즉시 실행 가능)\n"
+    "[관리자 전용 명령어 안내]\n" 
+    "\n" 
+    "**시스템 관리**\n" 
+    "- /admin_stats          : 전체 시스템 통계 조회\n" 
+    "- /show_schedules       : 스케줄러 상태 및 등록된 잡 목록 조회 (잡 즉시 실행 가능)\n" 
     "- /trigger_job [job_id] : (비상용) 특정 스케줄러 잡 ID로 수동 실행\n"
 )
 
@@ -109,8 +109,7 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
 
                     message += f"🔹 **{job_name}**\n"
                     message += f"   - ID: `{job_id}`\n"
-                    message += f"   - 다음 실행: {next_run_time}\n"
-                    
+                    message += f"   - 다음 실행: {next_run_time}\n"                    
                     button = InlineKeyboardButton(f"▶️ 즉시 실행: {job_name}", callback_data=f"trigger_job_{job_id}")
                     keyboard.append([button])
 
@@ -237,7 +236,7 @@ async def test_notify_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         await update.message.reply_text(f"테스트 알림 전송에 실패했습니다. 텔레그램 봇 설정을 확인해주세요.")
 
-# --- 핸들러 등록 --- #
+# --- 핸들러 등록 ---
 def get_admin_handler():
     return CommandHandler("admin", admin_command)
 
