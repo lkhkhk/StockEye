@@ -3,8 +3,8 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from src.api.schemas.predict import StockPredictionRequest, StockPredictionResponse
-from src.api.models.prediction_history import PredictionHistory
+from src.common.schemas.predict import StockPredictionRequest, StockPredictionResponse
+from src.common.models.prediction_history import PredictionHistory
 from src.common.db_connector import get_db
 from datetime import datetime
 from typing import Callable

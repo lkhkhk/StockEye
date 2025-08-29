@@ -3,8 +3,8 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock, ANY
 from src.api.main import app
-from src.api.models.user import User
-from src.api.models.prediction_history import PredictionHistory
+from src.common.models.user import User
+from src.common.models.prediction_history import PredictionHistory
 from datetime import datetime
 
 client = TestClient(app)

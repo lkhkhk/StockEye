@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from src.api.models.user import User
-from src.api.models.price_alert import PriceAlert
+from src.common.models.user import User
+from src.common.models.price_alert import PriceAlert
 
 class TestTelegramAlertRouter:
     """텔레그램 봇을 통한 가격 알림 라우터 테스트"""

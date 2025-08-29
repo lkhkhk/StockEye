@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
 from src.common.db_connector import Base # get_db 임포트 추가
-from src.api.models.user import User # User 모델 임포트 추가
+from src.common.models.user import User # User 모델 임포트 추가
 import pkgutil
 import importlib
 

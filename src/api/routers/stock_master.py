@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
-from src.api.models.stock_master import StockMaster
+from src.common.models.stock_master import StockMaster
 from src.common.db_connector import get_db
 from typing import List
-from src.api.services.stock_service import StockService
+from src.common.services.stock_service import StockService
 
 router = APIRouter(prefix="/symbols", tags=["symbols"])
 

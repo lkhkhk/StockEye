@@ -1,13 +1,13 @@
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
-from src.api.models.price_alert import PriceAlert
-from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate
+from src.common.models.price_alert import PriceAlert
+from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate
 from fastapi import HTTPException, status
 from typing import List, Optional
 from datetime import datetime
 import time
-from src.api.models.daily_price import DailyPrice
+from src.common.models.daily_price import DailyPrice
 import redis.asyncio as redis
 import os
 import json

@@ -1,8 +1,0 @@
-feat: Enhance stock symbol management and documentation
-
-- Implement pagination for stock symbol search API endpoint and bot handlers.
-- Improve `/symbols` and `/symbol_info` bot commands to support search and pagination.
-- Update system architecture diagram in `docs/1_Project_Overview.md`.
-- Add new stock master test data for comprehensive testing.
-- Refactor and update bot symbol handler tests.
-- Clean up old documentation files.

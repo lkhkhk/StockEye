@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from src.api.models.stock_master import StockMaster
-from src.api.models.daily_price import DailyPrice
+from src.common.models.stock_master import StockMaster
+from src.common.models.daily_price import DailyPrice
 from src.common.db_connector import get_db
 import yfinance as yf
 import logging
@@ -8,11 +8,11 @@ from datetime import datetime, timedelta
 import re
 
 from src.common.dart_utils import dart_get_all_stocks
-from src.api.models.disclosure import Disclosure
+from src.common.models.disclosure import Disclosure
 from src.common.dart_utils import dart_get_disclosures
-from src.api.models.price_alert import PriceAlert
-from src.api.models.user import User
-from src.api.models.system_config import SystemConfig
+from src.common.models.price_alert import PriceAlert
+from src.common.models.user import User
+from src.common.models.system_config import SystemConfig
 from src.common.exceptions import DartApiError
 
 logger = logging.getLogger(__name__)

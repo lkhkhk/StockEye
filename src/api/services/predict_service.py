@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import pandas as pd
-from src.api.models.daily_price import DailyPrice
+from src.common.models.daily_price import DailyPrice
 import logging
 
 logger = logging.getLogger(__name__)

@@ -2,9 +2,9 @@
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from src.api.schemas.simulated_trade import SimulatedTradeItem
-from src.api.models.simulated_trade import SimulatedTrade
-from src.api.services.stock_service import StockService
+from src.common.schemas.simulated_trade import SimulatedTradeItem
+from src.common.models.simulated_trade import SimulatedTrade
+from src.common.services.stock_service import StockService
 from src.api.services.user_service import UserService # UserService 임포트
 from src.common.db_connector import get_db
 from datetime import datetime

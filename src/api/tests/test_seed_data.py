@@ -4,10 +4,10 @@ from sqlalchemy import create_engine
 import os
 from datetime import datetime, timedelta
 
-from src.api.models.user import User
-from src.api.models.stock_master import StockMaster
-from src.api.models.price_alert import PriceAlert # Import PriceAlert model
-from src.api.models.daily_price import DailyPrice # Import DailyPrice model
+from src.common.models.user import User
+from src.common.models.stock_master import StockMaster
+from src.common.models.price_alert import PriceAlert # Import PriceAlert model
+from src.common.models.daily_price import DailyPrice # Import DailyPrice model
 
 # Database connection
 DB_USER = os.getenv("DB_USER", "testuser")

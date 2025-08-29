@@ -3,8 +3,8 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock, ANY
 from src.api.main import app
-from src.api.models.user import User
-from src.api.models.price_alert import PriceAlert
+from src.common.models.user import User
+from src.common.models.price_alert import PriceAlert
 
 client = TestClient(app)
 

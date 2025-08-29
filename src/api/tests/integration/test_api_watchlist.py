@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from src.api.models.user import User
+from src.common.models.user import User
 
 from src.api.tests.helpers import create_test_user # helpers에서 create_test_user 임포트
 

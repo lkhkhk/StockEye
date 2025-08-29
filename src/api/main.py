@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 # 'auth' 라우터 임포트 추가
 from src.api.routers import user, notification, predict, watchlist, simulated_trade, prediction_history, admin, stock_master, bot_router, auth
 from src.common.db_connector import Base, engine, SessionLocal
-from src.api.models.stock_master import StockMaster
-from src.api.models.daily_price import DailyPrice # 추가
+from src.common.models.stock_master import StockMaster
+from src.common.models.daily_price import DailyPrice # 추가
 import sys
 import os
 import logging

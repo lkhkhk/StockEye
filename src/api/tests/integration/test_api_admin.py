@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from src.api.models.user import User
-from src.api.models.stock_master import StockMaster
+from src.common.models.user import User
+from src.common.models.stock_master import StockMaster
 from src.api.auth.jwt_handler import get_current_active_admin_user
 from src.api.tests.helpers import create_test_user, get_auth_headers
 from unittest.mock import patch, MagicMock

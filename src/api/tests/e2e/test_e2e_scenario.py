@@ -1,17 +1,17 @@
 import pytest
 from fastapi.testclient import TestClient
-from src.api.models.user import User
+from src.common.models.user import User
 from uuid import uuid4
 
 # 모든 SQLAlchemy 모델을 임포트하여 테스트 DB 스키마를 완전하게 생성
-from src.api.models.price_alert import PriceAlert
-from src.api.models.watchlist import Watchlist
-from src.api.models.stock_master import StockMaster
-from src.api.models.daily_price import DailyPrice
-from src.api.models.disclosure import Disclosure
-from src.api.models.prediction_history import PredictionHistory
-from src.api.models.simulated_trade import SimulatedTrade
-from src.api.models.system_config import SystemConfig
+from src.common.models.price_alert import PriceAlert
+from src.common.models.watchlist import Watchlist
+from src.common.models.stock_master import StockMaster
+from src.common.models.daily_price import DailyPrice
+from src.common.models.disclosure import Disclosure
+from src.common.models.prediction_history import PredictionHistory
+from src.common.models.simulated_trade import SimulatedTrade
+from src.common.models.system_config import SystemConfig
 
 @pytest.mark.asyncio
 async def test_e2e_scenario(client: TestClient, real_db, test_stock_master_data):

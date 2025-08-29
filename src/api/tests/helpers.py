@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from uuid import uuid4
 
-from src.api.models.user import User
+from src.common.models.user import User
 from src.api.auth.jwt_handler import create_access_token, get_password_hash
 from datetime import timedelta
 

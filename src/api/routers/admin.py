@@ -6,12 +6,12 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db, Base, engine
-from src.api.models.user import User
+from src.common.models.user import User
 from src.api.auth.jwt_handler import get_current_active_admin_user
-from src.api.models.simulated_trade import SimulatedTrade
-from src.api.models.prediction_history import PredictionHistory
-from src.api.models.stock_master import StockMaster
-from src.api.services.stock_service import StockService
+from src.common.models.simulated_trade import SimulatedTrade
+from src.common.models.prediction_history import PredictionHistory
+from src.common.models.stock_master import StockMaster
+from src.common.services.stock_service import StockService
 from datetime import datetime
 import os
 import httpx
@@ -178,3 +178,9 @@ async def trigger_schedule_job(job_id: str, request: TriggerJobRequest, user: Us
         raise HTTPException(status_code=502, detail="워커 서비스에 연결할 수 없습니다.")
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+# [참고] 아래는 복잡한 의존성 주입 테스트 시 멈춤 현상(hang)을 디버깅하기 위한 임시 엔드포인트입니다.
+# 평상시에는 비활성화된 관련 테스트(@pytest.mark.skip)와 함께 유지하여, 유사 문제 발생 시 재사용할 수 있습니다.
+@router.get("/debug/auth_test", tags=["debug"])
+def debug_auth_test(user: User = Depends(get_current_active_admin_user)):
+    return {"username": user.username}

@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from src.api.tests.helpers import create_test_user
-from src.api.models.prediction_history import PredictionHistory
+from src.common.models.prediction_history import PredictionHistory
 from datetime import datetime
 
 

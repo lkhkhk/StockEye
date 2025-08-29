@@ -3,13 +3,13 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
-from src.api.models.prediction_history import PredictionHistory
+from src.common.models.prediction_history import PredictionHistory
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import logging
 from src.api.services.user_service import UserService
-from src.api.models.user import User
+from src.common.models.user import User
 
 logger = logging.getLogger(__name__)
 

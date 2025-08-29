@@ -50,4 +50,4 @@
 ## 5. 참고
 - APScheduler, FastAPI, 텔레그램 봇 연동 예제 및 샘플 코드는 src/api, src/bot, scripts/ 폴더 참고
 - 보안상 관리자 인증/권한 체크 필수
-- 장애/이벤트 발생 시 PLAN.MD, README, 로그, DB 백업본 우선 확인 
+- 장애/이벤트 발생 시 TODO.md, README, 로그, DB 백업본 우선 확인 

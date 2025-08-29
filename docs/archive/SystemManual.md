@@ -42,7 +42,7 @@
 - JWT 인증, 관리자 권한, 환경변수 보안, DB 접근 제어 등
 
 ## 7. 참고 및 기타
-- 각 기능별 상세/테스트/운영/장애 대응은 features_analysis.md, PLAN.md, FAQ.md 참고 
+- 각 기능별 상세/테스트/운영/장애 대응은 features_analysis.md, TODO.md, FAQ.md 참고 
 
 # Alembic 기반 DB 마이그레이션 운영 매뉴얼 (현재 미사용)
 

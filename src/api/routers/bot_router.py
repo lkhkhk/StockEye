@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
 from src.api.services.user_service import UserService
-from src.api.services.price_alert_service import PriceAlertService
-from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate, PriceAlertRead
+from src.common.services.price_alert_service import PriceAlertService
+from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate, PriceAlertRead
 from pydantic import BaseModel
 from typing import Optional
 

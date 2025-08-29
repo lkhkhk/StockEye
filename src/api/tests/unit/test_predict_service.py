@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from src.api.services.predict_service import PredictService
-from src.api.models.stock_master import StockMaster
-from src.api.models.daily_price import DailyPrice
-from src.api.models.prediction_history import PredictionHistory
+from src.common.models.stock_master import StockMaster
+from src.common.models.daily_price import DailyPrice
+from src.common.models.prediction_history import PredictionHistory
 
 @pytest.fixture
 def predict_service():

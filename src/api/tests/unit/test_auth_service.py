@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
 from src.api.services.auth_service import AuthService
-from src.api.models.user import User
-from src.api.schemas.user import UserCreate, UserLogin
+from src.common.models.user import User
+from src.common.schemas.user import UserCreate, UserLogin
 from src.common.exceptions import UserAlreadyExistsException, InvalidCredentialsException
 
 class TestAuthService:

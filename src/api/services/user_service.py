@@ -1,8 +1,8 @@
 import logging
 import os
 from sqlalchemy.orm import Session
-from src.api.models.user import User
-from src.api.schemas.user import UserCreate
+from src.common.models.user import User
+from src.common.schemas.user import UserCreate
 from passlib.hash import bcrypt
 from typing import Optional
 

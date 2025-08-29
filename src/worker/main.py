@@ -11,9 +11,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.common.db_connector import get_db
-from src.api.services.price_alert_service import PriceAlertService
-from src.api.services.stock_service import StockService
-from src.api.models.user import User
+from src.common.services.price_alert_service import PriceAlertService
+from src.common.services.stock_service import StockService
+from src.common.models.user import User
 from src.common.notify_service import send_telegram_message
 from src.worker.routers import scheduler as scheduler_router
 from src.worker.scheduler_instance import scheduler # Import scheduler from the new file
@@ -211,29 +211,44 @@ async def check_price_alerts_job(chat_id: int = None):
 
 async def notification_listener():
     """Redis 'notifications' 채널을 구독하고 메시지를 처리합니다."""
-    r = await redis.from_url(f"redis://{REDIS_HOST}", decode_responses=True)
-    pubsub = r.pubsub()
-    await pubsub.subscribe("notifications")
-    logger.info(f"Subscribed to 'notifications' channel on {REDIS_HOST}")
+    logger.info("[Listener] Starting notification listener...")
+    r = None
+    try:
+        logger.info(f"[Listener] Connecting to Redis at {REDIS_HOST}...")
+        r = await redis.from_url(f"redis://{REDIS_HOST}", decode_responses=True)
+        logger.info("[Listener] Redis connection successful.")
+        
+        pubsub = await r.pubsub()
+        await pubsub.subscribe("notifications")
+        logger.info(f"Subscribed to 'notifications' channel on {REDIS_HOST}")
 
-    while True:
-        try:
-            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-            if message:
-                logger.info(f"Received message: {message['data']}")
-                data = json.loads(message['data'])
-                chat_id = data.get('chat_id')
-                text = data.get('text')
-                if chat_id and text and TELEGRAM_BOT_TOKEN:
-                    await send_telegram_message(chat_id, text)
-                    logger.info(f"Sent message to {chat_id}: {text}")
-            await asyncio.sleep(0.1)
-        except asyncio.CancelledError:
-            logger.info("Notification listener task cancelled.")
-            break
-        except Exception as e:
-            logger.error(f"Error processing message: {e}", exc_info=True)
-            await asyncio.sleep(5)
+        while True:
+            try:
+                logger.debug("[Listener] Waiting for message...")
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message:
+                    logger.info(f"[Listener] Received message: {message['data']}")
+                    data = json.loads(message['data'])
+                    chat_id = data.get('chat_id')
+                    text = data.get('text')
+                    if chat_id and text and TELEGRAM_BOT_TOKEN:
+                        await send_telegram_message(chat_id, text)
+                        logger.info(f"[Listener] Sent message to {chat_id}: {text}")
+                await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                logger.info("[Listener] Notification listener task cancelled.")
+                break
+            except Exception as e:
+                logger.error(f"[Listener] Error processing message: {e}", exc_info=True)
+                await asyncio.sleep(5)
+    except asyncio.CancelledError:
+        logger.info("[Listener] Main listener task cancelled.")
+    except Exception as e:
+        logger.error(f"[Listener] A critical error occurred: {e}", exc_info=True)
+    finally:
+        if r:
+            await r.close()
+            logger.info("[Listener] Redis connection closed.")
 
 @app.get("/")
 def read_root():

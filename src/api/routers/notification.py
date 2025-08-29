@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
-from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertRead, PriceAlertUpdate
-from src.api.services.price_alert_service import PriceAlertService
+from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertRead, PriceAlertUpdate
+from src.common.services.price_alert_service import PriceAlertService
 from src.api.auth.jwt_handler import get_current_active_user
 from src.api.services.user_service import UserService
 from typing import List
-from src.api.models.price_alert import PriceAlert
-from src.api.models.user import User # User 모델 임포트 추가
+from src.common.models.price_alert import PriceAlert
+from src.common.models.user import User # User 모델 임포트 추가
 from src.common.notify_service import send_telegram_message
 
 router = APIRouter(prefix="/alerts", tags=["notification"])

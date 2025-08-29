@@ -1,10 +1,10 @@
 import logging
 from sqlalchemy.orm import Session
-from src.api.models.user import User
+from src.common.models.user import User
 from src.api.auth.jwt_handler import verify_password, get_password_hash, create_access_token
 from fastapi import HTTPException, status
 from datetime import timedelta
-from src.api.schemas.user import UserRead
+from src.common.schemas.user import UserRead
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger(__name__)

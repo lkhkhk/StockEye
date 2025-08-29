@@ -2,15 +2,15 @@ import pytest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from src.api.services.price_alert_service import PriceAlertService
-from src.api.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate
-from src.api.models.price_alert import PriceAlert
-from src.api.models.daily_price import DailyPrice
+from src.common.services.price_alert_service import PriceAlertService
+from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate
+from src.common.models.price_alert import PriceAlert
+from src.common.models.daily_price import DailyPrice
 import redis.asyncio as redis
 import json
 import asyncio
-from src.api.models.user import User
-from src.api.models.stock_master import StockMaster
+from src.common.models.user import User
+from src.common.models.stock_master import StockMaster
 from datetime import date, timedelta
 
 # Fixture for PriceAlertService instance

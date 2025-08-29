@@ -10,7 +10,7 @@ A. 테이블/컬럼 추가, 삭제, 변경 시 전체 테스트를 실행하여 
 A. alembic.ini, migrations 폴더를 복구 후 환경설정 및 마이그레이션 생성/적용 절차를 따르면 됩니다.
 
 ## Q. 문서화/운영 관련 파일은 어떻게 관리하나요?
-A. PLAN.md, SystemManual.md, maintenance.md, FAQ.md 등에서 현황을 실시간으로 반영합니다. 
+A. TODO.md, SystemManual.md, maintenance.md, FAQ.md 등에서 현황을 실시간으로 반영합니다. 
 
 - Q: API 서버 500 에러 발생 시 어디를 확인해야 하나요?
   - A: `docker compose logs api` 명령으로 `api_service` 컨테이너의 로그를 확인하여 에러의 원인을 파악합니다. 주로 DB 연결 문제, 스키마 불일치, 코드 오류 등이 원인일 수 있습니다.

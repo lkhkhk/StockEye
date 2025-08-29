@@ -72,8 +72,8 @@ def real_db(db_engine):
     session.close()
     Base.metadata.drop_all(bind=db_engine)
 
-from src.api.models.user import User
-from src.api.models.stock_master import StockMaster
+from src.common.models.user import User
+from src.common.models.stock_master import StockMaster
 from src.api.services.user_service import UserService
 from uuid import uuid4
 

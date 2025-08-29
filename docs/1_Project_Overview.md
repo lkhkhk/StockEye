@@ -45,24 +45,35 @@ StockEye는 MSA(Microservice Architecture)를 기반으로, 각 서비스가 명
 
 ```mermaid
 graph TD
-    subgraph "User Interaction"
-        User["👤 사용자 (Telegram)"] -- Telegram API --> BotService["🤖 stockeye-bot"]
+    subgraph "1 User Interaction"
+        User["👤 사용자 (Telegram)"];
     end
 
-    subgraph "Core Services"
-        BotService -- "데이터 요청 (HTTP)" --> ApiService["⚙️ stockeye-api"]
-        ApiService -- "데이터 응답" --> BotService
-        ApiService -- "데이터 CRUD" --> Database[_("🐘 stockeye-db (PostgreSQL)")]
+    subgraph "2 Core Services"
+        BotService["🤖 stockeye-bot"];
+        ApiService["⚙️ stockeye-api"];
+        Database[("🐘 stockeye-db (PostgreSQL)")];
     end
 
-    subgraph "Asynchronous Background Processing"
-        ApiService -- "1. 작업/알림 요청 발행" --> Redis[("📡 stockeye-redis (MQ)")]
-        WorkerService["🛠️ stockeye-worker"] -- "2. 작업/알림 구독" --> Redis
-        WorkerService -- "데이터 수집/처리" --> ExternalAPIs["🛰️ 외부 API (DART, yfinance)"]
-        WorkerService -- "수집 데이터 저장" --> Database
-        WorkerService -- "알림 발송" --> TelegramApi["💬 Telegram API"]
-        TelegramApi -- "알림 메시지" --> User
+    subgraph "3 Asynchronous Background Processing"
+        Redis[("📡 stockeye-redis (MQ)")];
+        WorkerService["🛠️ stockeye-worker"];
+        ExternalAPIs["🛰️ 외부 API (DART, yfinance)"];
+        TelegramApi["💬 Telegram API"];
     end
+
+    User          -- Telegram API          --> BotService
+
+    BotService    -- "데이터 요청 (HTTP)"    --> ApiService
+    ApiService    -- "데이터 응답"          --> BotService
+    ApiService    -- "데이터 CRUD"         --> Database
+
+    ApiService    -- "1 작업/알림 요청 발행" --> Redis
+    WorkerService -- "2 작업/알림 구독"     --> Redis
+    WorkerService -- "데이터 수집/처리"     --> ExternalAPIs
+    WorkerService -- "수집 데이터 저장"     --> Database
+    WorkerService -- "알림 발송"           --> TelegramApi
+    TelegramApi   -- "알림 메시지"          --> User
 
     %% 스타일링
     classDef user fill:#c9d,stroke:#333,stroke-width:2px;

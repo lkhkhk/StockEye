@@ -3,13 +3,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from src.common.db_connector import get_db
-from src.api.schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate, TelegramRegister
+from src.common.schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate, TelegramRegister
 from src.api.services.auth_service import AuthService
 from src.api.services.user_service import UserService # UserService 임포트
 from src.api.auth.jwt_handler import get_current_active_user
-from src.api.models.user import User
-from src.api.models.simulated_trade import SimulatedTrade
-from src.api.models.prediction_history import PredictionHistory
+from src.common.models.user import User
+from src.common.models.simulated_trade import SimulatedTrade
+from src.common.models.prediction_history import PredictionHistory
 from typing import List
 
 router = APIRouter(prefix="/users", tags=["users"])

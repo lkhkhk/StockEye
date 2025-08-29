@@ -57,7 +57,7 @@ git commit 는
 
 
 이번 작업 내용을 docs 에 적절히 문서화 해줘. 
-PLAN.md todo 항목 현행화 및 각종 문서화 대상 파일들 현행화해서 정리해줘.
+TODO.md todo 항목 현행화 및 각종 문서화 대상 파일들 현행화해서 정리해줘.
 그리고
 gitignore 를 .gitignore 로 변경 후 git commit 을 실행해줘.
 git commit 후 .gitignore 를 gitignore 로 변경해줘.

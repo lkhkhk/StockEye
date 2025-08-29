@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from src.common.db_connector import SessionLocal
-from src.api.models.stock_master import StockMaster
+from src.common.models.stock_master import StockMaster
 
 def check_db_data():
     db: Session = SessionLocal()

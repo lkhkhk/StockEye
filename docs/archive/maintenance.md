@@ -13,7 +13,7 @@
 ## 3. 장애 대응/복구
 - 장애 발생 시 우선 확인 항목(로그, DB, 백업본 등)
 - 컨테이너 재기동, 이미지 재빌드, 운영 체크리스트
-- 장애/이벤트 발생 시 PLAN.md, SystemManual.md, features_analysis.md 참고
+- 장애/이벤트 발생 시 TODO.md, SystemManual.md, features_analysis.md 참고
 
 ## 4. 운영 자동화/배포
 - 컨테이너 재기동, 이미지 재빌드, 운영 자동화 스크립트
@@ -38,7 +38,7 @@
 - (예: `docker compose exec api pytest src/api/tests`)
 
 ## 3. 자동화/문서화 방안
-- Makefile, README, PLAN.md, 개발 가이드에 위 정책을 명확히 반영
+- Makefile, README, TODO.md, 개발 가이드에 위 정책을 명확히 반영
 - CI/CD 파이프라인에서도 컨테이너 내부 테스트만 허용
 
 ## 4. 문제 발생시 조치 예시

@@ -1,15 +1,15 @@
 import pytest
 from fastapi.testclient import TestClient
 from src.api.main import app
-from src.api.models.user import User
-from src.api.models.price_alert import PriceAlert
-from src.api.models.watchlist import Watchlist
-from src.api.models.stock_master import StockMaster
-from src.api.models.daily_price import DailyPrice
-from src.api.models.disclosure import Disclosure
-from src.api.models.prediction_history import PredictionHistory
-from src.api.models.simulated_trade import SimulatedTrade
-from src.api.models.system_config import SystemConfig
+from src.common.models.user import User
+from src.common.models.price_alert import PriceAlert
+from src.common.models.watchlist import Watchlist
+from src.common.models.stock_master import StockMaster
+from src.common.models.daily_price import DailyPrice
+from src.common.models.disclosure import Disclosure
+from src.common.models.prediction_history import PredictionHistory
+from src.common.models.simulated_trade import SimulatedTrade
+from src.common.models.system_config import SystemConfig
 from unittest.mock import patch, MagicMock
 from src.api.tests.helpers import create_test_user, get_auth_headers
 from sqlalchemy.orm import Session # Session 임포트 추가

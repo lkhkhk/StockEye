@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from src.api.main import app
 from src.common.db_connector import get_db
-from src.api.models.user import User
-from src.api.models.price_alert import PriceAlert
+from src.common.models.user import User
+from src.common.models.price_alert import PriceAlert
 
 @pytest.fixture(scope="module")
 def client():

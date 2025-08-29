@@ -9,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from src.api.models.user import User
+from src.common.models.user import User
 # 순환 참조를 피하기 위해 아래 임포트 라인을 제거하거나 수정합니다.
 # from src.api.services.user_service import UserService, get_user_service
 from src.common.db_connector import get_db

@@ -5,7 +5,7 @@ from uuid import uuid4
 import random # random 임포트 추가
 
 from src.api.tests.helpers import create_test_user, get_auth_headers
-from src.api.schemas.user import UserRead, Token
+from src.common.schemas.user import UserRead, Token
 
 # --- Registration Tests ---
 

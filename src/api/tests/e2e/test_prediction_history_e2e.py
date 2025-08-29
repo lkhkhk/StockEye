@@ -1,10 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from src.api.models.user import User
-from src.api.models.stock_master import StockMaster
-from src.api.models.daily_price import DailyPrice
-from src.api.models.prediction_history import PredictionHistory
+from src.common.models.user import User
+from src.common.models.stock_master import StockMaster
+from src.common.models.daily_price import DailyPrice
+from src.common.models.prediction_history import PredictionHistory
 from datetime import datetime, timedelta
 from uuid import uuid4
 

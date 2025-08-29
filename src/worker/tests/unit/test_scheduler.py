@@ -2,8 +2,8 @@ import pytest
 import json
 from unittest.mock import patch, AsyncMock, MagicMock, call
 from src.worker.main import update_stock_master_job, update_daily_price_job, check_disclosures_job, check_price_alerts_job
-from src.api.models.price_alert import PriceAlert
-from src.api.models.user import User
+from src.common.models.price_alert import PriceAlert
+from src.common.models.user import User
 
 @pytest.mark.asyncio
 async def test_update_stock_master_job():
@@ -42,7 +42,7 @@ async def test_update_daily_price_job():
 
         mock_get_db.assert_called_once()
         mock_stock_service_class.assert_called_once()
-        mock_stock_service_instance.update_all_daily_prices.assert_awaited_once_with(mock_db)
+        mock_stock_service_instance.update_daily_prices.assert_awaited_once_with(mock_db) # Corrected method name
 
 @pytest.mark.asyncio
 async def test_check_disclosures_job():
@@ -161,3 +161,9 @@ async def test_check_price_alerts_job_triggered():
         assert active_alerts[0].is_active is False
         mock_db.add.assert_called_once_with(active_alerts[0])
         mock_db.commit.assert_called()
+
+        # Verify that the repeating alert was NOT deactivated
+        assert active_alerts[1].is_active is True
+        
+        # Check that commit was called at least once
+        assert mock_db.commit.call_count >= 1

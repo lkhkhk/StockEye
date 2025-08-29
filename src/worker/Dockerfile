@@ -14,9 +14,7 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 # Copy source code
 COPY src/worker/ /app/src/worker
 COPY src/common/ /app/src/common
-COPY src/api/models/ /app/src/api/models
-COPY src/api/services/ /app/src/api/services
-COPY src/api/schemas/ /app/src/api/schemas
+
 
 # Set working directory for the service
 WORKDIR /app/src/worker

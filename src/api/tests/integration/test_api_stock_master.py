@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from unittest.mock import MagicMock
 
-from src.api.models.stock_master import StockMaster
-from src.api.services.stock_service import StockService
+from src.common.models.stock_master import StockMaster
+from src.common.services.stock_service import StockService
 
 
 class TestStockMasterRouter:
