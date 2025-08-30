@@ -2,7 +2,7 @@ from functools import wraps
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes
-from src.common.http_client import get_retry_client
+from src.common.utils.http_client import get_retry_client
 import os
 
 logger = logging.getLogger(__name__)

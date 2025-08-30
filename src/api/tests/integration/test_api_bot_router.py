@@ -6,7 +6,7 @@ from src.common.models.price_alert import PriceAlert
 from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate
 from src.api.services.user_service import UserService
 from src.common.services.price_alert_service import PriceAlertService
-from src.common.db_connector import get_db # get_db 임포트 추가
+from src.common.database.db_connector import get_db # get_db 임포트 추가
 from src.api.routers.bot_router import get_user_service, get_price_alert_service # 의존성 주입 함수 임포트
 import pytest
 from unittest.mock import patch

@@ -3,12 +3,13 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock, AsyncMock
 from sqlalchemy.orm import Session
 from src.api.main import app
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from src.common.models.user import User
 from src.common.models.simulated_trade import SimulatedTrade
 from src.common.models.prediction_history import PredictionHistory
 import os
 from src.api.routers.admin import get_current_active_admin_user, get_stock_service
+from src.common.models.stock_master import StockMaster # Added this import for spec=StockMaster
 
 # Fixture for a mock admin user, reused across tests
 @pytest.fixture
@@ -189,3 +190,63 @@ async def test_trigger_schedule_job_success(mock_admin_user):
         assert response.status_code == 200
         assert response.json() == {"message": "Job triggered"}
         app.dependency_overrides.clear()
+
+@pytest.mark.asyncio
+async def test_update_disclosure_all_stocks_success(mock_admin_user, mock_stock_service_fixture, mock_db_session):
+    """모든 종목 공시 이력 갱신 성공 테스트"""
+    mock_stock_service_fixture.update_disclosures_for_all_stocks = AsyncMock(return_value={
+        "success": True,
+        "inserted": 5,
+        "skipped": 2,
+        "errors": []
+    })
+
+    app.dependency_overrides[get_stock_service] = lambda: mock_stock_service_fixture
+    app.dependency_overrides[get_current_active_admin_user] = lambda: mock_admin_user
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+
+    client = TestClient(app)
+    response = client.post("/api/v1/admin/update_disclosure")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "전체 종목 공시 이력 갱신 완료: 5건 추가, 2건 중복",
+        "inserted": 5,
+        "skipped": 2,
+        "errors": []
+    }
+    mock_stock_service_fixture.update_disclosures_for_all_stocks.assert_called_once_with(mock_db_session)
+    app.dependency_overrides.clear()
+
+@pytest.mark.asyncio
+async def test_update_disclosure_specific_stock_success(mock_admin_user, mock_stock_service_fixture, mock_db_session):
+    """특정 종목 공시 이력 갱신 성공 테스트"""
+    mock_stock = MagicMock(corp_code="0012345", symbol="005930", spec=StockMaster)
+    mock_stock.name = "삼성전자"
+    mock_stock_service_fixture.search_stocks.return_value = [mock_stock]
+    mock_stock_service_fixture.update_disclosures = AsyncMock(return_value={
+        "success": True,
+        "inserted": 3,
+        "skipped": 1,
+        "errors": []
+    })
+
+    app.dependency_overrides[get_stock_service] = lambda: mock_stock_service_fixture
+    app.dependency_overrides[get_current_active_admin_user] = lambda: mock_admin_user
+    app.dependency_overrides[get_db] = lambda: mock_db_session
+
+    client = TestClient(app)
+    response = client.post("/api/v1/admin/update_disclosure?code_or_name=삼성전자")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "'삼성전자' 공시 이력 갱신 완료: 3건 추가, 1건 중복",
+        "inserted": 3,
+        "skipped": 1,
+        "errors": []
+    }
+    mock_stock_service_fixture.search_stocks.assert_called_once_with("삼성전자", mock_db_session, limit=1)
+    mock_stock_service_fixture.update_disclosures.assert_called_once_with(
+        mock_db_session, corp_code="0012345", stock_code="005930", stock_name="삼성전자"
+    )
+    app.dependency_overrides.clear()

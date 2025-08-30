@@ -1,19 +1,21 @@
 from sqlalchemy.orm import Session
 from src.common.models.stock_master import StockMaster
 from src.common.models.daily_price import DailyPrice
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 import yfinance as yf
 import logging
 from datetime import datetime, timedelta
 import re
+import os
 
-from src.common.dart_utils import dart_get_all_stocks
 from src.common.models.disclosure import Disclosure
-from src.common.dart_utils import dart_get_disclosures
 from src.common.models.price_alert import PriceAlert
 from src.common.models.user import User
 from src.common.models.system_config import SystemConfig
-from src.common.exceptions import DartApiError
+from src.common.utils.exceptions import DartApiError
+from src.common.utils.dart_utils import dart_get_all_stocks
+from src.common.utils.dart_utils import dart_get_disclosures
+from src.common.services.notify_service import send_telegram_message
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +35,6 @@ class StockService:
         """
         DART에서 최신 공시를 확인하고, 구독자에게 알림을 보낸 후 관리자에게 요약 리포트를 보냅니다.
         """
-        from src.common.notify_service import send_telegram_message
-        import os
 
         logger.debug("check_and_notify_new_disclosures 함수 시작.")
         try:
@@ -157,8 +157,10 @@ class StockService:
                     notified_count_per_disclosure = 0
                     for user in users:
                         if user.telegram_id:
+                            stock_info = self.get_stock_by_symbol(stock_code, db)
+                            stock_name_for_msg = stock_info.name if stock_info else disclosure.corp_code
                             msg = (
-                                f"🔔 [{disclosure.corp_code}] 신규 공시\n\n" # Use corp_code as name might not be available
+                                f"🔔 [{stock_name_for_msg}] 신규 공시\n\n"
                                 f"📑 {disclosure.title}\n"
                                 f"🕒 {disclosure.disclosed_at.strftime('%Y%m%d')}\n"
                                 f"🔗 {disclosure.url}"

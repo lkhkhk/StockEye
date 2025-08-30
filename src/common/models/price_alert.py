@@ -1,6 +1,7 @@
 from sqlalchemy import Column, BigInteger, String, DateTime, Boolean, Float, ForeignKey, func, Integer
-from src.common.db_connector import Base
+from src.common.database.db_connector import Base
 from sqlalchemy.orm import relationship
+from src.common.models.stock_master import StockMaster
 
 class PriceAlert(Base):
     __tablename__ = 'price_alerts'
@@ -18,3 +19,4 @@ class PriceAlert(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     user = relationship("User", back_populates="alerts")
+    stock = relationship("StockMaster", primaryjoin="PriceAlert.symbol == StockMaster.symbol", foreign_keys=[symbol])

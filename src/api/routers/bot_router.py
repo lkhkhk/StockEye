@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from src.api.services.user_service import UserService
 from src.common.services.price_alert_service import PriceAlertService
 from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate, PriceAlertRead
@@ -127,7 +127,7 @@ async def remove_alert_for_bot(request: BotAlertIdRequest = Body(...), db: Sessi
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    alert = await price_alert_service.get_alert_by_id(db, request.alert_id)
+    alert = price_alert_service.get_alert_by_id(db, request.alert_id)
     if not alert or alert.user_id != user.id:
         raise HTTPException(status_code=404, detail="Alert not found or not authorized")
     
@@ -141,7 +141,7 @@ async def deactivate_alert_for_bot(request: BotAlertIdRequest = Body(...), db: S
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    alert = await price_alert_service.get_alert_by_id(db, request.alert_id)
+    alert = price_alert_service.get_alert_by_id(db, request.alert_id)
     if not alert or alert.user_id != user.id:
         raise HTTPException(status_code=404, detail="Alert not found or not authorized")
     

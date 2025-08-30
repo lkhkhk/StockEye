@@ -54,7 +54,7 @@ class PriceAlertService:
             raise
 
     def get_alerts(self, db: Session, user_id: int) -> List[PriceAlert]:
-        return db.query(PriceAlert).filter(PriceAlert.user_id == user_id).order_by(PriceAlert.created_at.desc()).all()
+        return db.query(PriceAlert).options(joinedload(PriceAlert.stock)).filter(PriceAlert.user_id == user_id).order_by(PriceAlert.created_at.desc()).all()
 
     def get_alert_by_user_and_symbol(self, db: Session, user_id: int, symbol: str) -> Optional[PriceAlert]:
         return db.query(PriceAlert).filter(PriceAlert.user_id == user_id, PriceAlert.symbol == symbol).first()

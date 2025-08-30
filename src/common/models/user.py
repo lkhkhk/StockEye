@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, func, BigInteger
 import sqlalchemy as sa
-from src.common.db_connector import Base
+from src.common.database.db_connector import Base
 from sqlalchemy.orm import relationship
 
 class User(Base):

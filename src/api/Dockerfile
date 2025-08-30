@@ -18,4 +18,4 @@ COPY src/bot/ /app/src/bot
 
 # uvicorn 서버 실행 (작업 디렉토리를 /app/src/api로 변경)
 WORKDIR /app/src/api
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

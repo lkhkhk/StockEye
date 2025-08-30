@@ -18,7 +18,7 @@ import importlib
 def test_get_retry_client_initialization(mock_getenv):
     """HTTP 클라이언트의 기본 초기화 로직을 테스트합니다."""
     # 1. Setup
-    from src.common import http_client
+    from src.common.utils import http_client
     
     # os.getenv가 특정 호스트 이름을 반환하도록 설정합니다.
     mock_getenv.return_value = "defaulthost"

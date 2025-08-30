@@ -10,11 +10,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from src.common.services.price_alert_service import PriceAlertService
 from src.common.services.stock_service import StockService
 from src.common.models.user import User
-from src.common.notify_service import send_telegram_message
+from src.common.services.notify_service import send_telegram_message
 from src.worker.routers import scheduler as scheduler_router
 from src.worker.scheduler_instance import scheduler # Import scheduler from the new file
 

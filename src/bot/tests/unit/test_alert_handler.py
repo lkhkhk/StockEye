@@ -30,7 +30,7 @@ def mock_update_context():
     # Patch get_retry_client globally for the decorator's API call
     # This patch needs to be outside the test function, or managed carefully.
     # A better long-term solution might be a separate fixture for decorator patching.
-    with patch('src.common.http_client.get_retry_client') as mock_get_client_decorator:
+    with patch('src.common.utils.http_client.get_retry_client') as mock_get_client_decorator:
         mock_client_decorator = AsyncMock(spec=httpx.AsyncClient)
         mock_client_decorator.put.return_value = mock_register_response
         mock_get_client_decorator.return_value.__aenter__.return_value = mock_client_decorator
@@ -101,7 +101,7 @@ async def test_alert_list_success(mock_api_call, mock_update_context):
 
     update.message.reply_text.assert_awaited_once()
     # Correctly access the positional argument for the text
-    sent_text = update.message.reply_text.call_args.kwargs['text'] # Changed to kwargs
+    sent_text = update.message.reply_text.call_args[0][0]
     assert "삼성전자" in sent_text
     assert "80000.0원 이상" in sent_text
 

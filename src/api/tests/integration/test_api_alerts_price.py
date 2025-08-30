@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from src.api.main import app
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from src.common.models.user import User
 from src.common.models.price_alert import PriceAlert
 

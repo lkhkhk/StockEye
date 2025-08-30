@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, DateTime, Float, BigInteger, Date, func
-from src.common.db_connector import Base
+from src.common.database.db_connector import Base
 
 class DailyPrice(Base):
     __tablename__ = 'daily_prices'

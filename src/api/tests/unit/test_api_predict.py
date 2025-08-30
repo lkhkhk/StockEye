@@ -13,7 +13,7 @@ def test_predict_price(mock_predict_stock_movement, client: TestClient, test_sto
         "reason": "이동평균선이 정배열입니다."
     }
 
-    response = client.post("/predict", json={"symbol": "005930"})
+    response = client.post("/api/v1/predict", json={"symbol": "005930"})
     
     assert response.status_code == 200 
     data = response.json()
@@ -26,7 +26,7 @@ def test_predict_price(mock_predict_stock_movement, client: TestClient, test_sto
 
 def test_predict_invalid_symbol(client: TestClient):
     payload = {"symbol": "INVALID"}
-    response = client.post("/predict", json=payload)
+    response = client.post("/api/v1/predict", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["prediction"] == "예측 불가"
@@ -36,5 +36,5 @@ def test_predict_invalid_symbol(client: TestClient):
 
 def test_predict_missing_symbol(client: TestClient):
     payload = {}
-    response = client.post("/predict", json=payload)
-    assert response.status_code == 422  # 필수값 누락시 FastAPI validation error 
+    response = client.post("/api/v1/predict", json=payload)
+    assert response.status_code == 422  # 필수값 누락시 FastAPI validation error

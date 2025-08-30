@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from src.common.db_connector import SessionLocal
+from src.common.database.db_connector import SessionLocal
 from src.common.models.stock_master import StockMaster
 
 def check_db_data():

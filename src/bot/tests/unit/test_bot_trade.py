@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 from src.bot.handlers.trade import trade_simulate_command, trade_history_command
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.post')
+@patch('src.common.utils.http_client.httpx.AsyncClient.post')
 async def test_trade_simulate_command_success(mock_post):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -36,7 +36,7 @@ async def test_trade_simulate_command_invalid_args():
     )
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.post')
+@patch('src.common.utils.http_client.httpx.AsyncClient.post')
 async def test_trade_simulate_command_api_error(mock_post):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -55,7 +55,7 @@ async def test_trade_simulate_command_api_error(mock_post):
     )
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.get')
+@patch('src.common.utils.http_client.httpx.AsyncClient.get')
 async def test_trade_history_command_success(mock_get):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -78,7 +78,7 @@ async def test_trade_history_command_success(mock_get):
     update.message.reply_text.assert_called_once_with(expected_msg)
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.get')
+@patch('src.common.utils.http_client.httpx.AsyncClient.get')
 async def test_trade_history_command_no_history(mock_get):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -95,7 +95,7 @@ async def test_trade_history_command_no_history(mock_get):
     update.message.reply_text.assert_called_once_with("모의 거래 기록이 없습니다.")
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.get')
+@patch('src.common.utils.http_client.httpx.AsyncClient.get')
 async def test_trade_history_command_api_error(mock_get):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123

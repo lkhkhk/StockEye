@@ -8,7 +8,7 @@ import importlib
 import pkgutil
 
 from src.api.main import app
-from src.common.db_connector import Base, get_db
+from src.common.database.db_connector import Base, get_db
 
 # --- DB 설정 ---
 DB_USER = os.getenv("DB_USER", "postgres")
@@ -19,10 +19,10 @@ TEST_DB_NAME = "test_stocks_db"
 
 # --- 모델 임포트 ---
 def import_all_models():
-    models_package = importlib.import_module("src.api.models")
+    models_package = importlib.import_module("src.common.models")
     for _, name, _ in pkgutil.iter_modules(models_package.__path__):
         if name != "__init__":
-            importlib.import_module(f"src.api.models.{name}")
+            importlib.import_module(f"src.common.models.{name}")
 
 import_all_models()
 

@@ -2,7 +2,7 @@
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from src.common.models.prediction_history import PredictionHistory
 from pydantic import BaseModel
 from typing import List, Optional
@@ -28,7 +28,7 @@ class PredictionHistoryResponse(BaseModel):
     page: int
     page_size: int
 
-@router.get("/history/{telegram_id}", response_model=PredictionHistoryResponse, tags=["prediction_history"]) # Changed path parameter
+@router.get("/history/{telegram_id}", response_model=PredictionHistoryResponse, tags=["prediction_history"])
 def get_prediction_history(
     telegram_id: int, # Changed parameter name
     db: Session = Depends(get_db),
@@ -46,6 +46,9 @@ def get_prediction_history(
         logger.debug(f"Telegram ID {telegram_id}에 해당하는 사용자를 찾을 수 없습니다.")
         return PredictionHistoryResponse(history=[], total_count=0, page=page, page_size=page_size)
     
+    # TEMPORARY: Return user object directly for testing user query mocking
+    # return {"total_count": 1, "history": [{"id": user.id, "telegram_id": user.telegram_id, "symbol": "TEST", "prediction": "TEST", "created_at": datetime.utcnow()}]}
+
     # 기본 쿼리
     query = db.query(PredictionHistory).filter(PredictionHistory.user_id == user.id) # Changed filter
     

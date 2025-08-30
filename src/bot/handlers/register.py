@@ -1,17 +1,20 @@
 import httpx
 from telegram import Update
 from telegram.ext import ContextTypes
-from src.common.http_client import get_retry_client
+from src.common.utils.http_client import get_retry_client
 
 async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """텔레그램 ID를 시스템에 등록합니다."""
     telegram_id = str(update.effective_chat.id)
+    print(f"Attempting to register user: {telegram_id}")
     try:
         async with get_retry_client() as client:
+            print("Client obtained. Making PUT request...")
             response = await client.put(
                 "/api/v1/users/telegram_register",
                 json={"telegram_id": telegram_id, "is_active": True}
             )
+            print(f"PUT request status: {response.status_code}")
             response.raise_for_status()
             await update.message.reply_text("알림 등록이 완료되었습니다. 이제부터 주가 알림을 받을 수 있습니다.")
     except httpx.HTTPStatusError as e:

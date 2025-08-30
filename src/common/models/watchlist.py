@@ -1,5 +1,5 @@
 from sqlalchemy import Column, BigInteger, String, ForeignKey, DateTime, func
-from src.common.db_connector import Base
+from src.common.database.db_connector import Base
 from sqlalchemy.orm import relationship
 
 class Watchlist(Base):

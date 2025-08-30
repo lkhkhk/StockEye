@@ -1,9 +1,12 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import os
+from sqlalchemy.orm import Session
 
 # Import handler functions from your bot
 from src.bot.handlers.alert import set_price_alert, alert_list, alert_remove
+from src.common.models.stock_master import StockMaster
+from src.common.database.db_connector import get_db
 
 # Mock user and chat IDs for testing
 TEST_USER_ID = 12345
@@ -16,6 +19,18 @@ def setup_environment():
     yield
     # Clean up environment variables if necessary
     del os.environ["API_HOST"]
+
+@pytest.fixture(autouse=True)
+def setup_stock_data():
+    db: Session = next(get_db())
+    # Check if stock already exists to prevent duplicates on multiple test runs
+    if not db.query(StockMaster).filter(StockMaster.symbol == "005930").first():
+        samsung = StockMaster(symbol="005930", name="삼성전자", market="KOSPI")
+        db.add(samsung)
+        db.commit()
+        db.refresh(samsung)
+    db.close()
+    yield
 
 @pytest.mark.asyncio
 async def test_alert_scenario_e2e():
@@ -40,7 +55,7 @@ async def test_alert_scenario_e2e():
     update_set.message.reply_text.assert_called_once()
     call_args_set = update_set.message.reply_text.call_args[0][0]
     assert f"✅ '{symbol}'의 가격 알림을" in call_args_set
-    assert "80,000.0원 이상" in call_args_set
+    assert "80000.0원 이상" in call_args_set
     print("[E2E] 1. Price alert set successfully.")
 
     # --- 2. List alerts to verify ---
@@ -57,8 +72,8 @@ async def test_alert_scenario_e2e():
     # Verify the alert is listed
     update_list.message.reply_text.assert_called_once()
     call_args_list = update_list.message.reply_text.call_args[0][0]
-    assert f"- 1. {symbol}" in call_args_list
-    assert "80,000.0원 이상" in call_args_list
+    assert f"1. **삼성전자** ({symbol})" in call_args_list
+    assert "80000.0원 이상" in call_args_list
     print("[E2E] 2. Alert listed successfully.")
 
 
@@ -78,7 +93,7 @@ async def test_alert_scenario_e2e():
     # Verify the removal confirmation
     update_remove.message.reply_text.assert_called_once()
     call_args_remove = update_remove.message.reply_text.call_args[0][0]
-    assert f"알림 번호 1 ({symbol}) 삭제 완료" in call_args_remove
+    assert f"알림 {alert_num}번이 삭제되었습니다." in call_args_remove
     print("[E2E] 3. Alert removed successfully.")
 
 

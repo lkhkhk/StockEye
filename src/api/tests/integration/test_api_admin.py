@@ -8,7 +8,7 @@ from src.api.tests.helpers import create_test_user, get_auth_headers
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 from fastapi import HTTPException # HTTPException 임포트 추가
-from src.common.db_connector import get_db # get_db 임포트 추가
+from src.common.database.db_connector import get_db # get_db 임포트 추가
 from src.api.main import app # app 임포트 추가
 
 @pytest.fixture

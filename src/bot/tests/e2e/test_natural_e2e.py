@@ -42,7 +42,7 @@ async def test_natural_handler_stock_info_e2e():
     call_args = update.message.reply_text.call_args[0][0]
     assert "[종목 상세]" in call_args
     assert f"코드: {symbol}" in call_args
-    assert "이름: Samsung Electronics" in call_args
+    assert "이름: 삼성전자" in call_args
     print("[E2E] Natural handler stock info test passed.")
 
 @pytest.mark.asyncio

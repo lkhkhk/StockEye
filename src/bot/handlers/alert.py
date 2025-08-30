@@ -2,7 +2,7 @@ import logging
 import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
-from src.common.http_client import get_retry_client
+from src.common.utils.http_client import get_retry_client
 from src.bot.decorators import ensure_user_registered # Add this import
 
 API_URL = "http://stockeye-api:8000"
@@ -15,28 +15,28 @@ logger = logging.getLogger(__name__)
 async def _api_set_price_alert(payload: dict) -> httpx.Response:
     """Helper to call the create price alert API."""
     async with get_retry_client() as client:
-        return await client.post(f"{API_URL}/api/v1/alerts", json=payload)
+        return await client.post(f"{API_URL}/api/v1/alerts/", json=payload)
 
 async def _api_search_stocks(query: str) -> list:
     """Helper to call the stock search API."""
     async with get_retry_client() as client:
         response = await client.get(f"{API_URL}/api/v1/symbols/search", params={"query": query})
         response.raise_for_status()
-        return await response.json()
+        return response.json()
 
 async def _api_get_alerts(telegram_id: int) -> list:
     """Helper to call the get alerts API."""
     async with get_retry_client() as client:
-        response = await client.get(f"{API_URL}/api/v1/alerts/telegram/{telegram_id}")
+        response = await client.get(f"{API_URL}/api/v1/alerts/{telegram_id}")
         response.raise_for_status()
-        return await response.json()
+        return response.json()
 
 async def _api_get_current_price(symbol: str) -> dict:
     """Helper to call the get current price API."""
     async with get_retry_client() as client:
         response = await client.get(f"{API_URL}/api/v1/symbols/{symbol}/price")
         response.raise_for_status()
-        return await response.json()
+        return response.json()
 
 async def _api_delete_alert(alert_id: int) -> httpx.Response:
     """Helper to call the delete alert API."""
@@ -116,13 +116,31 @@ async def alert_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         message = "🔔 **나의 알림 목록**\n\n"
         alert_map = {}
+        stock_names = {} # Cache for stock names
         for i, alert in enumerate(alerts, 1):
             alert_map[str(i)] = alert['id']
+            
+            # Get stock name from cache or API
+            symbol = alert['symbol']
+            if symbol not in stock_names:
+                try:
+                    stocks_data = await _api_search_stocks(symbol)
+                    if stocks_data and stocks_data.get('items'):
+                        stock_names[symbol] = stocks_data['items'][0]['name']
+                    else:
+                        stock_names[symbol] = symbol # Fallback to symbol if name not found
+                except Exception as e:
+                    logger.warning(f"종목명 조회 실패 ({symbol}): {e}")
+                    stock_names[symbol] = symbol # Fallback to symbol on error
+
+            stock_name = stock_names[symbol]
+
             # Corrected f-string syntax for dictionary lookup
             condition_text = {'gte': '이상', 'lte': '이하'}.get(alert['condition'], '')
             price_info = f"{alert['target_price']}원 {condition_text}"
             status = "(활성)" if alert['is_active'] else "(비활성)"
-            message += f"{i}. **{alert['name']}** ({alert['symbol']}) - {price_info} {status}\n"
+            stock_name = alert['stock_name'] if alert.get('stock_name') else alert['symbol'] # Use stock_name from API, fallback to symbol
+            message += f"{i}. **{stock_name}** ({alert['symbol']}) - {price_info} {status}"
         
         context.user_data['alert_map'] = alert_map
         await update.message.reply_text(text=message, parse_mode='Markdown')

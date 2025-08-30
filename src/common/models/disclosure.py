@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, DateTime, BigInteger, func
-from src.common.db_connector import Base
+from src.common.database.db_connector import Base
 
 class Disclosure(Base):
     __tablename__ = 'disclosures'

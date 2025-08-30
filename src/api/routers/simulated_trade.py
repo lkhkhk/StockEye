@@ -6,7 +6,7 @@ from src.common.schemas.simulated_trade import SimulatedTradeItem
 from src.common.models.simulated_trade import SimulatedTrade
 from src.common.services.stock_service import StockService
 from src.api.services.user_service import UserService # UserService 임포트
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from datetime import datetime
 import logging
 

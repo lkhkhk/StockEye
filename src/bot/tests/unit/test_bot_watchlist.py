@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 from src.bot.handlers.watchlist import watchlist_add_command, watchlist_remove_command, watchlist_get_command
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.post')
+@patch('src.common.utils.http_client.httpx.AsyncClient.post')
 async def test_watchlist_add_command_success(mock_post):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -36,7 +36,7 @@ async def test_watchlist_add_command_no_symbol():
     )
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.post')
+@patch('src.common.utils.http_client.httpx.AsyncClient.post')
 async def test_watchlist_add_command_api_error(mock_post):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -55,7 +55,7 @@ async def test_watchlist_add_command_api_error(mock_post):
     )
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.delete')
+@patch('src.common.utils.http_client.httpx.AsyncClient.delete')
 async def test_watchlist_remove_command_success(mock_delete):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -86,7 +86,7 @@ async def test_watchlist_remove_command_no_symbol():
     )
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.delete')
+@patch('src.common.utils.http_client.httpx.AsyncClient.delete')
 async def test_watchlist_remove_command_api_error(mock_delete):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -105,7 +105,7 @@ async def test_watchlist_remove_command_api_error(mock_delete):
     )
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.get')
+@patch('src.common.utils.http_client.httpx.AsyncClient.get')
 async def test_watchlist_get_command_success(mock_get):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -124,7 +124,7 @@ async def test_watchlist_get_command_success(mock_get):
     )
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.get')
+@patch('src.common.utils.http_client.httpx.AsyncClient.get')
 async def test_watchlist_get_command_no_watchlist(mock_get):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123
@@ -141,7 +141,7 @@ async def test_watchlist_get_command_no_watchlist(mock_get):
     update.message.reply_text.assert_called_once_with("관심종목이 없습니다.")
 
 @pytest.mark.asyncio
-@patch('src.common.http_client.httpx.AsyncClient.get')
+@patch('src.common.utils.http_client.httpx.AsyncClient.get')
 async def test_watchlist_get_command_api_error(mock_get):
     update = AsyncMock(spec=Update)
     update.effective_user.id = 123

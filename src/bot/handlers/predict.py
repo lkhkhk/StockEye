@@ -1,7 +1,7 @@
 import httpx
 from telegram import Update
 from telegram.ext import ContextTypes
-from src.common.http_client import get_retry_client
+from src.common.utils.http_client import get_retry_client
 
 async def predict_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 # 아래 라인에서 UserService, get_user_service 임포트 제거
 # from src.api.services.user_service import UserService, get_user_service 
 from src.api.auth.jwt_handler import create_access_token

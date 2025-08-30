@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from src.common.models.stock_master import StockMaster
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from typing import List
 from src.common.services.stock_service import StockService
 

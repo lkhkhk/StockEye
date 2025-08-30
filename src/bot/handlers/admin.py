@@ -6,7 +6,7 @@ from typing import Optional
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
-from src.common.http_client import get_retry_client
+from src.common.utils.http_client import get_retry_client
 from src.bot.decorators import ensure_user_registered
 
 logger = logging.getLogger(__name__)

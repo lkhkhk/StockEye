@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, DateTime
-from src.common.db_connector import Base
+from src.common.database.db_connector import Base
 from sqlalchemy.sql import func
 
 class SystemConfig(Base):

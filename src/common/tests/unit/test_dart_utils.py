@@ -1,4 +1,4 @@
-# 이 파일은 src.common.dart_utils 모듈의 단위 테스트를 포함합니다.
+# 이 파일은 src.common.utils.dart_utils 모듈의 단위 테스트를 포함합니다.
 #
 # DART API와의 실제 네트워크 통신을 방지하기 위해, 모든 테스트는
 # httpx 클라이언트(`get_retry_client`)를 모의(mock)하여 진행합니다.
@@ -11,8 +11,8 @@ import os
 import httpx
 import zipfile
 import io
-from src.common.dart_utils import dart_get_all_stocks, dart_get_disclosures
-from src.common.exceptions import DartApiError
+from src.common.utils.dart_utils import dart_get_all_stocks, dart_get_disclosures
+from src.common.utils.exceptions import DartApiError
 
 @pytest.fixture(autouse=True)
 def mock_env_vars():
@@ -24,7 +24,7 @@ def mock_env_vars():
 def mock_get_retry_client():
     # get_retry_client 함수를 모의하여 실제 HTTP 요청을 보내지 않도록 합니다.
     # AsyncMock을 사용하여 비동기 컨텍스트 매니저를 흉내 냅니다.
-    with patch('src.common.dart_utils.get_retry_client') as mock_client:
+    with patch('src.common.utils.dart_utils.get_retry_client') as mock_client:
         async_mock_client = AsyncMock()
         mock_get = AsyncMock()
         async_mock_client.__aenter__.return_value = mock_get

@@ -1,17 +1,17 @@
 import pytest
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
-from src.common.db_connector import Base # get_db 임포트 추가
+from src.common.database.db_connector import Base # get_db 임포트 추가
 from src.common.models.user import User # User 모델 임포트 추가
 import pkgutil
 import importlib
 
-# src/api/models 디렉토리에서 모든 모델을 동적으로 로드
+# src/common/models 디렉토리에서 모든 모델을 동적으로 로드
 def import_all_models():
-    models_package = importlib.import_module("src.api.models")
+    models_package = importlib.import_module("src.common.models")
     for _, name, _ in pkgutil.iter_modules(models_package.__path__):
         if name != "__init__":
-            importlib.import_module(f"src.api.models.{name}")
+            importlib.import_module(f"src.common.models.{name}")
 
 import_all_models()
 

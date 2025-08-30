@@ -1,4 +1,4 @@
-# 이 파일은 src.common.notify_service 모듈의 단위 테스트를 포함합니다.
+# 이 파일은 src.common.services.notify_service 모듈의 단위 테스트를 포함합니다.
 #
 # 텔레그램 API와의 실제 네트워크 통신을 방지하기 위해, 모든 테스트는
 # `notify_service` 모듈 내의 `bot` 객체를 모의(mock)하여 진행합니다.
@@ -6,10 +6,10 @@
 
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from src.common.notify_service import send_telegram_message
+from src.common.services.notify_service import send_telegram_message
 
 @pytest.mark.asyncio
-@patch('src.common.notify_service.bot', new_callable=MagicMock)
+@patch('src.common.services.notify_service.bot', new_callable=MagicMock)
 async def test_send_telegram_message_success(mock_bot):
     """텔레그램 메시지가 성공적으로 전송되는 경우를 테스트합니다."""
     # 1. Setup
@@ -33,7 +33,7 @@ async def test_send_telegram_message_success(mock_bot):
 
 
 @pytest.mark.asyncio
-@patch('src.common.notify_service.bot', new_callable=MagicMock)
+@patch('src.common.services.notify_service.bot', new_callable=MagicMock)
 async def test_send_telegram_message_failure(mock_bot):
     """텔레그램 API 에러 발생 시, 함수가 예외를 잘 처리하는지 테스트합니다."""
     # 1. Setup
@@ -53,7 +53,7 @@ async def test_send_telegram_message_failure(mock_bot):
 
 
 @pytest.mark.asyncio
-@patch('src.common.notify_service.bot', None)
+@patch('src.common.services.notify_service.bot', None)
 async def test_send_telegram_message_bot_not_configured():
     """TELEGRAM_BOT_TOKEN이 설정되지 않아 bot 객체가 None일 경우를 테스트합니다."""
     # 1. Setup

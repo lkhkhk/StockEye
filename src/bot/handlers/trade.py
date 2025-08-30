@@ -2,7 +2,7 @@ import os
 import httpx
 from telegram import Update
 from telegram.ext import ContextTypes
-from src.common.http_client import get_retry_client
+from src.common.utils.http_client import get_retry_client
 
 API_HOST = os.getenv("API_HOST", "localhost")
 API_URL = f"http://{API_HOST}:8000"

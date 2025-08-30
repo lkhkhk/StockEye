@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
-from src.common.db_connector import get_db, Base, engine
+from src.common.database.db_connector import get_db, Base, engine
 from src.common.models.user import User
 from src.api.auth.jwt_handler import get_current_active_admin_user
 from src.common.models.simulated_trade import SimulatedTrade

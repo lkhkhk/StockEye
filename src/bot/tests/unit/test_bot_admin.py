@@ -64,7 +64,7 @@ class TestGetAuthToken:
     async def test_get_auth_token_success(self):
         with patch('src.bot.handlers.admin.BOT_SECRET_KEY', 'test_secret_key'), \
              patch('src.bot.handlers.admin.API_V1_URL', 'http://localhost:8000/api/v1'), \
-             patch('src.common.http_client.httpx.AsyncClient.post') as mock_post:
+             patch('src.common.utils.http_client.httpx.AsyncClient.post') as mock_post:
             
             mock_response = AsyncMock()
             mock_response.status_code = 200
@@ -83,7 +83,7 @@ class TestGetAuthToken:
     @pytest.mark.asyncio
     async def test_get_auth_token_no_secret_key(self):
         with patch('src.bot.handlers.admin.BOT_SECRET_KEY', None), \
-             patch('src.common.http_client.httpx.AsyncClient.post') as mock_post:
+             patch('src.common.utils.http_client.httpx.AsyncClient.post') as mock_post:
             token = await get_auth_token(12345)
             assert token is None
             mock_post.assert_not_awaited()
@@ -92,7 +92,7 @@ class TestGetAuthToken:
     async def test_get_auth_token_http_error(self):
         with patch('src.bot.handlers.admin.BOT_SECRET_KEY', 'test_secret_key'), \
              patch('src.bot.handlers.admin.API_V1_URL', 'http://localhost:8000/api/v1'), \
-             patch('src.common.http_client.httpx.AsyncClient.post') as mock_post:
+             patch('src.common.utils.http_client.httpx.AsyncClient.post') as mock_post:
             mock_response = AsyncMock()
             mock_response.status_code = 401
             mock_response.text = "Unauthorized"
@@ -106,7 +106,7 @@ class TestGetAuthToken:
     @pytest.mark.asyncio
     async def test_get_auth_token_generic_exception(self):
         with patch('src.bot.handlers.admin.BOT_SECRET_KEY', 'test_secret_key'), \
-             patch('src.common.http_client.httpx.AsyncClient.post') as mock_post:
+             patch('src.common.utils.http_client.httpx.AsyncClient.post') as mock_post:
             mock_post.side_effect = Exception("Network Error")
 
             token = await get_auth_token(12345)
@@ -125,7 +125,7 @@ async def test_admin_command(mock_update_context):
 @pytest.mark.asyncio
 async def test_admin_show_schedules_success(mock_update_context):
     with patch('src.bot.handlers.admin.ADMIN_ID', '12345'), \
-         patch('src.common.http_client.httpx.AsyncClient.get') as mock_http_get, \
+         patch('src.common.utils.http_client.httpx.AsyncClient.get') as mock_http_get, \
          patch('src.bot.handlers.admin.get_auth_token', new_callable=AsyncMock, return_value="fake_token") as mock_get_token:
 
         update, context = mock_update_context
@@ -153,7 +153,7 @@ async def test_admin_show_schedules_success(mock_update_context):
 @pytest.mark.asyncio
 async def test_admin_trigger_job_success(mock_update_context):
     with patch('src.bot.handlers.admin.ADMIN_ID', '12345'), \
-         patch('src.common.http_client.httpx.AsyncClient.post') as mock_http_post, \
+         patch('src.common.utils.http_client.httpx.AsyncClient.post') as mock_http_post, \
          patch('src.bot.handlers.admin.get_auth_token', new_callable=AsyncMock, return_value="fake_token") as mock_get_token:
 
         update, context = mock_update_context
@@ -174,7 +174,7 @@ async def test_admin_trigger_job_success(mock_update_context):
 @pytest.mark.asyncio
 async def test_admin_stats_success(mock_update_context):
     with patch('src.bot.handlers.admin.ADMIN_ID', '12345'), \
-         patch('src.common.http_client.httpx.AsyncClient.get') as mock_http_get, \
+         patch('src.common.utils.http_client.httpx.AsyncClient.get') as mock_http_get, \
          patch('src.bot.handlers.admin.get_auth_token', new_callable=AsyncMock, return_value="fake_token") as mock_get_token:
 
         update, context = mock_update_context

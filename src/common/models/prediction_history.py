@@ -1,6 +1,6 @@
 from sqlalchemy import Column, BigInteger, String, Float, DateTime, ForeignKey, func, Integer
 import sqlalchemy as sa
-from src.common.db_connector import Base
+from src.common.database.db_connector import Base
 from datetime import datetime
 
 class PredictionHistory(Base):

@@ -22,6 +22,7 @@ class PriceAlertRead(PriceAlertBase):
     created_at: datetime
     updated_at: datetime
     notify_on_disclosure: bool # Explicitly define as bool to ensure it's not Optional
+    stock_name: Optional[str] = None
 
     class Config:
         from_attributes = True

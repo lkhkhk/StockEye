@@ -2,7 +2,7 @@
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from src.common.schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate, TelegramRegister
 from src.api.services.auth_service import AuthService
 from src.api.services.user_service import UserService # UserService 임포트

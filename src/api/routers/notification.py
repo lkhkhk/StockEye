@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
-from src.common.db_connector import get_db
+from src.common.database.db_connector import get_db
 from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertRead, PriceAlertUpdate
 from src.common.services.price_alert_service import PriceAlertService
 from src.api.auth.jwt_handler import get_current_active_user
@@ -8,7 +8,8 @@ from src.api.services.user_service import UserService
 from typing import List
 from src.common.models.price_alert import PriceAlert
 from src.common.models.user import User # User 모델 임포트 추가
-from src.common.notify_service import send_telegram_message
+from src.common.models.stock_master import StockMaster # Import StockMaster
+from src.common.services.notify_service import send_telegram_message
 
 router = APIRouter(prefix="/alerts", tags=["notification"])
 
@@ -47,7 +48,7 @@ def get_my_alerts(telegram_id: int, db: Session = Depends(get_db), alert_service
         return [] # 사용자가 없으면 빈 목록 반환
 
     results = alert_service.get_alerts(db, user_id=user.id)
-    return [PriceAlertRead.model_validate(r) for r in results]
+    return [PriceAlertRead.model_validate(r, update={'stock_name': r.stock.name if r.stock else None, 'notify_on_disclosure': r.notify_on_disclosure}) for r in results]
 
 @router.get("/user/{user_id}/symbol/{symbol}", response_model=PriceAlertRead)
 def get_alert_by_user_and_symbol(user_id: int, symbol: str, db: Session = Depends(get_db), alert_service: PriceAlertService = Depends(get_price_alert_service)):

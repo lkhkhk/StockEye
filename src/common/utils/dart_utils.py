@@ -5,8 +5,8 @@ import io
 import zipfile
 import lxml.etree as etree
 from typing import List, Dict, Optional
-from src.common.http_client import get_retry_client
-from src.common.exceptions import DartApiError
+from src.common.utils.http_client import get_retry_client
+from src.common.utils.exceptions import DartApiError
 
 logger = logging.getLogger(__name__)
 

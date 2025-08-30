@@ -1,4 +1,4 @@
-# 이 파일은 src.common.db_connector 모듈의 단위 테스트를 포함합니다.
+# 이 파일은 src.common.database.db_connector 모듈의 단위 테스트를 포함합니다.
 #
 # get_db 함수의 핵심 기능은 데이터베이스 세션을 생성하고, 사용 후
 # 안전하게 닫는 것입니다. 이 테스트는 실제 데이터베이스에 연결하는 대신
@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 from sqlalchemy.orm import Session
 
-from src.common.db_connector import get_db, SessionLocal
+from src.common.database.db_connector import get_db, SessionLocal
 
 
 def test_get_db():
@@ -18,7 +18,7 @@ def test_get_db():
     # SessionLocal을 모의 객체로 대체하여 실제 DB 세션을 생성하지 않도록 합니다.
     mock_session = MagicMock(spec=Session)
     
-    with patch('src.common.db_connector.SessionLocal', return_value=mock_session) as mock_session_local:
+    with patch('src.common.database.db_connector.SessionLocal', return_value=mock_session) as mock_session_local:
         
         db_generator = get_db()
         
