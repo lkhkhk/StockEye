@@ -56,6 +56,64 @@ StockEye 프로젝트는 다음과 같은 Git 브랜치 구조를 따릅니다.
 - 공통 모듈은 외부 의존성이 적으므로 전통적인 단위 테스트를 작성하기 용이합니다.
 - 특히 `http_client.py`의 재시도 로직이나 `dart_utils.py`의 데이터 파싱 로직 등은 다양한 성공/실패 시나리오에 대해 독립적인 테스트를 통해 안정성을 검증해야 합니다.
 
+### 5.1. 독립적인 단위 테스트 실행 방법
+
+`common` 모듈은 여러 서비스에서 공유되므로, 특정 서비스(`api`, `bot` 등)에 의존하지 않는 독립적인 테스트 환경을 갖추는 것이 매우 중요합니다. 이를 위해 `common` 모듈 전용 테스트 Docker 이미지를 사용합니다.
+
+**1. 테스트 Dockerfile (`src/common/Dockerfile.test`)**
+
+`common` 모듈의 단위 테스트만을 위해 `src/common/Dockerfile.test` 파일이 준비되어 있습니다. 이 Dockerfile은 `common` 모듈 테스트에 필요한 최소한의 환경(의존성, 소스코드, 더미 환경변수)만을 포함하여 완벽한 격리를 보장합니다.
+
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+ENV PYTHONPATH=/app
+
+# Set dummy environment variables for DB connection
+# 이 변수들은 모듈 로딩 시 오류를 방지하기 위한 것으로, 실제 DB에 연결되지 않습니다.
+ENV DB_USER="test"
+ENV DB_PASSWORD="test"
+ENV DB_HOST="localhost"
+ENV DB_PORT="5432"
+ENV DB_NAME="test"
+ENV DART_API_KEY="test_api_key"
+
+# Install dependencies
+# (주의: 이 Dockerfile은 프로젝트 루트의 requirements.txt를 사용하므로,
+# pytest, pytest-cov 등의 테스트 의존성이 포함되어 있어야 합니다.)
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Copy common source code
+COPY src/common/ /app/src/common/
+
+# Run tests with detailed coverage reporting
+CMD ["pytest", "--cov=src/common", "--cov-report=term-missing", "src/common/tests/unit/"]
+```
+
+**2. 테스트 실행 절차**
+
+다음 두 단계로 `common` 모듈의 단위 테스트를 실행할 수 있습니다.
+
+**① 테스트 이미지 빌드**
+
+아래 명령어를 실행하여 `Dockerfile.test`를 기반으로 `stockeye-common-tester`라는 이름의 테스트 이미지를 빌드합니다.
+
+```bash
+docker build -t stockeye-common-tester -f src/common/Dockerfile.test .
+```
+
+**② 테스트 컨테이너 실행**
+
+빌드된 이미지를 사용하여 테스트를 실행합니다. `--rm` 옵션으로 테스트가 완료되면 컨테이너는 자동으로 삭제됩니다.
+
+```bash
+docker run --rm stockeye-common-tester
+```
+
+이 절차를 통해 `common` 모듈의 변경 사항이 다른 서비스에 영향을 주지 않고 안정적으로 동작하는지 독립적으로 검증할 수 있습니다.
+
 ## 6. 안정적인 테스트 환경 구축 가이드
 
 통합 테스트, 특히 데이터베이스와 연동되는 테스트는 잘못된 설정으로 인해 많은 시간을 낭비하게 할 수 있습니다. 다음은 테스트 환경의 안정성을 확보하기 위한 핵심 가이드라인입니다.

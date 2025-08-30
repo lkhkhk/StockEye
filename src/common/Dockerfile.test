@@ -1,0 +1,22 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+ENV PYTHONPATH=/app
+
+# Set dummy environment variables for DB connection and other services
+ENV DB_USER="test"
+ENV DB_PASSWORD="test"
+ENV DB_HOST="localhost"
+ENV DB_PORT="5432"
+ENV DB_NAME="test"
+ENV DART_API_KEY="test_api_key"
+
+# Install dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Copy common source code
+COPY src/common/ /app/src/common/
+
+# Run tests with detailed coverage reporting
+CMD ["pytest", "--cov=src/common", "--cov-report=term-missing", "src/common/tests/unit/"]

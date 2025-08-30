@@ -12,6 +12,7 @@ pydantic[email]
 python-telegram-bot
 pytest
 pytest-asyncio
+pytest-cov
 python-multipart
 lxml
 pandas_datareader
