@@ -18,8 +18,8 @@ class AuthService:
         user = db.query(User).filter(User.username == username).first()
         if not user:
             return False
-        if not verify_password(password, user.password_hash):
-            logger.debug(f"[AuthService] Password verification failed for {username}. Plain: {password}, Hashed in DB: {user.password_hash}")
+        if not verify_password(password, user.hashed_password):
+            logger.debug(f"[AuthService] Password verification failed for {username}. Plain: {password}, Hashed in DB: {user.hashed_password}")
             return False
         return user
 
@@ -41,7 +41,7 @@ class AuthService:
         db_user = User(
             username=username,
             email=email,
-            password_hash=hashed_password,
+            hashed_password=hashed_password,
             role=role
         )
         db.add(db_user)

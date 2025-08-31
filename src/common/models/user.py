@@ -7,13 +7,13 @@ class User(Base):
     __tablename__ = 'app_users'
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
-    password_hash = Column(String(128), nullable=True)
+    hashed_password = Column(String(128), nullable=True)
     email = Column(String(100), unique=True, nullable=True)
+    nickname = Column(String(50), unique=True, nullable=True)
+    full_name = Column(String(100), nullable=True)
     role = Column(String(20), default='user', nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     telegram_id = Column(BigInteger, unique=True, nullable=True)
-    first_name = Column(String(50), nullable=True)
-    last_name = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

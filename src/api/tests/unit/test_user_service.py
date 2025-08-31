@@ -1,6 +1,8 @@
+
 import pytest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from src.api.services.user_service import UserService
 from src.common.schemas.user import UserCreate
 from src.common.models.user import User
@@ -11,6 +13,18 @@ def mock_db():
     # MOCK: SQLAlchemy Session 객체
     # SQLAlchemy Session의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     return MagicMock(spec=Session)
+
+# Fixture for UserCreate schema
+@pytest.fixture
+def user_create_data():
+    return UserCreate(
+        username="testuser",
+        email="test@example.com",
+        password="password123",
+        nickname="TestNick",
+        full_name="Test User",
+        role="user"
+    )
 
 # Test cases for UserService class methods
 def test_get_user_by_telegram_id_found(mock_db):
@@ -74,7 +88,7 @@ def test_create_user_from_telegram_success(mock_db):
 def test_create_user_from_telegram_db_exception(mock_db):
     user_service = UserService()
     # mock_db.add (MagicMock) 호출 시 Exception을 발생시키도록 설정합니다.
-    mock_db.add.side_effect = Exception("DB Error")
+    mock_db.add.side_effect = SQLAlchemyError("DB Error")
 
     # MOCK: User 클래스
     # User 생성자를 모의하여 실제 객체 생성 대신 모의 객체를 반환하도록 설정합니다.
@@ -163,3 +177,63 @@ def test_get_user_by_email_not_found(mock_db):
     user = user_service.get_user_by_email(mock_db, "nonexistent@example.com")
 
     assert user is None
+
+def test_create_user_success(mock_db, user_create_data):
+    """사용자 생성 성공 테스트"""
+    user_service = UserService()
+    
+    # MOCK: get_password_hash 함수
+    # 비밀번호 해싱 함수를 모의하여 항상 "hashed_password"를 반환하도록 설정합니다.
+    with patch('src.api.services.user_service.get_password_hash') as mock_get_password_hash:
+        mock_get_password_hash.return_value = "hashed_password"
+
+        # MOCK: User 클래스
+        # User 생성자를 모의하여 실제 객체 생성 대신 모의 객체를 반환하도록 설정합니다.
+        with patch('src.api.services.user_service.User') as MockUser:
+            mock_user_instance = MockUser.return_value
+            
+            # WHEN
+            created_user = user_service.create_user(mock_db, user_create_data)
+
+            # THEN
+            # get_password_hash (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
+            mock_get_password_hash.assert_called_once_with("password123")
+            # User (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
+            MockUser.assert_called_once_with(
+                username="testuser",
+                email="test@example.com",
+                hashed_password="hashed_password",
+                nickname="TestNick",
+                full_name="Test User"
+            )
+            # mock_db.add (MagicMock)가 mock_user_instance 인자로 한 번 호출되었는지 확인합니다.
+            mock_db.add.assert_called_once_with(mock_user_instance)
+            # mock_db.commit (MagicMock)이 한 번 호출되었는지 확인합니다.
+            mock_db.commit.assert_called_once()
+            # mock_db.refresh (MagicMock)가 mock_user_instance 인자로 한 번 호출되었는지 확인합니다.
+            mock_db.refresh.assert_called_once_with(mock_user_instance)
+            assert created_user == mock_user_instance
+
+def test_create_user_duplicate_email(mock_db, user_create_data):
+    """중복된 이메일로 사용자 생성 시 예외 처리 테스트"""
+    user_service = UserService()
+    # mock_db.commit (MagicMock) 호출 시 IntegrityError를 발생시키도록 설정합니다.
+    mock_db.commit.side_effect = IntegrityError("duplicate key value violates unique constraint", params=None, orig=None)
+
+    with pytest.raises(IntegrityError):
+        user_service.create_user(mock_db, user_create_data)
+
+    # mock_db.rollback (MagicMock)이 한 번 호출되었는지 확인합니다.
+    mock_db.rollback.assert_called_once()
+
+def test_create_user_duplicate_nickname(mock_db, user_create_data):
+    """중복된 닉네임으로 사용자 생성 시 예외 처리 테스트"""
+    user_service = UserService()
+    # mock_db.commit (MagicMock) 호출 시 IntegrityError를 발생시키도록 설정합니다.
+    mock_db.commit.side_effect = IntegrityError("duplicate key value violates unique constraint", params=None, orig=None)
+
+    with pytest.raises(IntegrityError):
+        user_service.create_user(mock_db, user_create_data)
+
+    # mock_db.rollback (MagicMock)이 한 번 호출되었는지 확인합니다.
+    mock_db.rollback.assert_called_once()

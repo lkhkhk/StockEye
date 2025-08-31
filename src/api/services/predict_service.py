@@ -1,8 +1,12 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import pandas as pd
+from src.common.models.stock_master import StockMaster
 from src.common.models.daily_price import DailyPrice
 import logging
+import asyncio
+
+from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
 
@@ -11,45 +15,46 @@ class PredictService:
         pass
 
     def get_recent_prices(self, db: Session, symbol: str, days: int = 40):
-        logger.debug(f"get_recent_prices 호출: symbol={symbol}, days={days}")
-        try:
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=days)
-            rows = db.query(DailyPrice).filter(
-                DailyPrice.symbol == symbol,
-                DailyPrice.date >= start_date,
-                DailyPrice.date <= end_date
-            ).order_by(DailyPrice.date.asc()).all()
-            recent_prices_data = [
-                {
-                    "date": row.date,
-                    "open": row.open,
-                    "high": row.high,
-                    "low": row.low,
-                    "close": row.close,
-                    "volume": row.volume
-                }
-                for row in rows
-            ]
-            logger.debug(f"get_recent_prices 결과: {len(recent_prices_data)}개 데이터.")
-            return recent_prices_data
-        except Exception as e:
-            logger.error(f"get_recent_prices 실패: {str(e)}", exc_info=True)
-            return []
+        """
+        DB에서 특정 종목의 최근 N일치 일별 시세 데이터를 가져옵니다.
+        """
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        prices = db.query(DailyPrice).filter(
+            DailyPrice.symbol == symbol,
+            DailyPrice.date >= start_date,
+            DailyPrice.date <= end_date
+        ).order_by(DailyPrice.date.asc()).all() # 오래된 날짜부터 정렬
+        
+        # SQLAlchemy 객체를 딕셔너리 리스트로 변환
+        return [{
+            "date": p.date,
+            "open": p.open,
+            "high": p.high,
+            "low": p.low,
+            "close": p.close,
+            "volume": p.volume
+        } for p in prices]
 
-    def calculate_analysis_items(self, data):
-        logger.debug(f"calculate_analysis_items 호출: {len(data)}개 데이터.")
-        if not data or len(data) < 20:
-            logger.warning(f"분석 데이터 부족: {len(data)}개 (최소 20개 필요)")
+    def calculate_analysis_items(self, data: list[dict]) -> dict:
+        """
+        주어진 일별 시세 데이터를 기반으로 기술적 분석 지표를 계산하고 예측을 수행합니다.
+        """
+        if not data or len(data) < 20: # 최소 20일치 데이터 필요 (SMA 20 계산 위함)
+            logger.warning(f"데이터 부족: {len(data)}일치 데이터로는 분석을 수행할 수 없습니다. 최소 20일치 데이터가 필요합니다.")
             return None
 
         df = pd.DataFrame(data)
         df['date'] = pd.to_datetime(df['date'])
-        df = df.sort_values(by='date').reset_index(drop=True)
-        df['daily_change_percent'] = df['close'].pct_change() * 100
-        df['sma_5'] = df['close'].rolling(window=5).mean()
-        df['sma_20'] = df['close'].rolling(window=20).mean()
+        df = df.set_index('date')
+        df = df.sort_index() # 날짜 오름차순 정렬
 
+        # 이동평균선 (Moving Average)
+        df['SMA5'] = df['close'].rolling(window=5).mean()
+        df['SMA20'] = df['close'].rolling(window=20).mean()
+
+        # RSI (Relative Strength Index)
         delta = df['close'].diff()
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
@@ -65,8 +70,8 @@ class PredictService:
         df['macd_histogram'] = df['macd'] - df['signal_line']
 
         latest_close = df['close'].iloc[-1]
-        latest_sma_5 = df['sma_5'].iloc[-1]
-        latest_sma_20 = df['sma_20'].iloc[-1]
+        latest_sma_5 = df['SMA5'].iloc[-1]
+        latest_sma_20 = df['SMA20'].iloc[-1]
         latest_rsi = df['rsi'].iloc[-1]
         latest_macd = df['macd'].iloc[-1]
         latest_signal_line = df['signal_line'].iloc[-1]
@@ -117,8 +122,13 @@ class PredictService:
             "reason": reason
         }
 
-    def predict_stock_movement(self, db: Session, symbol: str):
+    async def predict_stock_movement(self, db: Session, symbol: str, user_id: int = None):
         logger.debug(f"predict_stock_movement 호출: symbol={symbol}")
+        stock = await asyncio.to_thread(db.query(StockMaster).filter(StockMaster.symbol == symbol).first()) # 이 라인을 추가합니다.
+        if not stock:
+            logger.warning(f"종목을 찾을 수 없습니다: {symbol}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Stock not found: {symbol}")
+
         recent_data = self.get_recent_prices(db, symbol, days=40)
         if len(recent_data) < 20:
             logger.warning(f"예측 불가: 데이터 부족({len(recent_data)}일)")

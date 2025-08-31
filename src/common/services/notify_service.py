@@ -14,6 +14,10 @@ async def send_telegram_message(chat_id: int, text: str):
     if not bot:
         logger.warning("TELEGRAM_BOT_TOKEN is not set. Skipping message sending.")
         return
+    
+    if not text or not text.strip():
+        logger.warning(f"Attempted to send an empty or whitespace-only message to chat_id: {chat_id}. Skipping.")
+        return
         
     logger.debug(f"Attempting to send message to chat_id: {chat_id}, text: {text[:50]}...") # 텍스트는 너무 길 수 있으므로 일부만 로깅
     try:

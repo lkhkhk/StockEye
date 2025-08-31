@@ -1,66 +1,66 @@
-import logging
-import os
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from src.common.models.user import User
 from src.common.schemas.user import UserCreate
-from passlib.hash import bcrypt
-from typing import Optional
+from src.api.auth.jwt_handler import get_password_hash
+import logging
 
 logger = logging.getLogger(__name__)
 
-# ... (기존 함수들은 그대로 유지) ...
-
 class UserService:
-    # ... (다른 메서드들은 그대로 유지) ...
+    def get_user_by_id(self, db: Session, user_id: int):
+        logger.debug(f"get_user_by_id 호출: user_id={user_id}")
+        return db.query(User).filter(User.id == user_id).first()
 
-    def get_user_by_telegram_id(self, db: Session, telegram_id: int) -> Optional[User]:
-        logger.debug(f"Attempting to retrieve user by telegram_id: {telegram_id}")
-        user = db.query(User).filter(User.telegram_id == telegram_id).first()
-        if user:
-            logger.debug(f"User found by telegram_id: user_id={user.id}, telegram_id={telegram_id}")
-        else:
-            logger.debug(f"User not found for telegram_id: {telegram_id}")
-        return user
+    def get_user_by_username(self, db: Session, username: str):
+        logger.debug(f"get_user_by_username 호출: username={username}")
+        return db.query(User).filter(User.username == username).first()
 
-    def create_user_from_telegram(self, db: Session, telegram_id: int, username: str, first_name: str, last_name: str) -> User:
-        logger.debug(f"Attempting to create user from telegram: telegram_id={telegram_id}, username={username}")
-        
-        # 관리자 ID 환경 변수 확인
-        admin_telegram_id = os.getenv("TELEGRAM_ADMIN_ID")
-        user_role = "user" # 기본값
-        if admin_telegram_id and str(telegram_id) == admin_telegram_id:
-            user_role = "admin"
-            logger.info(f"Admin user detected. Assigning 'admin' role to telegram_id: {telegram_id}")
+    def get_user_by_email(self, db: Session, email: str):
+        logger.debug(f"get_user_by_email 호출: email={email}")
+        return db.query(User).filter(User.email == email).first()
 
+    def get_user_by_telegram_id(self, db: Session, telegram_id: int):
+        logger.debug(f"get_user_by_telegram_id 호출: telegram_id={telegram_id}")
+        return db.query(User).filter(User.telegram_id == telegram_id).first()
+
+    def create_user(self, db: Session, user: UserCreate):
+        logger.debug(f"create_user 호출: username={user.username}, email={user.email}")
+        hashed_password = get_password_hash(user.password)
+        db_user = User(
+            username=user.username,
+            email=user.email,
+            hashed_password=hashed_password,
+            nickname=user.nickname,
+            full_name=user.full_name
+        )
         try:
-            new_user = User(
-                telegram_id=telegram_id,
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
-                is_active=True,
-                role=user_role  # 역할(role) 설정 추가
-            )
-            db.add(new_user)
+            db.add(db_user)
             db.commit()
-            db.refresh(new_user)
-            logger.debug(f"User created from telegram successfully: user_id={new_user.id}, telegram_id={new_user.telegram_id}, role={new_user.role}")
-            return new_user
-        except Exception as e:
+            db.refresh(db_user)
+            logger.info(f"사용자 생성 성공: username={user.username}, id={db_user.id}")
+            return db_user
+        except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"Failed to create user from telegram (telegram_id={telegram_id}): {str(e)}", exc_info=True)
+            logger.error(f"사용자 생성 실패: {e}", exc_info=True)
             raise
 
-    def get_user_by_id(self, db: Session, user_id: int) -> Optional[User]:
-        logger.debug(f"Attempting to retrieve user by id: {user_id}")
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            logger.debug(f"User found by id: user_id={user.id}")
-        else:
-            logger.debug(f"User not found for id: {user_id}")
-        return user
-
-# ... (파일의 나머지 부분은 그대로 유지) ...
-
-# 전체 파일 내용을 붙여넣기 위해 기존의 다른 함수/클래스 코드가 이 자리에 와야 합니다.
-# 이 예시에서는 핵심 수정사항만 보여드립니다.
+    def create_user_from_telegram(self, db: Session, telegram_id: int, username: str, first_name: str, last_name: str):
+        logger.debug(f"create_user_from_telegram 호출: telegram_id={telegram_id}, username={username}")
+        full_name = f"{first_name} {last_name}".strip()
+        db_user = User(
+            telegram_id=telegram_id,
+            username=username,
+            nickname=username,
+            full_name=full_name
+        )
+        try:
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+            logger.info(f"텔레그램 사용자 생성 성공: telegram_id={telegram_id}, id={db_user.id}")
+            return db_user
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"텔레그램 사용자 생성 실패: {e}", exc_info=True)
+            raise

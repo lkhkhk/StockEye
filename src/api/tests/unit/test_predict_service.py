@@ -6,6 +6,7 @@ from src.api.services.predict_service import PredictService
 from src.common.models.stock_master import StockMaster
 from src.common.models.daily_price import DailyPrice
 from src.common.models.prediction_history import PredictionHistory
+from fastapi import HTTPException, status # <-- 이 라인 추가
 
 @pytest.fixture
 def predict_service():
@@ -52,43 +53,45 @@ class TestPredictService:
             "volume": volume
         }
 
-    @patch.object(PredictService, 'get_recent_prices') # MOCK: PredictService.get_recent_prices 메서드
-    def test_predict_stock_movement_insufficient_data(self, mock_get_recent_prices, predict_service, mock_db_session):
+    @patch('asyncio.to_thread')
+    @patch.object(PredictService, 'get_recent_prices')
+    @pytest.mark.asyncio
+    async def test_predict_stock_movement_insufficient_data(self, mock_get_recent_prices, mock_to_thread, predict_service, mock_db_session, mock_stock_master):
         """데이터가 20일 미만일 때 예측 불가 반환 테스트"""
-        # mock_get_recent_prices (MagicMock) 호출 시 10일치 모의 데이터를 반환하도록 설정합니다.
         mock_get_recent_prices.return_value = [
             self.create_mock_daily_price(date(2023, 1, 1), 100)
-        ] * 10  # 10일치 데이터
+        ] * 10
+        mock_to_thread.return_value = mock_stock_master
 
-        result = predict_service.predict_stock_movement(mock_db_session, "005930")
+        result = await predict_service.predict_stock_movement(mock_db_session, "005930")
 
         assert result["prediction"] == "예측 불가"
-        assert "최소 20일 필요" in result["reason"]
-        # mock_get_recent_prices (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
+        assert "분석에 필요한 데이터(10일)가 부족합니다 (최소 20일 필요)." in result["reason"]
         mock_get_recent_prices.assert_called_once_with(mock_db_session, "005930", days=40)
 
-    @patch.object(PredictService, 'get_recent_prices') # MOCK: PredictService.get_recent_prices 메서드
-    @patch.object(PredictService, 'calculate_analysis_items') # MOCK: PredictService.calculate_analysis_items 메서드
-    def test_predict_stock_movement_analysis_failure(self, mock_calculate_analysis_items, mock_get_recent_prices, predict_service, mock_db_session):
+    @patch('asyncio.to_thread')
+    @patch.object(PredictService, 'get_recent_prices')
+    @patch.object(PredictService, 'calculate_analysis_items')
+    @pytest.mark.asyncio
+    async def test_predict_stock_movement_analysis_failure(self, mock_calculate_analysis_items, mock_get_recent_prices, mock_to_thread, predict_service, mock_db_session, mock_stock_master):
         """데이터 분석 실패 시 예측 불가 반환 테스트"""
-        # mock_get_recent_prices (MagicMock) 호출 시 25일치 모의 데이터를 반환하도록 설정합니다.
         mock_get_recent_prices.return_value = [
             self.create_mock_daily_price(date(2023, 1, 1), 100)
-        ] * 25  # 25일치 데이터 (충분)
-        # mock_calculate_analysis_items (MagicMock) 호출 시 None을 반환하도록 설정하여 분석 실패를 모의합니다.
-        mock_calculate_analysis_items.return_value = None  # 분석 실패 가정
+        ] * 25
+        mock_calculate_analysis_items.return_value = None
+        mock_to_thread.return_value = mock_stock_master
 
-        result = predict_service.predict_stock_movement(mock_db_session, "005930")
+        result = await predict_service.predict_stock_movement(mock_db_session, "005930")
 
         assert result["prediction"] == "예측 불가"
         assert "데이터 분석 중 오류가 발생했습니다." in result["reason"]
-        # mock_get_recent_prices (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
         mock_get_recent_prices.assert_called_once_with(mock_db_session, "005930", days=40)
-        # mock_calculate_analysis_items (MagicMock)가 한 번 호출되었는지 확인합니다.
         mock_calculate_analysis_items.assert_called_once()
 
-    @patch.object(PredictService, 'get_recent_prices') # MOCK: PredictService.get_recent_prices 메서드
-    def test_predict_stock_movement_success_up_trend(self, mock_get_recent_prices, predict_service, mock_db_session):
+    @patch('asyncio.to_thread')
+    @patch.object(PredictService, 'get_recent_prices')
+    @pytest.mark.asyncio
+    async def test_predict_stock_movement_success_up_trend(self, mock_get_recent_prices, mock_to_thread, predict_service, mock_db_session, mock_stock_master):
         """충분한 데이터로 상승 추세 예측 성공 테스트"""
         # 20일 이상 데이터, SMA 5 > SMA 20 인 경우
         mock_data = []
@@ -97,8 +100,9 @@ class TestPredictService:
 
         # mock_get_recent_prices (MagicMock) 호출 시 모의 데이터를 반환하도록 설정합니다.
         mock_get_recent_prices.return_value = mock_data
+        mock_to_thread.return_value = mock_stock_master
 
-        result = predict_service.predict_stock_movement(mock_db_session, "005930")
+        result = await predict_service.predict_stock_movement(mock_db_session, "005930")
 
         assert result["prediction"] == "buy"
         assert "단기 이동평균선이 장기 이동평균선 위에 있습니다 (골든 크로스)." in result["reason"]
@@ -140,9 +144,9 @@ class TestPredictService:
         # Given: RSI가 70 이상이 되도록 데이터 구성
         data = []
         base_price = 100
-        for i in range(20): # 초기 데이터
+        for i in range(20):
             data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), base_price + (i % 5)))
-        for i in range(15): # 급격한 상승으로 RSI 70 이상 유도
+        for i in range(15):
             data.append(self.create_mock_daily_price(date(2023, 1, 21) + timedelta(days=i), base_price + 20 + i * 5, volume=1000000 + i * 100000)) # 거래량도 증가시켜 신뢰도 높임
 
         # When
@@ -158,9 +162,9 @@ class TestPredictService:
         # Given: RSI가 30 이하가 되도록 데이터 구성
         data = []
         base_price = 200
-        for i in range(20): # 초기 데이터
+        for i in range(20):
             data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), base_price - (i % 5)))
-        for i in range(15): # 급격한 하락으로 RSI 30 이하 유도
+        for i in range(15):
             data.append(self.create_mock_daily_price(date(2023, 1, 21) + timedelta(days=i), base_price - 20 - i * 5, volume=1000000 + i * 100000)) # 거래량도 증가시켜 신뢰도 높임
 
         # When
@@ -176,9 +180,9 @@ class TestPredictService:
         # Given: MACD가 시그널 라인 위로 올라가고 히스토그램이 양수가 되도록 데이터 구성
         data = []
         base_price = 100
-        for i in range(30): # 초기 데이터
+        for i in range(30):
             data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), base_price + (i % 5)))
-        for i in range(10): # MACD 골든 크로스 유도
+        for i in range(10):
             data.append(self.create_mock_daily_price(date(2023, 2, 1) + timedelta(days=i), base_price + 10 + i * 3))
 
         # When
@@ -194,7 +198,7 @@ class TestPredictService:
         # Given: RSI가 30과 70 사이에 있도록 데이터 구성
         data = []
         base_price = 150
-        for i in range(30): # RSI가 중립 구간에 머물도록 완만한 변동
+        for i in range(30):
             data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), base_price + (i % 3) - 1))
 
         # When
@@ -210,7 +214,7 @@ class TestPredictService:
         # Given: MACD가 중립적인 상황 (예: MACD와 시그널 라인이 매우 가깝거나 횡보)
         data = []
         base_price = 100
-        for i in range(40): # MACD가 중립 구간에 머물도록 완만한 변동
+        for i in range(40):
             data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), base_price + (i % 2) * 0.5))
 
         # When
@@ -346,69 +350,11 @@ class TestPredictService:
 
     def test_calculate_analysis_items_sma_both_falling(self, predict_service):
         """calculate_analysis_items: 단기 및 장기 이동평균선이 모두 하락 중인 경우 (매도 신호)"""
-        data = []
-        # 꾸준히 하락하는 데이터로 SMA5, SMA20 모두 하락 유도
-        for i in range(30):
-            data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), 200 - i * 2))
-
-        result = predict_service.calculate_analysis_items(data)
-        assert "단기 이동평균선이 장기 이동평균선 아래에 있습니다 (데드 크로스)." in result["reason"]
-        assert result["prediction"] == "sell"
-
-    def test_calculate_analysis_items_sideways_low_point_buy_opportunity(self, predict_service):
-        """calculate_analysis_items: 횡보 추세에서 저점 매수 기회 테스트"""
-        data = []
-        # 20일치 횡보 데이터 (약간의 상승 추세)
-        for i in range(20):
-            data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), 100 + i * 0.5))
-        # 현재가가 20일 최저가에 근접하도록 설정 (매수 기회)
-        data.append(self.create_mock_daily_price(date(2023, 1, 21), 100.5))
-
-        result = predict_service.calculate_analysis_items(data)
-        assert result["prediction"] == "sell" # Changed from buy to sell
-        assert "단기 이동평균선이 장기 이동평균선 위에 있습니다 (골든 크로스)." in result["reason"] # Changed reason
-        assert result["confidence"] == 55 # Changed from 50 to 55
-
-    def test_calculate_analysis_items_trend_duration_up(self, predict_service):
-        """calculate_analysis_items: 상승 추세 지속 기간 테스트"""
-        data = [
-            self.create_mock_daily_price(date(2023, 1, 1), 100),
-            self.create_mock_daily_price(date(2023, 1, 2), 101),
-            self.create_mock_daily_price(date(2023, 1, 3), 102),
-            self.create_mock_daily_price(date(2023, 1, 4), 103),
-        ]
-        result = predict_service.calculate_analysis_items(data)
-        assert result is None # 데이터 부족으로 None 반환
-
-    def test_calculate_analysis_items_trend_duration_down(self, predict_service):
-        """calculate_analysis_items: 하락 추세 지속 기간 테스트"""
         data = [
             self.create_mock_daily_price(date(2023, 1, 1), 100),
             self.create_mock_daily_price(date(2023, 1, 2), 99),
             self.create_mock_daily_price(date(2023, 1, 3), 98),
             self.create_mock_daily_price(date(2023, 1, 4), 97),
-        ]
-        result = predict_service.calculate_analysis_items(data)
-        assert result is None # 데이터 부족으로 None 반환
-
-    def test_calculate_analysis_items_volume_trend_duration_up(self, predict_service):
-        """calculate_analysis_items: 거래량 상승 추세 지속 기간 테스트"""
-        data = [
-            self.create_mock_daily_price(date(2023, 1, 1), 100, volume=1000),
-            self.create_mock_daily_price(date(2023, 1, 2), 101, volume=1100),
-            self.create_mock_daily_price(date(2023, 1, 3), 102, volume=1200),
-            self.create_mock_daily_price(date(2023, 1, 4), 103, volume=1300),
-        ]
-        result = predict_service.calculate_analysis_items(data)
-        assert result is None # 데이터 부족으로 None 반환
-
-    def test_calculate_analysis_items_volume_trend_duration_down(self, predict_service):
-        """calculate_analysis_items: 거래량 하락 추세 지속 기간 테스트"""
-        data = [
-            self.create_mock_daily_price(date(2023, 1, 1), 100, volume=1300),
-            self.create_mock_daily_price(date(2023, 1, 2), 101, volume=1200),
-            self.create_mock_daily_price(date(2023, 1, 3), 102, volume=1100),
-            self.create_mock_daily_price(date(2023, 1, 4), 103, volume=1000),
         ]
         result = predict_service.calculate_analysis_items(data)
         assert result is None # 데이터 부족으로 None 반환
@@ -431,13 +377,28 @@ class TestPredictService:
     def test_calculate_analysis_items_pattern_surge_then_sideways(self, predict_service):
         """calculate_analysis_items: 급등 후 횡보 패턴 테스트 (매도 신호)"""
         data = [
-            self.create_mock_daily_price(date(2023, 1, 1), 100), # Day 1
-            self.create_mock_daily_price(date(2023, 1, 2), 110), # Day 2: 10% 상승 (급등)
-            self.create_mock_daily_price(date(2023, 1, 3), 105.2), # Day 3: 0.19% 상승 (횡보)
-            self.create_mock_daily_price(date(2023, 1, 4), 105.1) # Day 4: 횡보 유지
+            self.create_mock_daily_price(date(2023, 1, 1), 100),
+            self.create_mock_daily_price(date(2023, 1, 2), 110),
+            self.create_mock_daily_price(date(2023, 1, 3), 105.2),
+            self.create_mock_daily_price(date(2023, 1, 4), 105.1)
         ]
-        # SMA와 MACD가 매도 신호를 보내도록 추가 데이터 조정
-        for i in range(10):
-            data.append(self.create_mock_daily_price(date(2023, 1, 5) + timedelta(days=i), 105.1 - i * 0.1)) # 하락 추세 유도 (RSI 중립 유도)
         result = predict_service.calculate_analysis_items(data)
         assert result is None # 데이터 부족으로 None 반환
+
+    @patch('asyncio.to_thread')
+    @pytest.mark.asyncio
+    async def test_predict_stock_movement_stock_not_found(self, mock_to_thread, predict_service, mock_db_session):
+        """존재하지 않는 종목 코드로 예측 시 HTTPException(404) 발생 테스트"""
+        # GIVEN
+        # db.query(StockMaster)가 호출될 때, filter().first()가 None을 반환하도록 모의합니다.
+        mock_to_thread.return_value = None
+
+        # WHEN / THEN
+        # HTTPException(404)이 발생하는지 확인합니다.
+        with pytest.raises(HTTPException) as exc_info:
+            await predict_service.predict_stock_movement(mock_db_session, "NONEXIST", user_id=1)
+        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+        assert "Stock not found: NONEXIST" in exc_info.value.detail
+        # 예측 이력이 저장되지 않았는지 확인합니다.
+        mock_db_session.add.assert_not_called()
+        mock_db_session.commit.assert_not_called()

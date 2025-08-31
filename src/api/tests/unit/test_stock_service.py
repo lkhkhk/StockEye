@@ -346,7 +346,7 @@ class TestStockService:
         mock_yfinance_download.return_value = pd.DataFrame() # 빈 DataFrame 반환
 
         # WHEN
-        result = stock_service.update_daily_prices(mock_db)
+        result = await stock_service.update_daily_prices(mock_db)
 
         # THEN
         assert result["success"] == True
@@ -604,7 +604,7 @@ class TestStockService:
         price_yesterday = MagicMock(spec=DailyPrice, symbol=stock_symbol, date=yesterday, open=69000, high=70000, low=68000, close=70500, volume=900000)
         
         # mock_db.query().filter().filter().order_by().all() 호출 시 모의 일별 시세 목록을 반환하도록 설정합니다.
-        mock_db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = [
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
             price_today, price_yesterday
         ]
 
@@ -618,7 +618,7 @@ class TestStockService:
         # mock_db.query (MagicMock)가 DailyPrice 모델로 한 번 호출되었는지 확인합니다.
         mock_db.query.assert_called_once_with(DailyPrice)
         # mock_db.query().filter().filter().order_by().all (MagicMock)이 한 번 호출되었는지 확인합니다.
-        mock_db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.assert_called_once()
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.assert_called_once()
 
     @pytest.mark.asyncio
     @patch('src.common.services.stock_service.dart_get_all_stocks') # MOCK: dart_get_all_stocks 함수

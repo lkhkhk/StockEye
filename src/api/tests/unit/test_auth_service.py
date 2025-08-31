@@ -34,11 +34,13 @@ class TestAuthService:
     def mock_user_model(self):
         # 모의 User 모델 픽스처
         # User 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
-        user = MagicMock(spec=User)
+        user = MagicMock()
         user.id = 1
         user.username = "testuser"
         user.email = "test@example.com"
-        user.password_hash = "hashed_password" # 실제 해시된 비밀번호
+        user.hashed_password = "hashed_password" # 실제 해시된 비밀번호
+        user.role = "user"
+        user.is_active = True
         return user
 
     @patch('src.api.services.auth_service.get_password_hash') # MOCK: get_password_hash 함수
@@ -70,7 +72,7 @@ class TestAuthService:
         mock_db_session.refresh.assert_called_once()
         assert registered_user.username == mock_user_create_schema.username
         assert registered_user.email == mock_user_create_schema.email
-        assert registered_user.password_hash == "hashed_password"
+        assert registered_user.hashed_password == "hashed_password"
 
     def test_register_user_already_exists(self, auth_service, mock_db_session, mock_user_create_schema, mock_user_model):
         # Given
@@ -101,7 +103,7 @@ class TestAuthService:
         # mock_db_session.query (MagicMock)가 User 모델로 한 번 호출되었는지 확인합니다.
         mock_db_session.query.assert_called_once_with(User)
         # mock_verify (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
-        mock_verify.assert_called_once_with(mock_user_login_schema.password, mock_user_model.password_hash)
+        mock_verify.assert_called_once_with(mock_user_login_schema.password, mock_user_model.hashed_password)
         assert authenticated_user == mock_user_model
 
     @patch('src.api.services.auth_service.verify_password') # MOCK: verify_password 함수
@@ -132,4 +134,4 @@ class TestAuthService:
         # Then
         assert result is False 
         # mock_verify (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
-        mock_verify.assert_called_once_with(mock_user_login_schema.password, mock_user_model.password_hash)
+        mock_verify.assert_called_once_with(mock_user_login_schema.password, mock_user_model.hashed_password)
