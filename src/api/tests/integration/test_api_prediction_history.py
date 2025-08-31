@@ -11,7 +11,7 @@ class TestPredictionHistoryRouter:
 
     @pytest.fixture(autouse=True)
     def setup_test_data(self, real_db: Session):
-        # 각 테스트 메서드 실행 전에 PredictionHistory 테이블을 비웁니다。
+        # 각 테스트 메서드 실행 전에 PredictionHistory 테이블을 비웁니다.
         real_db.query(PredictionHistory).delete()
         real_db.commit()
 

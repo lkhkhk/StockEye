@@ -11,29 +11,38 @@ import os
 from src.api.routers.admin import get_current_active_admin_user, get_stock_service
 from src.common.models.stock_master import StockMaster # Added this import for spec=StockMaster
 
-# Fixture for a mock admin user, reused across tests
+# 모의 관리자 사용자 픽스처, 테스트 전반에 재사용
 @pytest.fixture
 def mock_admin_user():
+    # MOCK: User 모델 객체
+    # User 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     return User(id=1, username="admin", email="admin@test.com", role="admin")
 
-# Fixture for a mock DB session, can be reused
+# 모의 DB 세션 픽스처, 재사용 가능
 @pytest.fixture
 def mock_db_session():
+    # MOCK: SQLAlchemy Session 객체
+    # SQLAlchemy Session의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     db = MagicMock(spec=Session)
     yield db
+    # 테스트 후 의존성 오버라이드를 정리하여 다른 테스트에 영향을 주지 않도록 합니다.
     app.dependency_overrides.clear()
 
-# Fixture for a mock stock service, can be reused
+# 모의 주식 서비스 픽스처, 재사용 가능
 @pytest.fixture
 def mock_stock_service_fixture():
+    # MOCK: StockService 객체
+    # StockService의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     service = MagicMock()
     yield service
+    # 테스트 후 의존성 오버라이드를 정리하여 다른 테스트에 영향을 주지 않도록 합니다.
     app.dependency_overrides.clear()
 
 
 @pytest.mark.skip(reason="디버깅용 임시 테스트. 평상시에는 비활성화합니다.")
 def test_auth_dependency_override_hang(mock_admin_user):
     """임시 테스트: 인증 의존성 주입만 테스트하여 멈춤 현상 확인"""
+    # FastAPI의 의존성 주입을 오버라이드하여 실제 함수 대신 모의 객체를 사용하도록 설정합니다.
     app.dependency_overrides[get_current_active_admin_user] = lambda: mock_admin_user
     client = TestClient(app)
     response = client.get("/api/v1/admin/debug/auth_test")
@@ -44,6 +53,8 @@ def test_auth_dependency_override_hang(mock_admin_user):
 
 def test_admin_stats_success(mock_admin_user, mock_db_session):
     """관리자 통계 조회 성공 테스트 (dependency_overrides 사용)"""
+    # MOCK: mock_db_session.query
+    # mock_db_session.query 호출 시 반환될 MagicMock 객체의 동작을 정의합니다.
     def query_side_effect(model):
         query_mock = MagicMock()
         if model == User:
@@ -55,6 +66,7 @@ def test_admin_stats_success(mock_admin_user, mock_db_session):
         return query_mock
     mock_db_session.query.side_effect = query_side_effect
 
+    # FastAPI의 의존성 주입을 오버라이드하여 실제 함수 대신 모의 객체를 사용하도록 설정합니다.
     app.dependency_overrides[get_db] = lambda: mock_db_session
     app.dependency_overrides[get_current_active_admin_user] = lambda: mock_admin_user
 
@@ -73,6 +85,7 @@ def test_admin_stats_success(mock_admin_user, mock_db_session):
 def test_admin_stats_unauthorized():
     """관리자가 아닌 사용자가 통계 조회 시 401 오류 테스트"""
     from fastapi import HTTPException
+    # FastAPI의 의존성 주입을 오버라이드하여 HTTPException을 발생시키도록 설정합니다.
     app.dependency_overrides[get_current_active_admin_user] = \
         lambda: (_ for _ in ()).throw(HTTPException(status_code=401, detail="Not authenticated"))
 
@@ -84,7 +97,10 @@ def test_admin_stats_unauthorized():
 @pytest.mark.timeout(10)
 def test_reset_database_success_in_development(mock_db_session):
     """개발 환경에서 DB 초기화 성공 테스트 (dependency_overrides 사용)"""
-    # Non-dependency patches are still needed and are kept as `patch`
+    # MOCK: os.environ, src.api.main.seed_test_data, src.api.routers.admin.APP_ENV
+    # os.environ을 모의하여 APP_ENV를 "development"로 설정합니다.
+    # seed_test_data 함수를 모의하여 실제 데이터 시딩을 방지합니다.
+    # src.api.routers.admin.APP_ENV를 "development"로 설정합니다.
     with patch.dict(os.environ, {"APP_ENV": "development"}), \
          patch('src.api.main.seed_test_data') as mock_seed_data, \
          patch('src.api.routers.admin.APP_ENV', 'development'):
@@ -97,14 +113,18 @@ def test_reset_database_success_in_development(mock_db_session):
 
         assert response.status_code == 200
         assert response.json() == {"message": "DB 초기화 및 데이터 시딩이 완료되었습니다."}
+        # mock_seed_data (MagicMock)가 mock_db_session 인자로 한 번 호출되었는지 확인합니다.
         mock_seed_data.assert_called_once_with(mock_db_session)
+        # mock_db_session.commit (MagicMock)이 한 번 호출되었는지 확인합니다.
         mock_db_session.commit.assert_called_once()
 
         app.dependency_overrides.clear()
 
 def test_reset_database_forbidden_in_production():
     """운영 환경에서 DB 초기화 시 403 오류 테스트"""
-    # This test does not involve FastAPI dependencies, so `patch` is appropriate
+    # MOCK: os.environ, src.api.routers.admin.APP_ENV
+    # os.environ을 모의하여 APP_ENV를 "production"으로 설정합니다.
+    # src.api.routers.admin.APP_ENV를 "production"으로 설정합니다.
     with patch.dict(os.environ, {"APP_ENV": "production"}), \
          patch('src.api.routers.admin.APP_ENV', 'production'):
         client = TestClient(app)
@@ -115,6 +135,8 @@ def test_reset_database_forbidden_in_production():
 @pytest.mark.asyncio
 async def test_update_master_success(mock_admin_user, mock_stock_service_fixture):
     """종목마스터 갱신 성공 테스트 (dependency_overrides 사용)"""
+    # MOCK: mock_stock_service_fixture.update_stock_master
+    # mock_stock_service_fixture.update_stock_master (AsyncMock) 호출 시 반환될 값을 설정합니다.
     mock_stock_service_fixture.update_stock_master = AsyncMock(return_value={
         "success": True,
         "updated_count": 10
@@ -135,6 +157,8 @@ async def test_update_master_success(mock_admin_user, mock_stock_service_fixture
 @pytest.mark.asyncio
 async def test_update_price_success(mock_admin_user, mock_stock_service_fixture):
     """일별시세 갱신 성공 테스트 (dependency_overrides 사용)"""
+    # MOCK: mock_stock_service_fixture.update_daily_prices
+    # mock_stock_service_fixture.update_daily_prices (AsyncMock) 호출 시 반환될 값을 설정합니다.
     mock_stock_service_fixture.update_daily_prices = AsyncMock(return_value={
         "success": True,
         "updated_count": 100,
@@ -154,12 +178,16 @@ async def test_update_price_success(mock_admin_user, mock_stock_service_fixture)
 @pytest.mark.asyncio
 async def test_get_schedule_status_success(mock_admin_user):
     """스케줄러 상태 조회 성공 테스트"""
-    # `httpx.AsyncClient` is an external library, not a FastAPI dependency, so `patch` is correct here
+    # MOCK: httpx.AsyncClient
+    # `httpx.AsyncClient`는 외부 라이브러리이므로 `patch`를 사용하여 모의합니다.
     with patch('httpx.AsyncClient') as mock_async_client:
+        # MagicMock: HTTP 응답 객체를 모의합니다. 동기적으로 동작합니다.
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"status": "running", "jobs": 5}
+        # mock_async_client의 비동기 컨텍스트 매니저 진입 시 반환될 객체를 모의합니다.
         mock_client_instance = mock_async_client.return_value.__aenter__.return_value
+        # mock_client_instance.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_client_instance.get.return_value = mock_response
 
         app.dependency_overrides[get_current_active_admin_user] = lambda: mock_admin_user
@@ -174,12 +202,16 @@ async def test_get_schedule_status_success(mock_admin_user):
 @pytest.mark.asyncio
 async def test_trigger_schedule_job_success(mock_admin_user):
     """스케줄러 잡 실행 성공 테스트"""
-    # `httpx.AsyncClient` is an external library, not a FastAPI dependency, so `patch` is correct here
+    # MOCK: httpx.AsyncClient
+    # `httpx.AsyncClient`는 외부 라이브러리이므로 `patch`를 사용하여 모의합니다.
     with patch('httpx.AsyncClient') as mock_async_client:
+        # MagicMock: HTTP 응답 객체를 모의합니다. 동기적으로 동작합니다.
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"message": "Job triggered"}
+        # mock_async_client의 비동기 컨텍스트 매니저 진입 시 반환될 객체를 모의합니다.
         mock_client_instance = mock_async_client.return_value.__aenter__.return_value
+        # mock_client_instance.post (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_client_instance.post.return_value = mock_response
 
         app.dependency_overrides[get_current_active_admin_user] = lambda: mock_admin_user
@@ -194,6 +226,8 @@ async def test_trigger_schedule_job_success(mock_admin_user):
 @pytest.mark.asyncio
 async def test_update_disclosure_all_stocks_success(mock_admin_user, mock_stock_service_fixture, mock_db_session):
     """모든 종목 공시 이력 갱신 성공 테스트"""
+    # MOCK: mock_stock_service_fixture.update_disclosures_for_all_stocks
+    # mock_stock_service_fixture.update_disclosures_for_all_stocks (AsyncMock) 호출 시 반환될 값을 설정합니다.
     mock_stock_service_fixture.update_disclosures_for_all_stocks = AsyncMock(return_value={
         "success": True,
         "inserted": 5,
@@ -215,15 +249,22 @@ async def test_update_disclosure_all_stocks_success(mock_admin_user, mock_stock_
         "skipped": 2,
         "errors": []
     }
+    # mock_stock_service_fixture.update_disclosures_for_all_stocks (AsyncMock)이 올바른 인자로 한 번 호출되었는지 확인합니다.
     mock_stock_service_fixture.update_disclosures_for_all_stocks.assert_called_once_with(mock_db_session)
     app.dependency_overrides.clear()
 
 @pytest.mark.asyncio
 async def test_update_disclosure_specific_stock_success(mock_admin_user, mock_stock_service_fixture, mock_db_session):
     """특정 종목 공시 이력 갱신 성공 테스트"""
+    # MOCK: StockMaster 객체
+    # MagicMock: StockMaster 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     mock_stock = MagicMock(corp_code="0012345", symbol="005930", spec=StockMaster)
     mock_stock.name = "삼성전자"
+    # MOCK: mock_stock_service_fixture.search_stocks
+    # mock_stock_service_fixture.search_stocks (MagicMock) 호출 시 반환될 값을 설정합니다.
     mock_stock_service_fixture.search_stocks.return_value = [mock_stock]
+    # MOCK: mock_stock_service_fixture.update_disclosures
+    # mock_stock_service_fixture.update_disclosures (AsyncMock) 호출 시 반환될 값을 설정합니다.
     mock_stock_service_fixture.update_disclosures = AsyncMock(return_value={
         "success": True,
         "inserted": 3,
@@ -245,7 +286,9 @@ async def test_update_disclosure_specific_stock_success(mock_admin_user, mock_st
         "skipped": 1,
         "errors": []
     }
+    # mock_stock_service_fixture.search_stocks (MagicMock)이 올바른 인자로 한 번 호출되었는지 확인합니다.
     mock_stock_service_fixture.search_stocks.assert_called_once_with("삼성전자", mock_db_session, limit=1)
+    # mock_stock_service_fixture.update_disclosures (AsyncMock)이 올바른 인자로 한 번 호출되었는지 확인합니다.
     mock_stock_service_fixture.update_disclosures.assert_called_once_with(
         mock_db_session, corp_code="0012345", stock_code="005930", stock_name="삼성전자"
     )

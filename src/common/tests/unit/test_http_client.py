@@ -20,16 +20,21 @@ def test_get_retry_client_initialization(mock_getenv):
     # 1. Setup
     from src.common.utils import http_client
     
+    # MOCK: os.getenv
     # os.getenv가 특정 호스트 이름을 반환하도록 설정합니다.
     mock_getenv.return_value = "defaulthost"
 
+    # MOCK: httpx.AsyncHTTPTransport, httpx.AsyncClient
     # httpx의 AsyncHTTPTransport와 AsyncClient 클래스를 모의 객체로 대체합니다.
+    # MagicMock: AsyncHTTPTransport와 AsyncClient는 클래스이므로 MagicMock을 사용합니다.
     with patch('httpx.AsyncHTTPTransport') as mock_transport_class, \
          patch('httpx.AsyncClient') as mock_async_client_class:
         
+        # MagicMock: AsyncHTTPTransport 클래스의 인스턴스를 모의합니다.
         mock_transport_instance = MagicMock(spec=httpx.AsyncHTTPTransport)
         mock_transport_class.return_value = mock_transport_instance
         
+        # MagicMock: AsyncClient 클래스의 인스턴스를 모의합니다.
         mock_async_client_instance = MagicMock(spec=httpx.AsyncClient)
         mock_async_client_class.return_value = mock_async_client_instance
 

@@ -16,18 +16,26 @@ from src.common.utils.exceptions import DartApiError
 
 @pytest.fixture(autouse=True)
 def mock_env_vars():
+    # MOCK: os.environ
     # DART_API_KEY 환경 변수를 모의하여, 실제 키 없이 테스트를 실행합니다.
     with patch.dict(os.environ, {"DART_API_KEY": "test_api_key"}):
         yield
 
 @pytest.fixture
 def mock_get_retry_client():
+    # MOCK: src.common.utils.dart_utils.get_retry_client
     # get_retry_client 함수를 모의하여 실제 HTTP 요청을 보내지 않도록 합니다.
     # AsyncMock을 사용하여 비동기 컨텍스트 매니저를 흉내 냅니다.
     with patch('src.common.utils.dart_utils.get_retry_client') as mock_client:
+        # AsyncMock: 비동기 컨텍스트 매니저인 get_retry_client의 반환값을 모의합니다.
         async_mock_client = AsyncMock()
+        # AsyncMock: httpx.AsyncClient의 get/post 등 비동기 메서드를 모의합니다.
         mock_get = AsyncMock()
+        # __aenter__는 비동기 컨텍스트 매니저 진입 시 호출되는 메서드입니다.
+        # 이 메서드가 mock_get을 반환하도록 설정하여, `async with client:` 구문에서
+        # `client` 변수가 mock_get을 참조하게 합니다.
         async_mock_client.__aenter__.return_value = mock_get
+        # get_retry_client() 호출 시 async_mock_client가 반환되도록 설정합니다.
         mock_client.return_value = async_mock_client
         yield mock_get
 
@@ -59,9 +67,13 @@ class TestDartUtils:
             zf.writestr('CORPCODE.xml', xml_data)
         mock_zip_content.seek(0)
 
+        # MOCK: httpx.Response 객체
+        # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
         mock_response = MagicMock()
         mock_response.content = mock_zip_content.read()
+        # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다.
         mock_response.raise_for_status = MagicMock()
+        # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_get_retry_client.get.return_value = mock_response
 
         stocks = await dart_get_all_stocks()
@@ -71,16 +83,21 @@ class TestDartUtils:
         assert stocks[0]["name"] == "삼성전자"
         assert stocks[1]["symbol"] == "035720"
         assert stocks[1]["name"] == "카카오"
+        # mock_get_retry_client.get (AsyncMock)이 올바른 인자로 한 번 호출되었는지 확인합니다.
         mock_get_retry_client.get.assert_called_once_with("https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=test_api_key", timeout=60)
 
     @pytest.mark.asyncio
     async def test_dart_get_all_stocks_api_key_missing(self):
+        # MOCK: os.environ
+        # DART_API_KEY 환경 변수를 빈 값으로 모의하여, API 키 누락 시의 동작을 테스트합니다.
         with patch.dict(os.environ, {"DART_API_KEY": ""}):
             with pytest.raises(ValueError, match="DART_API_KEY가 환경변수에 없거나 인자로 전달되지 않았습니다."):
                 await dart_get_all_stocks()
 
     @pytest.mark.asyncio
     async def test_dart_get_all_stocks_request_error(self, mock_get_retry_client):
+        # MOCK: mock_get_retry_client.get
+        # mock_get_retry_client.get (AsyncMock) 호출 시 httpx.RequestError를 발생시키도록 설정합니다.
         mock_get_retry_client.get.side_effect = httpx.RequestError("Network error", request=httpx.Request("GET", "http://test.com"))
         with pytest.raises(DartApiError, match="DART API 요청 실패"):
             await dart_get_all_stocks()
@@ -92,9 +109,13 @@ class TestDartUtils:
             zf.writestr('other.xml', '<data/>')
         mock_zip_content.seek(0)
 
+        # MOCK: httpx.Response 객체
+        # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
         mock_response = MagicMock()
         mock_response.content = mock_zip_content.read()
+        # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다.
         mock_response.raise_for_status = MagicMock()
+        # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_get_retry_client.get.return_value = mock_response
 
         with pytest.raises(RuntimeError, match="ZIP 파일 내에 CORPCODE.xml이 없습니다."):
@@ -102,7 +123,10 @@ class TestDartUtils:
 
     @pytest.mark.asyncio
     async def test_dart_get_disclosures_success(self, mock_get_retry_client):
+        # MOCK: httpx.Response 객체
+        # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
         mock_response = MagicMock()
+        # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
         mock_response.json.return_value = {
             "status": "000",
             "message": "정상",
@@ -117,16 +141,21 @@ class TestDartUtils:
 
         assert len(disclosures) == 1
         assert disclosures[0]["corp_name"] == "삼성전자"
+        # mock_get_retry_client.get (AsyncMock)이 한 번 호출되었는지 확인합니다.
         mock_get_retry_client.get.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_dart_get_disclosures_api_key_missing(self):
+        # MOCK: os.environ
+        # DART_API_KEY 환경 변수를 빈 값으로 모의하여, API 키 누락 시의 동작을 테스트합니다.
         with patch.dict(os.environ, {"DART_API_KEY": ""}):
             with pytest.raises(ValueError, match="DART_API_KEY가 환경변수에 없거나 인자로 전달되지 않았습니다."):
                 await dart_get_disclosures()
 
     @pytest.mark.asyncio
     async def test_dart_get_disclosures_request_error(self, mock_get_retry_client):
+        # MOCK: mock_get_retry_client.get
+        # mock_get_retry_client.get (AsyncMock) 호출 시 httpx.RequestError를 발생시키도록 설정합니다.
         mock_get_retry_client.get.side_effect = httpx.RequestError("Network error", request=httpx.Request("GET", "http://test.com"))
         with pytest.raises(DartApiError, match="DART API 요청 실패"):
             await dart_get_disclosures()
@@ -134,12 +163,17 @@ class TestDartUtils:
     @pytest.mark.asyncio
     async def test_dart_get_disclosures_api_error_status(self, mock_get_retry_client):
         """DART API가 정상 응답했으나, status 필드가 에러(e.g., '013')인 경우를 테스트합니다."""
+        # MOCK: httpx.Response 객체
+        # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
         mock_response = MagicMock()
+        # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
         mock_response.json.return_value = {
             "status": "013",
             "message": "조회된 데이터가 없습니다."
         }
+        # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다.
         mock_response.raise_for_status = MagicMock()
+        # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_get_retry_client.get.return_value = mock_response
 
         with pytest.raises(DartApiError, match="조회된 데이터가 없습니다.") as excinfo:
@@ -149,8 +183,11 @@ class TestDartUtils:
     @pytest.mark.asyncio
     async def test_dart_get_disclosures_pagination(self, mock_get_retry_client):
         """여러 페이지에 걸친 공시 정보를 모두 가져오는지 페이지네이션 로직을 테스트합니다."""
+        # MOCK: httpx.Response 객체
+        # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
         # 1페이지 응답 모의
         mock_response_page1 = MagicMock()
+        # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
         mock_response_page1.json.return_value = {
             "status": "000",
             "message": "정상",
@@ -160,10 +197,14 @@ class TestDartUtils:
             "page_count": 1,
             "list": [{"corp_name": "회사1", "rcept_no": "1"}]
         }
+        # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다.
         mock_response_page1.raise_for_status = MagicMock()
 
+        # MOCK: httpx.Response 객체
+        # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
         # 2페이지 응답 모의
         mock_response_page2 = MagicMock()
+        # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
         mock_response_page2.json.return_value = {
             "status": "000",
             "message": "정상",
@@ -173,9 +214,10 @@ class TestDartUtils:
             "page_count": 1,
             "list": [{"corp_name": "회사2", "rcept_no": "2"}]
         }
+        # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다.
         mock_response_page2.raise_for_status = MagicMock()
 
-        # get 메서드가 호출될 때마다 다른 응답을 반환하도록 설정
+        # mock_get_retry_client.get (AsyncMock) 호출 시 다른 응답을 반환하도록 설정합니다.
         mock_get_retry_client.get.side_effect = [
             mock_response_page1,
             mock_response_page2

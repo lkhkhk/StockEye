@@ -13,10 +13,14 @@ def predict_service():
 
 @pytest.fixture
 def mock_db_session():
+    # 모의 DB 세션 픽스처
+    # SQLAlchemy Session의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     return MagicMock(spec=Session)
 
 @pytest.fixture
 def mock_stock_master():
+    # 모의 StockMaster 픽스처
+    # StockMaster 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     stock = MagicMock(spec=StockMaster)
     stock.symbol = "005930"
     stock.name = "삼성전자"
@@ -24,6 +28,8 @@ def mock_stock_master():
     return stock
 
 def create_mock_daily_price(trade_date, close_price, open_price=None, high_price=None, low_price=None, volume=100000):
+    # 모의 일별 시세 데이터 생성 함수
+    # 일별 시세 데이터를 딕셔너리 형태로 모의합니다.
     return {
         "date": trade_date,
         "open": open_price if open_price is not None else close_price,
@@ -35,6 +41,8 @@ def create_mock_daily_price(trade_date, close_price, open_price=None, high_price
 
 class TestPredictService:
     def create_mock_daily_price(self, trade_date, close_price, open_price=None, high_price=None, low_price=None, volume=100000):
+        # 모의 일별 시세 데이터 생성 함수
+        # 일별 시세 데이터를 딕셔너리 형태로 모의합니다.
         return {
             "date": trade_date,
             "open": open_price if open_price is not None else close_price,
@@ -44,9 +52,10 @@ class TestPredictService:
             "volume": volume
         }
 
-    @patch.object(PredictService, 'get_recent_prices')
+    @patch.object(PredictService, 'get_recent_prices') # MOCK: PredictService.get_recent_prices 메서드
     def test_predict_stock_movement_insufficient_data(self, mock_get_recent_prices, predict_service, mock_db_session):
         """데이터가 20일 미만일 때 예측 불가 반환 테스트"""
+        # mock_get_recent_prices (MagicMock) 호출 시 10일치 모의 데이터를 반환하도록 설정합니다.
         mock_get_recent_prices.return_value = [
             self.create_mock_daily_price(date(2023, 1, 1), 100)
         ] * 10  # 10일치 데이터
@@ -55,25 +64,30 @@ class TestPredictService:
 
         assert result["prediction"] == "예측 불가"
         assert "최소 20일 필요" in result["reason"]
+        # mock_get_recent_prices (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
         mock_get_recent_prices.assert_called_once_with(mock_db_session, "005930", days=40)
 
-    @patch.object(PredictService, 'get_recent_prices')
-    @patch.object(PredictService, 'calculate_analysis_items')
+    @patch.object(PredictService, 'get_recent_prices') # MOCK: PredictService.get_recent_prices 메서드
+    @patch.object(PredictService, 'calculate_analysis_items') # MOCK: PredictService.calculate_analysis_items 메서드
     def test_predict_stock_movement_analysis_failure(self, mock_calculate_analysis_items, mock_get_recent_prices, predict_service, mock_db_session):
         """데이터 분석 실패 시 예측 불가 반환 테스트"""
+        # mock_get_recent_prices (MagicMock) 호출 시 25일치 모의 데이터를 반환하도록 설정합니다.
         mock_get_recent_prices.return_value = [
             self.create_mock_daily_price(date(2023, 1, 1), 100)
         ] * 25  # 25일치 데이터 (충분)
+        # mock_calculate_analysis_items (MagicMock) 호출 시 None을 반환하도록 설정하여 분석 실패를 모의합니다.
         mock_calculate_analysis_items.return_value = None  # 분석 실패 가정
 
         result = predict_service.predict_stock_movement(mock_db_session, "005930")
 
         assert result["prediction"] == "예측 불가"
         assert "데이터 분석 중 오류가 발생했습니다." in result["reason"]
+        # mock_get_recent_prices (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
         mock_get_recent_prices.assert_called_once_with(mock_db_session, "005930", days=40)
+        # mock_calculate_analysis_items (MagicMock)가 한 번 호출되었는지 확인합니다.
         mock_calculate_analysis_items.assert_called_once()
 
-    @patch.object(PredictService, 'get_recent_prices')
+    @patch.object(PredictService, 'get_recent_prices') # MOCK: PredictService.get_recent_prices 메서드
     def test_predict_stock_movement_success_up_trend(self, mock_get_recent_prices, predict_service, mock_db_session):
         """충분한 데이터로 상승 추세 예측 성공 테스트"""
         # 20일 이상 데이터, SMA 5 > SMA 20 인 경우
@@ -81,6 +95,7 @@ class TestPredictService:
         for i in range(25):
             mock_data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), 100 + i * 2)) # 꾸준히 상승
 
+        # mock_get_recent_prices (MagicMock) 호출 시 모의 데이터를 반환하도록 설정합니다.
         mock_get_recent_prices.return_value = mock_data
 
         result = predict_service.predict_stock_movement(mock_db_session, "005930")

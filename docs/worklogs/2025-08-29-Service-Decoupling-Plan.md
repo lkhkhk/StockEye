@@ -41,3 +41,25 @@
 - **테스트 실행:** `api`, `bot`, `worker` 각 서비스에 대해 모든 단위/통합/E2E 테스트를 실행하여 통과하는지 확인합니다.
 - **서비스 재기동:** `docker compose up -d --build` 명령으로 모든 서비스를 다시 빌드하고 시작합니다.
 - **로그 확인:** 재기동 후, 모든 서비스의 로그를 확인하여 `import` 오류 없이 정상적으로 시작되는지 최종 검증합니다.
+
+### 3.1. 단위 테스트 검증 현황 (2025-08-30)
+
+- **결론:** `api`, `bot`, `worker` 서비스의 단위 테스트는 **아직 완전히 완료되지 않았습니다.**
+- **상세 현황:**
+    - **`api` 서비스 단위 테스트:**
+        - `src/api/tests/unit/test_stock_service.py` (`test_check_and_notify_new_disclosures_success`) - **완료**
+        - `src/api/tests/unit/test_admin_router.py` (`test_admin_stats`) - **완료**
+        - 그 외 API 라우터 및 서비스 단위 테스트 - **진행 중**
+    - **`bot` 서비스 단위 테스트:**
+        - `src/bot/handlers/start.py` - **완료**
+        - `src/bot/tests/unit/test_history_handler.py` (`history_command`) - **완료**
+        - 그 외 봇 핸들러 단위 테스트 - **진행 중**
+    - **`worker` 서비스 단위 테스트:**
+        - `src/worker/tests/unit/test_listener.py` - **완료**
+        - `src/worker/tests/unit/test_scheduler.py` - **완료**
+        - 그 외 워커 단위 테스트 - **진행 중**
+    - **`common` 모듈 단위 테스트:**
+        - `dart_utils.py`, `db_connector.py`, `http_client.py`, `notify_service.py` 등 - **완료**
+        - 그 외 공통 모듈 단위 테스트 - **진행 중**
+
+---

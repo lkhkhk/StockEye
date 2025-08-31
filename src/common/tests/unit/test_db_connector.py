@@ -15,7 +15,9 @@ from src.common.database.db_connector import get_db, SessionLocal
 
 def test_get_db():
     """get_db 의존성 주입 함수의 세션 생성 및 종료 로직을 테스트합니다."""
+    # MOCK: SessionLocal
     # SessionLocal을 모의 객체로 대체하여 실제 DB 세션을 생성하지 않도록 합니다.
+    # MagicMock: SessionLocal은 동기적으로 동작하는 클래스이므로 MagicMock을 사용합니다.
     mock_session = MagicMock(spec=Session)
     
     with patch('src.common.database.db_connector.SessionLocal', return_value=mock_session) as mock_session_local:
@@ -25,6 +27,7 @@ def test_get_db():
         # 1. 제너레이터에서 세션을 정상적으로 가져오는지 확인합니다.
         db_session = next(db_generator)
         assert db_session is mock_session
+        # mock_session_local (MagicMock)이 한 번 호출되었는지 확인합니다.
         mock_session_local.assert_called_once()
         
         # 2. `yield` 이후, 제너레이터가 종료될 때 세션의 close() 메서드가
@@ -32,4 +35,5 @@ def test_get_db():
         with pytest.raises(StopIteration):
             next(db_generator)
         
+        # mock_session.close (MagicMock)이 한 번 호출되었는지 확인합니다.
         mock_session.close.assert_called_once()

@@ -8,15 +8,22 @@ async def test_start_command_for_regular_user():
     일반 사용자가 /start 명령어를 입력했을 때, 일반 사용자용 메시지를 수신하는지 테스트합니다.
     """
     # Given
+    # MOCK: telegram.Update 객체
+    # AsyncMock: Update 객체를 모의합니다. 비동기적으로 동작합니다.
     update = AsyncMock()
+    # MOCK: telegram.ext.ContextTypes.DEFAULT_TYPE 객체
+    # AsyncMock: ContextTypes.DEFAULT_TYPE 객체를 모의합니다. 비동기적으로 동작합니다.
     context = AsyncMock()
     update.effective_user.id = 12345
     
     # When
-    with patch('src.bot.handlers.start.ADMIN_ID', "99999"): # 관리자 ID를 다른 값으로 설정
+    # MOCK: src.bot.handlers.start.ADMIN_ID
+    # ADMIN_ID를 다른 값으로 설정하여 일반 사용자를 모의합니다.
+    with patch('src.bot.handlers.start.ADMIN_ID', "99999"): 
         await start_command(update, context)
 
     # Then
+    # update.message.reply_text (AsyncMock)가 START_TEXT_USER로 한 번 호출되었는지 확인합니다.
     update.message.reply_text.assert_awaited_once_with(START_TEXT_USER)
 
 
@@ -26,14 +33,21 @@ async def test_start_command_for_admin_user():
     관리자 사용자가 /start 명령어를 입력했을 때, 관리자용 메시지를 수신하는지 테스트합니다.
     """
     # Given
+    # MOCK: telegram.Update 객체
+    # AsyncMock: Update 객체를 모의합니다. 비동기적으로 동작합니다.
     update = AsyncMock()
+    # MOCK: telegram.ext.ContextTypes.DEFAULT_TYPE 객체
+    # AsyncMock: ContextTypes.DEFAULT_TYPE 객체를 모의합니다. 비동기적으로 동작합니다.
     context = AsyncMock()
     admin_id = "12345"
     update.effective_user.id = int(admin_id)
 
     # When
-    with patch('src.bot.handlers.start.ADMIN_ID', admin_id): # 관리자 ID를 테스트 ID와 동일하게 설정
+    # MOCK: src.bot.handlers.start.ADMIN_ID
+    # ADMIN_ID를 테스트 ID와 동일하게 설정하여 관리자 사용자를 모의합니다.
+    with patch('src.bot.handlers.start.ADMIN_ID', admin_id): 
         await start_command(update, context)
 
     # Then
+    # update.message.reply_text (AsyncMock)가 START_TEXT_ADMIN으로 한 번 호출되었는지 확인합니다.
     update.message.reply_text.assert_awaited_once_with(START_TEXT_ADMIN)
