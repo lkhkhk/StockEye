@@ -517,7 +517,7 @@ class StockService:
         logger.debug(f"update_disclosures 호출: corp_code={corp_code}, stock_code={stock_code}, max_count={max_count}")
         result = {'success': True, 'inserted': 0, 'skipped': 0, 'errors': []}
         try:
-            disclosures = await dart_get_disclosures(corp_code, max_count=max_count)
+            disclosures = await dart_get_disclosures(corp_code, page_size=max_count)
             logger.debug(f"DART에서 {len(disclosures)}개 특정 종목 공시 데이터 가져옴.")
             
             for item in disclosures:

@@ -14,7 +14,7 @@ def create_test_user(db: Session, role: str = "user", is_active: bool = True, te
     user = User(
         username=f"test_{unique_id}",
         email=f"test_{unique_id}@example.com",
-        password_hash=hashed_password,
+        hashed_password=hashed_password,
         role=role,
         is_active=is_active,
         telegram_id=telegram_id

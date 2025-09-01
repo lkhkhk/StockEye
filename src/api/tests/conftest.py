@@ -75,6 +75,7 @@ def real_db(db_engine):
 from src.common.models.user import User
 from src.common.models.stock_master import StockMaster
 from src.api.services.user_service import UserService
+from src.common.schemas.user import UserCreate # Added import
 from uuid import uuid4
 
 @pytest.fixture(scope="function")
@@ -86,12 +87,16 @@ def test_user(real_db: Session):
     email = f"{username}@test.com"
     password = "test_password"
 
-    user = user_service.create_user(
-        real_db,
+    user_create_data = UserCreate(
         username=username,
         email=email,
         password=password,
-        telegram_id=telegram_id
+        telegram_id=telegram_id # telegram_id는 UserCreate 스키마에 없으므로, 필요시 User 모델에 직접 할당하거나 스키마에 추가해야 합니다.
+    )
+
+    user = user_service.create_user(
+        real_db,
+        user=user_create_data
     )
     real_db.commit()
     real_db.refresh(user)

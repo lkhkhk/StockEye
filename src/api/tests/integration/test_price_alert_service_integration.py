@@ -39,7 +39,7 @@ async def test_check_price_alerts_publishes_to_redis_on_trigger(price_alert_serv
 
     # 2. Given: 테스트 데이터 설정
     # 사용자 생성
-    test_user = User(id=1, username="testuser", email="test@example.com", telegram_id="12345", password_hash="hashed_password")
+    test_user = User(id=1, username="testuser", email="test@example.com", telegram_id="12345", hashed_password="hashed_password")
     real_db.add(test_user)
 
     # 주식 마스터 생성

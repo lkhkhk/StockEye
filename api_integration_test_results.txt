@@ -1,0 +1,81 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.18, pytest-8.4.1, pluggy-1.6.0
+rootdir: /app/src/api
+plugins: cov-6.2.1, timeout-2.4.0, anyio-4.10.0, asyncio-1.1.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=strict, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 141 items
+
+tests/integration/test_admin_scheduler_integration.py .                  [  0%]
+tests/integration/test_api_admin_integration.py EEFEEEFEEEFEEEEEEEFEFEFE [ 17%]
+EEF                                                                      [ 19%]
+tests/integration/test_api_alerts_integration.py F....                   [ 23%]
+tests/integration/test_api_alerts_price_integration.py FF                [ 24%]
+tests/integration/test_api_bot_router_integration.py EEEEEEEEEFEFEEFE    [ 36%]
+tests/integration/test_api_prediction_history_integration.py FFFFFFF     [ 41%]
+tests/integration/test_api_simulated_trade_integration.py FFFFFFFF       [ 46%]
+tests/integration/test_api_stock_master_integration.py FFFFFFFEEF        [ 53%]
+tests/integration/test_api_user_integration.py .FF.FF.F..F.FF            [ 63%]
+tests/integration/test_api_watchlist_integration.py FFFFFFF              [ 68%]
+tests/integration/test_db_schema_integration.py ..........               [ 75%]
+tests/integration/test_notification_publish_integration.py .             [ 76%]
+tests/integration/test_price_alert_service_integration.py F              [ 77%]
+tests/integration/test_seed_data_integration.py F                        [ 78%]
+tests/integration/test_stock_service_integration.py +++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_0 (139735534675648) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/local/lib/python3.10/threading.py", line 973, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/local/lib/python3.10/threading.py", line 1016, in _bootstrap_inner
+    self.run()
+  File "/usr/local/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.10/concurrent/futures/thread.py", line 81, in _worker
+    work_item = work_queue.get(block=True)
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_0 (139735525234368) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/local/lib/python3.10/threading.py", line 973, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/local/lib/python3.10/threading.py", line 1016, in _bootstrap_inner
+    self.run()
+  File "/usr/local/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.10/concurrent/futures/thread.py", line 81, in _worker
+    work_item = work_queue.get(block=True)
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_0 (139735534675648) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/local/lib/python3.10/threading.py", line 973, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/local/lib/python3.10/threading.py", line 1016, in _bootstrap_inner
+    self.run()
+  File "/usr/local/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.10/concurrent/futures/thread.py", line 81, in _worker
+    work_item = work_queue.get(block=True)
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_0 (139735525234368) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/local/lib/python3.10/threading.py", line 973, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/local/lib/python3.10/threading.py", line 1016, in _bootstrap_inner
+    self.run()
+  File "/usr/local/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.10/concurrent/futures/thread.py", line 81, in _worker
+    work_item = work_queue.get(block=True)
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_0 (139735534675648) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/local/lib/python3.10/threading.py", line 973, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/local/lib/python3.10/threading.py", line 1016, in _bootstrap_inner
+    self.run()
+  File "/usr/local/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.10/concurrent/futures/thread.py", line 81, in _worker
+    work_item = work_queue.get(block=True)
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+FFF
