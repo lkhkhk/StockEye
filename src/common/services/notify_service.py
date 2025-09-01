@@ -5,15 +5,13 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-bot = None
-if TELEGRAM_BOT_TOKEN:
-    bot = Bot(token=TELEGRAM_BOT_TOKEN)
-
 async def send_telegram_message(chat_id: int, text: str):
-    if not bot:
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_BOT_TOKEN:
         logger.warning("TELEGRAM_BOT_TOKEN is not set. Skipping message sending.")
         return
+
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
     
     if not text or not text.strip():
         logger.warning(f"Attempted to send an empty or whitespace-only message to chat_id: {chat_id}. Skipping.")

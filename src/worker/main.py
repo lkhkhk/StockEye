@@ -12,7 +12,9 @@ from fastapi import FastAPI
 
 from src.common.database.db_connector import get_db
 from src.common.services.price_alert_service import PriceAlertService
-from src.common.services.stock_service import StockService
+from src.common.services.stock_master_service import StockMasterService
+from src.common.services.market_data_service import MarketDataService
+from src.common.services.disclosure_service import DisclosureService
 from src.common.models.user import User
 from src.common.services.notify_service import send_telegram_message
 from src.worker.routers import scheduler as scheduler_router
@@ -74,10 +76,10 @@ async def update_stock_master_job(chat_id: int = None):
     logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
     db_gen = get_db()
     db = next(db_gen)
-    stock_service = StockService()
+    stock_master_service = StockMasterService()
     success = False
     try:
-        await stock_service.update_stock_master(db)
+        await stock_master_service.update_stock_master(db)
         success = True
     except Exception as e:
         logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
@@ -100,10 +102,10 @@ async def update_daily_price_job(chat_id: int = None):
     logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
     db_gen = get_db()
     db = next(db_gen)
-    stock_service = StockService()
+    market_data_service = MarketDataService()
     success = False
     try:
-        await stock_service.update_daily_prices(db)
+        await market_data_service.update_daily_prices(db)
         success = True
     except Exception as e:
         logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
@@ -126,10 +128,10 @@ async def check_disclosures_job(chat_id: int = None):
     logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
     db_gen = get_db()
     db = next(db_gen)
-    stock_service = StockService()
+    disclosure_service = DisclosureService()
     success = False
     try:
-        await stock_service.check_and_notify_new_disclosures(db)
+        await disclosure_service.check_and_notify_new_disclosures(db)
         success = True
     except Exception as e:
         logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
@@ -153,7 +155,8 @@ async def check_price_alerts_job(chat_id: int = None):
     db_gen = get_db()
     db = next(db_gen)
     alert_service = PriceAlertService()
-    stock_service = StockService()
+    stock_master_service = StockMasterService()
+    market_data_service = MarketDataService()
     success = False
     try:
         active_alerts = alert_service.get_all_active_alerts(db)
@@ -165,7 +168,7 @@ async def check_price_alerts_job(chat_id: int = None):
 
         for symbol, alerts in alerts_by_symbol.items():
             try:
-                price_data = stock_service.get_current_price_and_change(symbol, db)
+                price_data = market_data_service.get_current_price_and_change(symbol, db)
                 current_price = price_data.get("current_price")
                 if current_price is None:
                     continue

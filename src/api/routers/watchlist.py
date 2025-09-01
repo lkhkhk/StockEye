@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import List
 import logging
 from src.api.services.user_service import UserService # UserService 임포트
-from src.common.services.stock_service import StockService # StockService 임포트
+from src.common.services.stock_master_service import StockMasterService # StockService 임포트
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,11 @@ class WatchListItem(BaseModel):
 def get_user_service():
     return UserService()
 
-def get_stock_service():
-    return StockService()
+def get_stock_master_service():
+    return StockMasterService()
 
 @router.post("/add", tags=["watchlist"])
-def add_to_watchlist(item: WatchListItem, db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), stock_service: StockService = Depends(get_stock_service)):
+def add_to_watchlist(item: WatchListItem, db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service), stock_master_service: StockMasterService = Depends(get_stock_master_service)):
     logger.debug(f"관심 종목 추가 시도: user_id={item.user_id}, symbol={item.symbol}")
     # 사용자 존재 여부 확인
     user = user_service.get_user_by_id(db, item.user_id)
@@ -34,7 +34,7 @@ def add_to_watchlist(item: WatchListItem, db: Session = Depends(get_db), user_se
         raise HTTPException(status_code=404, detail="User not found")
 
     # 종목 존재 여부 확인
-    stock = stock_service.get_stock_by_symbol(item.symbol, db)
+    stock = stock_master_service.get_stock_by_symbol(item.symbol, db)
     if not stock:
         raise HTTPException(status_code=404, detail="Stock not found")
 

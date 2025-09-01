@@ -143,3 +143,9 @@ graph TD
 
 *   **서비스 명명 규칙:** 모든 서비스와 컨테이너 이름은 `stockeye-` 접두사를 사용하여 통일합니다. (예: `stockeye-api`, `stockeye-bot`, `stockeye-worker`)
 *   **`src/common` 모듈:** `api`, `bot`, `worker` 서비스가 공유하므로, 이 디렉토리 내 파일 변경 시 모든 서비스에 미치는 영향을 고려하여 관련 파일들을 일관되게 수정해야 합니다.
+*   **`src/common` 모듈 테스트:** `common` 모듈은 여러 서비스에서 공유되므로, 독립적인 환경에서 테스트를 수행해야 합니다.
+    1.  **테스트 이미지 빌드:** `src/common/Dockerfile.test`를 사용하여 전용 테스트 이미지를 빌드합니다.
+        *   `docker build -t stockeye-common-test -f src/common/Dockerfile.test .`
+    2.  **테스트 실행:** 빌드된 이미지를 사용하여 `pytest`를 실행합니다.
+        *   `docker run --rm stockeye-common-test pytest [테스트 파일 경로]`
+*   **파일 크기 관리:** 소스 코드의 가독성과 유지보수성을 높이기 위해, 모든 파일의 길이는 **250 라인을 넘지 않도록 관리**하는 것을 원칙으로 합니다. 250 라인을 초과하는 파일이 발견될 경우, 즉시 논리적인 단위로 파일을 분리하는 리팩토링을 진행합니다.

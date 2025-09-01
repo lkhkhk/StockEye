@@ -1,7 +1,7 @@
 # 이 파일은 src.common.utils.dart_utils 모듈의 단위 테스트를 포함합니다.
 #
 # DART API와의 실제 네트워크 통신을 방지하기 위해, 모든 테스트는
-# httpx 클라이언트(`get_retry_client`)를 모의(mock)하여 진행합니다.
+# `httpx` 클라이언트(`get_retry_client`)를 모의(mock)하여 진행합니다。
 # 이를 통해 네트워크 불안정성이나 API 키 없이도 순수 로직(데이터 파싱 등)의
 # 정확성을 검증할 수 있습니다.
 
@@ -13,6 +13,7 @@ import zipfile
 import io
 from src.common.utils.dart_utils import dart_get_all_stocks, dart_get_disclosures
 from src.common.utils.exceptions import DartApiError
+from datetime import datetime, timedelta
 
 @pytest.fixture(autouse=True)
 def mock_env_vars():
@@ -73,7 +74,7 @@ class TestDartUtils:
         mock_response.content = mock_zip_content.read()
         # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다.
         mock_response.raise_for_status = MagicMock()
-        # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
+        # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다。
         mock_get_retry_client.get.return_value = mock_response
 
         stocks = await dart_get_all_stocks()
@@ -113,7 +114,7 @@ class TestDartUtils:
         # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
         mock_response = MagicMock()
         mock_response.content = mock_zip_content.read()
-        # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다.
+        # MagicMock: raise_for_status 메서드를 모의합니다. 이 메서드는 동기적으로 동작합니다。
         mock_response.raise_for_status = MagicMock()
         # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_get_retry_client.get.return_value = mock_response
@@ -125,8 +126,8 @@ class TestDartUtils:
     async def test_dart_get_disclosures_success(self, mock_get_retry_client):
         # MOCK: httpx.Response 객체
         # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
-        mock_response = MagicMock()
         # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
+        mock_response = MagicMock()
         mock_response.json.return_value = {
             "status": "000",
             "message": "정상",
@@ -165,8 +166,8 @@ class TestDartUtils:
         """DART API가 정상 응답했으나, status 필드가 에러(e.g., '013')인 경우를 테스트합니다."""
         # MOCK: httpx.Response 객체
         # MagicMock: httpx.Response 객체를 모의합니다. 이 객체는 동기적으로 동작합니다.
-        mock_response = MagicMock()
         # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
+        mock_response = MagicMock()
         mock_response.json.return_value = {
             "status": "013",
             "message": "조회된 데이터가 없습니다."
@@ -229,3 +230,71 @@ class TestDartUtils:
         assert disclosures[0]["corp_name"] == "회사1"
         assert disclosures[1]["corp_name"] == "회사2"
         assert mock_get_retry_client.get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_dart_get_disclosures_last_rcept_no_optimization(self, mock_get_retry_client):
+        """last_rcept_no를 사용하여 이전 공시를 건너뛰는 최적화 로직 테스트"""
+        # Given
+        mock_response_page1 = MagicMock()
+        mock_response_page1.json.return_value = {
+            "status": "000",
+            "message": "정상",
+            "list": [
+                {"corp_name": "회사3", "rcept_no": "3", "rcept_dt": "20230103"},
+                {"corp_name": "회사2", "rcept_no": "2", "rcept_dt": "20230102"},
+                {"corp_name": "회사1", "rcept_no": "1", "rcept_dt": "20230101"}
+            ]
+        }
+        mock_response_page1.raise_for_status = MagicMock()
+
+        mock_get_retry_client.get.return_value = mock_response_page1
+
+        # When
+        disclosures = await dart_get_disclosures(last_rcept_no="2")
+
+        # Then
+        assert len(disclosures) == 1
+        assert disclosures[0]["rcept_no"] == "3"
+        mock_get_retry_client.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_dart_get_disclosures_test_page_limit(self, mock_get_retry_client):
+        """test_page_limit에 도달하여 공시 조회를 중단하는 경우 테스트"""
+        # Given
+        mock_response_page1 = MagicMock()
+        mock_response_page1.json.return_value = {
+            "status": "000",
+            "message": "정상",
+            "page_no": 1,
+            "total_page": 10,
+            "total_count": 10,
+            "page_count": 1,
+            "list": [{"corp_name": "회사1", "rcept_no": "1"}]
+        }
+        mock_response_page1.raise_for_status = MagicMock()
+
+        mock_response_page2 = MagicMock()
+        mock_response_page2.json.return_value = {
+            "status": "000",
+            "message": "정상",
+            "page_no": 2,
+            "total_page": 10,
+            "total_count": 10,
+            "page_count": 1,
+            "list": [{"corp_name": "회사2", "rcept_no": "2"}]
+        }
+        mock_response_page2.raise_for_status = MagicMock()
+
+        mock_get_retry_client.get.side_effect = [
+            mock_response_page1,
+            mock_response_page2
+        ]
+
+        # When
+        disclosures = await dart_get_disclosures(test_page_limit=1)
+
+        # Then
+        assert len(disclosures) == 1
+        assert disclosures[0]["rcept_no"] == "1"
+        # test_page_limit이 1이므로 첫 페이지 호출 후 바로 중단되어야 함
+        mock_get_retry_client.get.assert_called_once()

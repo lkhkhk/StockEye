@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.common.schemas.simulated_trade import SimulatedTradeItem
 from src.common.models.simulated_trade import SimulatedTrade
-from src.common.services.stock_service import StockService
+from src.common.services.market_data_service import MarketDataService
 from src.api.services.user_service import UserService # UserService 임포트
 from src.common.database.db_connector import get_db
 from datetime import datetime
@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/trade", tags=["simulated_trade"])
 
-def get_stock_service():
-    return StockService()
+def get_market_data_service():
+    return MarketDataService()
 
 def get_user_service(): # UserService 의존성 주입 함수 추가
     return UserService()
 
 @router.post("/simulate", tags=["simulated_trade"])
-def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db), stock_service: StockService = Depends(get_stock_service), user_service: UserService = Depends(get_user_service)): # user_service 추가
+def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db), market_data_service: MarketDataService = Depends(get_market_data_service), user_service: UserService = Depends(get_user_service)): # user_service 추가
     """모의매매 기록"""
     logger.debug(f"simulate_trade 호출: user_id={trade.user_id}, symbol={trade.symbol}, trade_type={trade.trade_type}")
     try:
@@ -31,7 +31,7 @@ def simulate_trade(trade: SimulatedTradeItem, db: Session = Depends(get_db), sto
             raise HTTPException(status_code=404, detail="User not found")
 
         # 현재가 조회 (실제로는 외부 API에서 가져옴)
-        current_price = stock_service.get_current_price_and_change(trade.symbol, db)['current_price']
+        current_price = market_data_service.get_current_price_and_change(trade.symbol, db)['current_price']
         logger.debug(f"종목 {trade.symbol}의 현재가: {current_price}")
         # 수익률 계산
         profit_loss = None

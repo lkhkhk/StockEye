@@ -11,7 +11,9 @@ from src.api.auth.jwt_handler import get_current_active_admin_user
 from src.common.models.simulated_trade import SimulatedTrade
 from src.common.models.prediction_history import PredictionHistory
 from src.common.models.stock_master import StockMaster
-from src.common.services.stock_service import StockService
+from src.common.services.stock_master_service import StockMasterService
+from src.common.services.market_data_service import MarketDataService
+from src.common.services.disclosure_service import DisclosureService
 from datetime import datetime
 import os
 import httpx
@@ -26,9 +28,6 @@ WORKER_API_URL = f"http://{WORKER_HOST}:{WORKER_PORT}/api/v1"
 
 class TriggerJobRequest(BaseModel):
     chat_id: Optional[int] = None
-
-def get_stock_service():
-    return StockService()
 
 @router.post("/debug/reset-database", tags=["debug"])
 def reset_database(db: Session = Depends(get_db)):
@@ -67,12 +66,12 @@ def admin_stats(db: Session = Depends(get_db), user: User = Depends(get_current_
 @router.post("/update_master", tags=["admin"])
 async def update_master(
     db: Session = Depends(get_db), 
-    stock_service: StockService = Depends(get_stock_service),
+    stock_master_service: StockMasterService = Depends(StockMasterService),
     user: User = Depends(get_current_active_admin_user)
 ):
     """종목마스터 갱신"""
     try:
-        result = await stock_service.update_stock_master(db)
+        result = await stock_master_service.update_stock_master(db)
         if result["success"]:
             return {
                 "message": "종목마스터 갱신 완료",
@@ -88,12 +87,12 @@ async def update_master(
 @router.post("/update_price", tags=["admin"])
 async def update_price(
     db: Session = Depends(get_db), 
-    stock_service: StockService = Depends(get_stock_service),
+    market_data_service: MarketDataService = Depends(MarketDataService),
     user: User = Depends(get_current_active_admin_user)
 ):
     """일별시세 갱신"""
     try:
-        result = await stock_service.update_daily_prices(db)
+        result = await market_data_service.update_daily_prices(db)
         if result["success"]:
             return {
                 "message": f"일별시세 갱신 완료: {result['updated_count']}개 데이터 처리. 오류: {len(result['errors'])}개 종목",
@@ -111,14 +110,15 @@ async def update_price(
 async def update_disclosure(
     code_or_name: str = Query(None),
     db: Session = Depends(get_db),
-    stock_service: StockService = Depends(get_stock_service),
+    stock_master_service: StockMasterService = Depends(StockMasterService),
+    disclosure_service: DisclosureService = Depends(DisclosureService),
     user: User = Depends(get_current_active_admin_user)
 ):
     """공시 이력 갱신 (전체 또는 특정 종목)"""
     try:
         if not code_or_name:
             # 전체 종목 대상
-            result = await stock_service.update_disclosures_for_all_stocks(db)
+            result = await disclosure_service.update_disclosures_for_all_stocks(db)
             if result["success"]:
                 return {
                     "message": f"전체 종목 공시 이력 갱신 완료: {result['inserted']}건 추가, {result['skipped']}건 중복",
@@ -130,12 +130,12 @@ async def update_disclosure(
                 raise HTTPException(status_code=500, detail=f"전체 공시 갱신 실패: {result['errors']}")
         else:
             # 특정 종목 대상
-            stock = stock_service.search_stocks(code_or_name, db, limit=1)
+            stock = stock_master_service.search_stocks(code_or_name, db, limit=1)
             if not stock or not stock[0].corp_code:
                 raise HTTPException(status_code=404, detail=f"'{code_or_name}'에 해당하는 종목을 찾을 수 없거나 DART 고유번호(corp_code)가 없습니다.")
             
             target_stock = stock[0]
-            result = await stock_service.update_disclosures(db, corp_code=target_stock.corp_code, stock_code=target_stock.symbol, stock_name=target_stock.name)
+            result = await disclosure_service.update_disclosures(db, corp_code=target_stock.corp_code, stock_code=target_stock.symbol, stock_name=target_stock.name)
             if result["success"]:
                 return {
                     "message": f"'{target_stock.name}' 공시 이력 갱신 완료: {result['inserted']}건 추가, {result['skipped']}건 중복",

@@ -13,8 +13,11 @@ class PriceAlert(Base):
     change_percent = Column(Float, nullable=True) # N% 변동률
     change_type = Column(String(10), nullable=True) # 'up', 'down' (변동률 조건과 함께 사용)
     notify_on_disclosure = Column(Boolean, nullable=False, default=True) # 공시 알림 수신 여부
-    repeat_interval = Column(String(20), nullable=True) # 반복 알림 주기 (예: 'daily', 'weekly', None)
+    notification_interval_hours = Column(Integer, nullable=False, default=24) # 알림 주기 (시간 단위)
+    last_notified_at = Column(DateTime, nullable=True) # 마지막 알림 전송 시간
+    notification_count = Column(Integer, default=0, nullable=False) # 알림 전송 횟수
     is_active = Column(Boolean, default=True, nullable=False)
+    repeat_interval = Column(String, nullable=True) # 반복 주기
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

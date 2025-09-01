@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional
 from datetime import datetime
 
@@ -11,8 +11,13 @@ class PriceAlertBase(BaseModel):
     notify_on_disclosure: bool = True
     repeat_interval: Optional[str] = None
 
+    @validator('condition')
+    def validate_condition(cls, v):
+        if v is not None and v not in ['gte', 'lte']:
+            raise ValueError("condition must be 'gte' or 'lte'")
+        return v
+
 class PriceAlertCreate(PriceAlertBase):
-    telegram_id: Optional[int] = None
     is_active: Optional[bool] = True
 
 class PriceAlertRead(PriceAlertBase):
