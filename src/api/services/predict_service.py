@@ -124,10 +124,10 @@ class PredictService:
 
     async def predict_stock_movement(self, db: Session, symbol: str, user_id: int = None):
         logger.debug(f"predict_stock_movement 호출: symbol={symbol}")
-        stock = await asyncio.to_thread(db.query(StockMaster).filter(StockMaster.symbol == symbol).first()) # 이 라인을 추가합니다.
+        stock = await asyncio.to_thread(lambda: db.query(StockMaster).filter(StockMaster.symbol == symbol).first()) # 이 라인을 추가합니다.
         if not stock:
             logger.warning(f"종목을 찾을 수 없습니다: {symbol}")
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Stock not found: {symbol}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"종목을 찾을 수 없습니다: {symbol}")
 
         recent_data = self.get_recent_prices(db, symbol, days=40)
         if len(recent_data) < 20:

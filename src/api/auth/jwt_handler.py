@@ -1,35 +1,27 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import logging
 
-logger = logging.getLogger(__name__)
-
 from src.common.models.user import User
-# 순환 참조를 피하기 위해 아래 임포트 라인을 제거하거나 수정합니다.
-# from src.api.services.user_service import UserService, get_user_service
 from src.common.database.db_connector import get_db
 from sqlalchemy.orm import Session
+from src.api.services.user_service import UserService
+
+logger = logging.getLogger(__name__)
 
 # JWT 설정
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# 비밀번호 해싱
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # 보안
 security = HTTPBearer()
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+def get_user_service():
+    return UserService()
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -60,12 +52,8 @@ def verify_token(token: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-def get_current_active_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    """현재 활성 사용자 정보 반환 (UserService에 대한 직접 의존성 제거)"""
-    # UserService를 여기서 직접 임포트하여 사용 (함수 내 지역 임포트)
-    from src.api.services.user_service import UserService
-    user_service = UserService()
-
+def get_current_active_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)):
+    """현재 활성 사용자 정보 반환"""
     token = credentials.credentials
     payload = verify_token(token)
     username: str = payload.get("sub")

@@ -65,7 +65,7 @@ class PriceAlertService:
             raise e
         return db_alert
 
-    async def delete_alert(self, db: Session, alert_id: int):
+    async def delete_alert(self, db: Session, alert_id: int) -> bool:
         db_alert = self.get_alert_by_id(db, alert_id)
         if not db_alert:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
@@ -73,6 +73,7 @@ class PriceAlertService:
         try:
             db.delete(db_alert)
             db.commit()
+            return True
         except Exception as e:
             db.rollback()
             raise e

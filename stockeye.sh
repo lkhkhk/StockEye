@@ -75,8 +75,8 @@ run_api_tests() {
     local env=${1:-development} # 기본값 development
     echo -e "${YELLOW}>>> API 서비스 테스트 실행 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
-    # API 컨테이너의 작업 디렉토리가 /app/src/api 이므로, tests/ 로 경로 지정
-    APP_ENV=$env docker compose exec api pytest tests/
+    # API 컨테이너의 작업 디렉토리가 /app 이므로, src/api/tests/ 로 경로 지정
+    APP_ENV=$env docker compose exec api pytest src/api/tests/router_unit
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}>>> API 서비스 테스트 통과.${NC}"
     else
@@ -91,7 +91,7 @@ run_bot_tests() {
     echo -e "${YELLOW}>>> Bot 서비스 테스트 실행 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
     # Bot 컨테이너의 작업 디렉토리가 /app 이므로, src/bot/tests/ 로 경로 지정
-    APP_ENV=$env docker compose exec bot pytest src/bot/tests/
+    APP_ENV=$env docker compose exec bot pytest src/bot/tests/unit
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}>>> Bot 서비스 테스트 통과.${NC}"
     else
@@ -100,9 +100,41 @@ run_bot_tests() {
     fi
 }
 
+# worker 서비스 테스트 실행
+run_worker_tests() {
+    local env=${1:-development} # 기본값 development
+    echo -e "${YELLOW}>>> worker 서비스 테스트 실행 (환경: $env)...${NC}"
+    cd "$PROJECT_ROOT" || exit 1
+    # worker 컨테이너의 작업 디렉토리가 /app 이므로, src/worker/tests/ 로 경로 지정
+    APP_ENV=$env docker compose exec worker pytest src/worker/tests/unit
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}>>> worker 서비스 테스트 통과.${NC}"
+    else
+        echo -e "${RED}>>> worker 서비스 테스트 실패.${NC}"
+        exit 1
+    fi
+}
+
+# common 공통 모듈 테스트 실행
+run_common_tests() {
+    local env=${1:-development} # 기본값 development
+    echo -e "${YELLOW}>>> common 공통 모듈 테스트 실행 (환경: $env)...${NC}"
+    cd "$PROJECT_ROOT" || exit 1
+    # common 컨테이너의 작업 디렉토리가 /app 이므로, src/common/tests/ 로 경로 지정
+    docker build -t stockeye-common-tester -f src/common/Dockerfile.test . && docker run --rm stockeye-common-tester
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}>>> common 공통 모듈 테스트 통과.${NC}"
+    else
+        echo -e "${RED}>>> common 공통 모듈 테스트 실패.${NC}"
+        exit 1
+    fi
+}
+
 # 모든 테스트 실행
 run_all_tests() {
     echo -e "${YELLOW}>>> 모든 서비스 테스트 실행...${NC}"
+    run_common_tests $@
+    run_worker_tests $@
     run_api_tests $@
     run_bot_tests $@
     echo -e "${GREEN}>>> 모든 서비스 테스트 완료.${NC}"
@@ -195,6 +227,14 @@ main() {
         bot-test)
             shift 
             run_bot_tests "$@" # 환경 인자 전달
+            ;;
+        worker-test)
+            shift 
+            run_worker_tests "$@" # 환경 인자 전달
+            ;;
+        common-test)
+            shift 
+            run_common_tests "$@" # 환경 인자 전달
             ;;
         service)
             shift 

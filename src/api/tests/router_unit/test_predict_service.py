@@ -28,18 +28,6 @@ def mock_stock_master():
     stock.corp_code = "0012345"
     return stock
 
-def create_mock_daily_price(trade_date, close_price, open_price=None, high_price=None, low_price=None, volume=100000):
-    # 모의 일별 시세 데이터 생성 함수
-    # 일별 시세 데이터를 딕셔너리 형태로 모의합니다.
-    return {
-        "date": trade_date,
-        "open": open_price if open_price is not None else close_price,
-        "high": high_price if high_price is not None else close_price,
-        "low": low_price if low_price is not None else close_price,
-        "close": close_price,
-        "volume": volume
-    }
-
 class TestPredictService:
     def create_mock_daily_price(self, trade_date, close_price, open_price=None, high_price=None, low_price=None, volume=100000):
         # 모의 일별 시세 데이터 생성 함수
@@ -398,7 +386,122 @@ class TestPredictService:
         with pytest.raises(HTTPException) as exc_info:
             await predict_service.predict_stock_movement(mock_db_session, "NONEXIST", user_id=1)
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-        assert "Stock not found: NONEXIST" in exc_info.value.detail
+        assert "종목을 찾을 수 없습니다: NONEXIST" in exc_info.value.detail
         # 예측 이력이 저장되지 않았는지 확인합니다.
         mock_db_session.add.assert_not_called()
         mock_db_session.commit.assert_not_called()
+
+    def test_get_recent_prices_no_data(self, predict_service, mock_db_session):
+        """get_recent_prices: 데이터가 없을 때 빈 리스트 반환 테스트"""
+        # GIVEN
+        # query가 빈 리스트를 반환하도록 설정
+        mock_db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+
+        # WHEN
+        result = predict_service.get_recent_prices(mock_db_session, "005930")
+
+        # THEN
+        assert result == []
+
+    def test_get_recent_prices_with_data(self, predict_service, mock_db_session):
+        """get_recent_prices: 데이터가 있을 때 정상적으로 반환하는지 테스트"""
+        # GIVEN
+        # 모의 DailyPrice 객체 리스트 생성
+        mock_price_1 = MagicMock()
+        mock_price_1.date = date(2023, 1, 1)
+        mock_price_1.open = 100
+        mock_price_1.high = 110
+        mock_price_1.low = 90
+        mock_price_1.close = 105
+        mock_price_1.volume = 1000
+
+        mock_price_2 = MagicMock()
+        mock_price_2.date = date(2023, 1, 2)
+        mock_price_2.open = 105
+        mock_price_2.high = 115
+        mock_price_2.low = 95
+        mock_price_2.close = 110
+        mock_price_2.volume = 1200
+
+        mock_db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_price_1, mock_price_2]
+
+        # WHEN
+        result = predict_service.get_recent_prices(mock_db_session, "005930")
+
+        # THEN
+        assert len(result) == 2
+        assert result[0]["date"] == date(2023, 1, 1)
+        assert result[0]["close"] == 105
+        assert result[1]["date"] == date(2023, 1, 2)
+        assert result[1]["close"] == 110
+        assert "open" in result[0]
+        assert "high" in result[0]
+        assert "low" in result[0]
+        assert "volume" in result[0]
+
+    def test_calculate_analysis_items_no_data(self, predict_service):
+        """calculate_analysis_items: 데이터가 없을 때 None 반환 테스트"""
+        result = predict_service.calculate_analysis_items([])
+        assert result is None
+
+    def test_calculate_analysis_items_insufficient_data(self, predict_service):
+        """calculate_analysis_items: 데이터가 20일 미만일 때 None 반환 테스트"""
+        data = [self.create_mock_daily_price(date(2023, 1, 1), 100)] * 19
+        result = predict_service.calculate_analysis_items(data)
+        assert result is None
+
+    def test_calculate_analysis_items_with_nan_in_indicators(self, predict_service):
+        """calculate_analysis_items: 지표에 NaN 값이 포함될 때의 처리 테스트"""
+        # Given: 처음 몇 개의 데이터는 이동평균선 등이 NaN이 됨
+        data = []
+        for i in range(25):
+            data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), 100 + i))
+
+        # When
+        result = predict_service.calculate_analysis_items(data)
+
+        # Then
+        # NaN 값이 있어도 에러 없이 정상적으로 결과를 반환해야 함
+        assert result is not None
+        assert "prediction" in result
+        assert "confidence" in result
+        assert "reason" in result
+        # 이 경우, SMA5 > SMA20 조건은 충족되므로 buy 예측
+        assert result["prediction"] == "buy"
+        assert "단기 이동평균선이 장기 이동평균선 위에 있습니다 (골든 크로스)." in result["reason"]
+        assert "RSI(100)가 과매수 구간입니다." in result["reason"]
+        assert "MACD가 시그널 라인을 상향 돌파했습니다." in result["reason"]
+        assert result["confidence"] == 60
+    def test_calculate_analysis_items_macd_sell_signal(self, predict_service):
+        """calculate_analysis_items: MACD 매도 신호 테스트"""
+        # Given: MACD가 시그널 라인 아래로 내려가고 히스토그램이 음수가 되도록 데이터 구성
+        data = []
+        base_price = 100
+        for i in range(30):
+            data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), base_price - (i % 5)))
+        for i in range(10):
+            data.append(self.create_mock_daily_price(date(2023, 2, 1) + timedelta(days=i), base_price - 10 - i * 3))
+
+        # When
+        result = predict_service.calculate_analysis_items(data)
+
+        # Then
+        assert result["prediction"] == "sell"
+        assert "MACD가 시그널 라인을 하향 돌파했습니다." in result["reason"]
+        assert result["confidence"] > 50
+
+    def test_calculate_analysis_items_hold_prediction(self, predict_service):
+        """calculate_analysis_items: 보류 예측 테스트"""
+        # Given: 매수/매도 신호가 명확하지 않은 데이터
+        data = []
+        base_price = 100
+        for i in range(40):
+            data.append(self.create_mock_daily_price(date(2023, 1, 1) + timedelta(days=i), base_price))
+
+        # When
+        result = predict_service.calculate_analysis_items(data)
+
+        # Then
+        assert result["prediction"] == "hold"
+        assert "명확한 예측 신호를 찾기 어렵습니다" in result["reason"]
+        assert result["confidence"] == 50

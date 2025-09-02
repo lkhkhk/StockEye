@@ -1,21 +1,34 @@
+import logging
 from sqlalchemy.orm import Session
-from src.common.database.db_connector import SessionLocal
-from src.common.models.stock_master import StockMaster
+from sqlalchemy import text
+from tenacity import retry, stop_after_attempt, wait_fixed
 
-def check_db_data():
-    db: Session = SessionLocal()
+from src.common.database.db_connector import SessionLocal
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+max_tries = 60 * 5  # 5 minutes
+wait_seconds = 1
+
+@retry(
+    stop=stop_after_attempt(max_tries),
+    wait=wait_fixed(wait_seconds),
+    before_sleep=lambda retry_state: logger.info(
+        f"Retrying DB connection... Attempt #{retry_state.attempt_number}"
+    ),
+)
+def check_db() -> None:
     try:
-        stocks = db.query(StockMaster).all()
-        if not stocks:
-            print("StockMaster 테이블에 데이터가 없습니다.")
-        else:
-            print(f"StockMaster 테이블 데이터 ({len(stocks)}개):")
-            for stock in stocks:
-                print(f"- Symbol: {stock.symbol}, Name: {stock.name}, Market: {stock.market}")
-    except Exception as e:
-        print(f"DB 조회 중 오류 발생: {e}")
-    finally:
+        db: Session = SessionLocal()
+        # Try to create session to check if DB is awake
+        db.execute(text("SELECT 1"))
         db.close()
+    except Exception as e:
+        logger.error(e)
+        raise e
 
 if __name__ == "__main__":
-    check_db_data()
+    logger.info("Initializing service")
+    check_db()
+    logger.info("Service finished initializing")

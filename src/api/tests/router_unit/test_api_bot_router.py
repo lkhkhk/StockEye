@@ -118,7 +118,7 @@ def test_set_price_alert_for_bot_existing_alert():
     mock_price_alert_service_instance.get_alert_by_user_and_symbol.return_value = mock_alert
     
     updated_price_alert = PriceAlert(
-        id=1, user_id=1, symbol="005930", target_price=80000.0, condition="above",
+        id=1, user_id=1, symbol="005930", target_price=80000.0, condition="gte", # Changed from "above" to "gte"
         created_at=datetime.now(), updated_at=datetime.now(),
         notify_on_disclosure=False, is_active=True, change_percent=None, change_type=None, repeat_interval=None
     )
@@ -127,7 +127,7 @@ def test_set_price_alert_for_bot_existing_alert():
 
     response = client.post(
         "/api/v1/bot/alert/price",
-        json={"telegram_user_id": 12345, "symbol": "005930", "target_price": 80000.0, "condition": "above"}
+        json={"telegram_user_id": 12345, "symbol": "005930", "target_price": 80000.0, "condition": "gte"} # Changed from "above" to "gte"
     )
     
     assert response.status_code == 200

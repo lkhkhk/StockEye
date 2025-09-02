@@ -7,7 +7,7 @@ from src.api.services.predict_service import PredictService
 def test_predict_price(mock_predict_stock_movement, client: TestClient, test_stock_master_data):
     """주가 예측 엔드포인트 테스트"""
     # MOCK: src.api.routers.predict.PredictService.predict_stock_movement
-    # PredictService.predict_stock_movement 메서드를 모의합니다. 이 메서드는 비동기적으로 동작합니다.
+    # PredictService.predict_stock_stock_movement 메서드를 모의합니다. 이 메서드는 비동기적으로 동작합니다.
     mock_predict_stock_movement.return_value = {
         "prediction": "상승",
         "confidence": 85,
@@ -29,11 +29,10 @@ def test_predict_price(mock_predict_stock_movement, client: TestClient, test_sto
 def test_predict_invalid_symbol(client: TestClient):
     payload = {"symbol": "INVALID"}
     response = client.post("/api/v1/predict", json=payload)
-    assert response.status_code == 200
+    assert response.status_code == 404 # Changed from 200 to 404
     data = response.json()
-    assert data["prediction"] == "예측 불가"
-    assert "confidence" in data
-    assert data["confidence"] == 0
+    assert data["detail"] == "종목을 찾을 수 없습니다: INVALID"
+    
 
 
 def test_predict_missing_symbol(client: TestClient):

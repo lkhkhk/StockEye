@@ -19,3 +19,4 @@ lxml
 pandas_datareader
 yfinance
 redis
+tenacity

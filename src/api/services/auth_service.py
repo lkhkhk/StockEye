@@ -1,7 +1,8 @@
 import logging
 from sqlalchemy.orm import Session
 from src.common.models.user import User
-from src.api.auth.jwt_handler import verify_password, get_password_hash, create_access_token
+from src.api.auth.password_utils import verify_password, get_password_hash # 변경된 임포트
+from src.api.auth.jwt_handler import create_access_token
 from fastapi import HTTPException, status
 from datetime import timedelta
 from src.common.schemas.user import UserRead
@@ -111,4 +112,4 @@ class AuthService:
         except Exception as e:
             db.rollback()
             logger.error(f"텔레그램 ID 업데이트 실패: {str(e)}", exc_info=True)
-            raise 
+            raise

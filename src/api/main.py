@@ -143,3 +143,8 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat()
     }
+
+@app.get("/super_simple_test")
+async def super_simple_test():
+    print("Reached super_simple_test endpoint!")
+    return {"message": "Super simple test successful!"}

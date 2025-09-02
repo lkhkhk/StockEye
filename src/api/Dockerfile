@@ -14,8 +14,6 @@ RUN apt-get update && apt-get install -y curl --no-install-recommends && rm -rf 
 # 필요한 소스코드만 컨테이너에 복사
 COPY src/api/ /app/src/api
 COPY src/common/ /app/src/common
-COPY src/bot/ /app/src/bot
 
-# uvicorn 서버 실행 (작업 디렉토리를 /app/src/api로 변경)
-WORKDIR /app/src/api
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# uvicorn 서버 실행 (작업 디렉토리를 /app으로 유지)
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

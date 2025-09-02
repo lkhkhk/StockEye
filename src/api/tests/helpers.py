@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from uuid import uuid4
 
 from src.common.models.user import User
-from src.api.auth.jwt_handler import create_access_token, get_password_hash
+from src.api.auth.jwt_handler import create_access_token
+from src.api.auth.password_utils import get_password_hash
 from datetime import timedelta
 
 

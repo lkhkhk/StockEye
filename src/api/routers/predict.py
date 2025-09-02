@@ -22,49 +22,52 @@ def get_user_service() -> UserService:
     return UserService()
 
 @router.post("/predict", response_model=StockPredictionResponse, tags=["predict"])
-def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db), predict_service: PredictService = Depends(get_predict_service), user_service: UserService = Depends(get_user_service)): # Add user_service dependency
-    print(f"Received request: {request}")
-    symbol = request.symbol
-    
-    # 예측 수행
-    result = predict_service.predict_stock_movement(db, symbol)
-    print(f"Prediction result: {result}")
-    print(f"Prediction value for history check: {result['prediction']}")
-    
-    # 예측 이력 저장 (telegram_id가 있는 경우)
-    if request.telegram_id and result["prediction"] not in ["N/A", "예측 불가"]:
-        try:
-            logger.debug(f"예측 이력 저장 시도: telegram_id={request.telegram_id}, symbol={symbol}, prediction={result['prediction']}")
-            # telegram_id로 user_id 조회 또는 생성
-            user = user_service.get_user_by_telegram_id(db, request.telegram_id)
-            if not user:
-                logger.debug(f"사용자 없음, 새로 생성: telegram_id={request.telegram_id}")
-                user = user_service.create_user_from_telegram(
-                    db,
-                    telegram_id=request.telegram_id,
-                    username=f"tg_{request.telegram_id}",
-                    first_name="Telegram",
-                    last_name="User"
+async def predict_stock(request: StockPredictionRequest, db: Session = Depends(get_db), predict_service: PredictService = Depends(get_predict_service), user_service: UserService = Depends(get_user_service)): # Add user_service dependency
+    try:
+        logger.debug(f"Received request: symbol='{request.symbol}', telegram_id={request.telegram_id}")
+        symbol = request.symbol
+
+        # 예측 수행
+        result = await predict_service.predict_stock_movement(db, symbol)
+        logger.debug(f"Prediction result: {result}")
+
+        # 예측 이력 저장 (telegram_id가 있는 경우)
+        if request.telegram_id and result["prediction"] not in ["N/A", "예측 불가"]:
+            try:
+                logger.debug(f"Attempting to save prediction history: telegram_id={request.telegram_id}, symbol={symbol}, prediction={result['prediction']}")
+                user = user_service.get_user_by_telegram_id(db, request.telegram_id)
+                if not user:
+                    logger.debug(f"User not found, creating new user: telegram_id={request.telegram_id}")
+                    user = user_service.create_user_from_telegram(
+                        db,
+                        telegram_id=request.telegram_id,
+                        username=f"tg_{request.telegram_id}",
+                        first_name="Telegram",
+                        last_name="User"
+                    )
+                logger.debug(f"User ID confirmed: user_id={user.id}")
+
+                prediction_history = PredictionHistory(
+                    user_id=user.id,
+                    symbol=symbol,
+                    prediction=result["prediction"],
+                    created_at=datetime.utcnow()
                 )
-            logger.debug(f"사용자 ID 확인: user_id={user.id}")
-            
-            prediction_history = PredictionHistory(
-                user_id=user.id, # Use user.id
-                symbol=symbol,
-                prediction=result["prediction"],
-                created_at=datetime.utcnow()
-            )
-            db.add(prediction_history)
-            db.commit()
-            logger.info(f"예측 이력 저장 성공: user_id={user.id}, symbol={symbol}")
-        except Exception as e:
-            # 이력 저장 실패는 예측 결과에 영향을 주지 않음
-            db.rollback()
-            logger.error(f"예측 이력 저장 실패: {str(e)}", exc_info=True)
-    
-    return StockPredictionResponse(
-        symbol=symbol,
-        prediction=result["prediction"],
-        confidence=result["confidence"],
-        reason=result["reason"]
-    )
+                db.add(prediction_history)
+                db.commit()
+                logger.info(f"Prediction history saved successfully: user_id={user.id}, symbol={symbol}")
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to save prediction history: {str(e)}", exc_info=True)
+
+        return StockPredictionResponse(
+            symbol=symbol,
+            prediction=result["prediction"],
+            confidence=result["confidence"],
+            reason=result["reason"]
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error during stock prediction for symbol '{request.symbol}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred during prediction.")

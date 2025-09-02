@@ -197,39 +197,31 @@ def test_get_alerts_success(price_alert_service, mock_db):
     
     # MOCK: mock_db.query 체인
     # mock_db.query().options().filter().order_by().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_alert1, mock_alert2]
+    mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert1, mock_alert2]
 
     alerts = price_alert_service.get_alerts(mock_db, 1)
 
     # mock_db.query (MagicMock)가 PriceAlert 모델로 한 번 호출되었는지 확인합니다.
     mock_db.query.assert_called_once_with(PriceAlert)
-    # mock_db.query().options (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.assert_called_once_with(ANY)
-    # mock_db.query().options().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.assert_called_once_with(ANY)
-    # mock_db.query().options().filter().order_by (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.order_by.assert_called_once_with(ANY)
-    # mock_db.query().options().filter().order_by().all (MagicMock)이 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.assert_called_once()
+    # mock_db.query().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.assert_called_once_with(ANY)
+    # mock_db.query().filter().all (MagicMock)이 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.return_value.all.assert_called_once()
     assert alerts == [mock_alert1, mock_alert2]
 
 def test_get_alerts_no_alerts(price_alert_service, mock_db):
     # MOCK: mock_db.query 체인
-    # mock_db.query().options().filter().order_by().all() 호출 시 빈 목록을 반환하도록 설정합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = []
+    # mock_db.query().options().filter().all() 호출 시 빈 목록을 반환하도록 설정합니다.
+    mock_db.query.return_value.filter.return_value.all.return_value = []
 
     alerts = price_alert_service.get_alerts(mock_db, 1)
 
     # mock_db.query (MagicMock)가 PriceAlert 모델로 한 번 호출되었는지 확인합니다.
     mock_db.query.assert_called_once_with(PriceAlert)
-    # mock_db.query().options (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.assert_called_once_with(ANY)
-    # mock_db.query().options().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.assert_called_once_with(ANY)
-    # mock_db.query().options().filter().order_by (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.order_by.assert_called_once_with(ANY)
-    # mock_db.query().options().filter().order_by().all (MagicMock)이 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.assert_called_once()
+    # mock_db.query().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.assert_called_once_with(ANY)
+    # mock_db.query().filter().all (MagicMock)이 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.return_value.all.assert_called_once()
     assert alerts == []
 
 # Tests for update_alert
@@ -293,7 +285,7 @@ async def test_delete_alert_success(price_alert_service, mock_db):
 
     # mock_db.query (MagicMock)가 PriceAlert 모델로 한 번 호출되었는지 확인합니다.
     mock_db.query.assert_called_once_with(PriceAlert)
-    # mock_db.query().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
+    # mock_db.query().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다。
     mock_db.query.return_value.filter.assert_called_once_with(ANY)
     # mock_db.delete (MagicMock)가 mock_alert 인자로 한 번 호출되었는지 확인합니다.
     mock_db.delete.assert_called_once_with(mock_alert)
@@ -333,35 +325,31 @@ def test_get_all_active_alerts_success(price_alert_service, mock_db):
     
     # MOCK: mock_db.query 체인
     # mock_db.query().options().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.all.return_value = [mock_alert1, mock_alert2]
+    mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert1, mock_alert2] # Removed .options()
 
     alerts = price_alert_service.get_all_active_alerts(mock_db)
 
     # mock_db.query (MagicMock)가 PriceAlert 모델로 한 번 호출되었는지 확인합니다.
     mock_db.query.assert_called_once_with(PriceAlert)
-    # mock_db.query().options (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.assert_called_once_with(ANY)
-    # mock_db.query().options().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.assert_called_once_with(ANY)
-    # mock_db.query().options().filter().all (MagicMock)이 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.all.assert_called_once()
+    # mock_db.query().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.assert_called_once_with(ANY)
+    # mock_db.query().filter().all (MagicMock)이 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.return_value.all.assert_called_once()
     assert alerts == [mock_alert1, mock_alert2]
 
 def test_get_all_active_alerts_no_active_alerts(price_alert_service, mock_db):
     # MOCK: mock_db.query 체인
     # mock_db.query().options().filter().all() 호출 시 빈 목록을 반환하도록 설정합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.all.return_value = []
+    mock_db.query.return_value.filter.return_value.all.return_value = [] # Removed .options()
 
     alerts = price_alert_service.get_all_active_alerts(mock_db)
 
     # mock_db.query (MagicMock)가 PriceAlert 모델로 한 번 호출되었는지 확인합니다.
     mock_db.query.assert_called_once_with(PriceAlert)
-    # mock_db.query().options (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.assert_called_once_with(ANY)
-    # mock_db.query().options().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.assert_called_once_with(ANY)
-    # mock_db.query().options().filter().all (MagicMock)이 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.options.return_value.filter.return_value.all.assert_called_once()
+    # mock_db.query().filter (MagicMock)가 ANY 인자로 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.assert_called_once_with(ANY)
+    # mock_db.query().filter().all (MagicMock)이 한 번 호출되었는지 확인합니다.
+    mock_db.query.return_value.filter.return_value.all.assert_called_once()
     assert alerts == []
 
 # Tests for check_alerts (SKIPPED for now)
@@ -372,7 +360,7 @@ async def test_check_alerts_target_price_gte_triggered(price_alert_service, mock
     # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
     mock_alert = MagicMock(spec=PriceAlert, id=1, symbol="AAPL", target_price=150.0, condition="gte", is_active=True, change_percent=None, notify_on_disclosure=False)
     # MOCK: mock_db.query().filter().all()
-    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert]
 
     triggered_alerts = await price_alert_service.check_alerts(mock_db, "AAPL", 155.0)
@@ -383,10 +371,10 @@ async def test_check_alerts_target_price_gte_triggered(price_alert_service, mock
 @pytest.mark.asyncio
 async def test_check_alerts_target_price_lte_triggered(price_alert_service, mock_db):
     # MOCK: PriceAlert 모델 객체
-    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_alert = MagicMock(spec=PriceAlert, id=1, symbol="AAPL", target_price=150.0, condition="lte", is_active=True, change_percent=None, notify_on_disclosure=False)
     # MOCK: mock_db.query().filter().all()
-    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert]
 
     triggered_alerts = await price_alert_service.check_alerts(mock_db, "AAPL", 145.0)
@@ -397,19 +385,19 @@ async def test_check_alerts_target_price_lte_triggered(price_alert_service, mock
 @pytest.mark.asyncio
 async def test_check_alerts_change_percent_up_triggered(price_alert_service, mock_db):
     # MOCK: PriceAlert 모델 객체
-    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_alert = MagicMock(spec=PriceAlert, id=1, symbol="AAPL", change_percent=5.0, change_type="up", is_active=True, target_price=None, notify_on_disclosure=False)
     # MOCK: mock_db.query().filter().all()
-    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert]
 
     # MOCK: DailyPrice 모델 객체
-    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_daily_price1 = MagicMock(spec=DailyPrice, close=100.0) # Yesterday
-    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_daily_price2 = MagicMock(spec=DailyPrice, close=105.0) # Today
     # MOCK: mock_db.query().filter().order_by().limit().all()
-    # mock_db.query().filter().order_by().limit().all() 호출 시 모의 일별 시세 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().order_by().limit().all() 호출 시 모의 일별 시세 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_daily_price2, mock_daily_price1]
 
     triggered_alerts = await price_alert_service.check_alerts(mock_db, "AAPL", 105.0)
@@ -420,19 +408,19 @@ async def test_check_alerts_change_percent_up_triggered(price_alert_service, moc
 @pytest.mark.asyncio
 async def test_check_alerts_change_percent_down_triggered(price_alert_service, mock_db):
     # MOCK: PriceAlert 모델 객체
-    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_alert = MagicMock(spec=PriceAlert, id=1, symbol="AAPL", change_percent=5.0, change_type="down", is_active=True, target_price=None, notify_on_disclosure=False)
     # MOCK: mock_db.query().filter().all()
-    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert]
 
     # MOCK: DailyPrice 모델 객체
-    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_daily_price1 = MagicMock(spec=DailyPrice, close=100.0) # Yesterday
-    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_daily_price2 = MagicMock(spec=DailyPrice, close=95.0) # Today
     # MOCK: mock_db.query().filter().order_by().limit().all()
-    # mock_db.query().filter().order_by().limit().all() 호출 시 모의 일별 시세 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().order_by().limit().all() 호출 시 모의 일별 시세 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_daily_price2, mock_daily_price1]
 
     triggered_alerts = await price_alert_service.check_alerts(mock_db, "AAPL", 95.0)
@@ -443,10 +431,10 @@ async def test_check_alerts_change_percent_down_triggered(price_alert_service, m
 @pytest.mark.asyncio
 async def test_check_alerts_no_trigger(price_alert_service, mock_db):
     # MOCK: PriceAlert 모델 객체
-    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_alert = MagicMock(spec=PriceAlert, id=1, symbol="AAPL", target_price=150.0, condition="gte", is_active=True, change_percent=None, notify_on_disclosure=False)
     # MOCK: mock_db.query().filter().all()
-    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert]
 
     triggered_alerts = await price_alert_service.check_alerts(mock_db, "AAPL", 140.0) # Price not met
@@ -456,13 +444,13 @@ async def test_check_alerts_no_trigger(price_alert_service, mock_db):
 @pytest.mark.asyncio
 async def test_check_alerts_insufficient_daily_price_data(price_alert_service, mock_db):
     # MOCK: PriceAlert 모델 객체
-    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_alert = MagicMock(spec=PriceAlert, id=1, symbol="AAPL", change_percent=5.0, change_type="up", is_active=True, target_price=None, notify_on_disclosure=False)
     # MOCK: mock_db.query().filter().all()
-    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert]
     # MOCK: mock_db.query().filter().order_by().limit().all()
-    # mock_db.query().filter().order_by().limit().all() 호출 시 하루치 데이터만 반환하도록 설정합니다.
+    # mock_db.query().filter().order_by().limit().all() 호출 시 하루치 데이터만 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [MagicMock(spec=DailyPrice, close=100.0)] # Only one day of data
 
     triggered_alerts = await price_alert_service.check_alerts(mock_db, "AAPL", 105.0)
@@ -472,19 +460,19 @@ async def test_check_alerts_insufficient_daily_price_data(price_alert_service, m
 @pytest.mark.asyncio
 async def test_check_alerts_yesterday_close_is_zero(price_alert_service, mock_db):
     # MOCK: PriceAlert 모델 객체
-    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: PriceAlert 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_alert = MagicMock(spec=PriceAlert, id=1, symbol="AAPL", change_percent=5.0, change_type="up", is_active=True, target_price=None, notify_on_disclosure=False)
     # MOCK: mock_db.query().filter().all()
-    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().all() 호출 시 모의 알림 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.all.return_value = [mock_alert]
 
     # MOCK: DailyPrice 모델 객체
-    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_daily_price1 = MagicMock(spec=DailyPrice, close=0.0) # Yesterday
-    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+    # MagicMock: DailyPrice 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다。
     mock_daily_price2 = MagicMock(spec=DailyPrice, close=105.0) # Today
     # MOCK: mock_db.query().filter().order_by().limit().all()
-    # mock_db.query().filter().order_by().limit().all() 호출 시 모의 일별 시세 목록을 반환하도록 설정합니다.
+    # mock_db.query().filter().order_by().limit().all() 호출 시 모의 일별 시세 목록을 반환하도록 설정합니다。
     mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_daily_price2, mock_daily_price1]
 
     triggered_alerts = await price_alert_service.check_alerts(mock_db, "AAPL", 105.0)

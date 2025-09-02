@@ -61,12 +61,15 @@ async def set_price_alert(update: Update, context: ContextTypes.DEFAULT_TYPE, re
 
         payload = {
             "telegram_id": update.effective_user.id,
-            "symbol": symbol,
-            "target_price": price,
-            "condition": condition_en,
-            "repeat_interval": repeat_interval,
-            "is_active": True
+            "alert_data": { # Nested dictionary for alert_data
+                "symbol": symbol,
+                "target_price": price,
+                "condition": condition_en,
+                "repeat_interval": repeat_interval,
+                "is_active": True
+            }
         }
+        logger.debug(f"Sending payload to API: {payload}") # Add this line
         
         response = await _api_set_price_alert(payload)
         response.raise_for_status()

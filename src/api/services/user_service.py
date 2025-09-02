@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from src.common.models.user import User
 from src.common.schemas.user import UserCreate
-from src.api.auth.jwt_handler import get_password_hash
+from src.api.auth.password_utils import get_password_hash
 import logging
 
 logger = logging.getLogger(__name__)
@@ -64,3 +64,6 @@ class UserService:
             db.rollback()
             logger.error(f"텔레그램 사용자 생성 실패: {e}", exc_info=True)
             raise
+
+def get_user_service():
+    return UserService()

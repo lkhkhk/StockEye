@@ -12,7 +12,7 @@ ENV DB_NAME="test"
 ENV DART_API_KEY="test_api_key"
 
 # Install dependencies
-COPY requirements.txt ./
+COPY requirements.txt /app/
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy common source code
