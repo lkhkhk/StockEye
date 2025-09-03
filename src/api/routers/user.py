@@ -14,6 +14,8 @@ from typing import List
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+TELEGRAM_USER_PASSWORD = "telegram_user_password" # Hardcoded password for Telegram users
+
 def get_auth_service():
     return AuthService()
 
@@ -96,7 +98,8 @@ def telegram_register(
             telegram_id=telegram_id_int,
             username=f"tg_{register_data.telegram_id}",
             first_name="Telegram",
-            last_name="User"
+            last_name="User",
+            password=TELEGRAM_USER_PASSWORD # Pass the hardcoded password
         )
         user.is_active = register_data.is_active # is_active 설정
         db.commit()

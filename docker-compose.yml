@@ -14,6 +14,7 @@ services:
       - DB_HOST=stockeye-db # 서비스 이름으로 호스트 지정
       - REDIS_HOST=stockeye-redis
       - WORKER_HOST=stockeye-worker
+      - JWT_SECRET_KEY=test_jwt_secret_key
     depends_on:
       stockeye-db:
         condition: service_healthy
@@ -41,6 +42,7 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-development}
       - API_HOST=stockeye-api
+      - JWT_SECRET_KEY=test_jwt_secret_key
     depends_on:
       stockeye-api:
         condition: service_healthy

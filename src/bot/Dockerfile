@@ -3,7 +3,7 @@ WORKDIR /app
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 # Force reinstall httpx to fix potential corruption
-RUN pip uninstall -y httpx && pip install httpx
+
 COPY pytest.ini /app/
 COPY src/bot/ /app/src/bot/
 COPY src/common/ /app/src/common/

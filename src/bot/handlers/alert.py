@@ -12,35 +12,35 @@ logger = logging.getLogger(__name__)
 # Internal API Helper Functions (for easier testing)
 # =====================================================================================
 
-async def _api_set_price_alert(payload: dict) -> httpx.Response:
+async def _api_set_price_alert(payload: dict, auth_token: str = None) -> httpx.Response:
     """Helper to call the create price alert API."""
-    async with get_retry_client() as client:
-        return await client.post(f"{API_URL}/api/v1/alerts/", json=payload)
+    async with get_retry_client(auth_token=auth_token) as client:
+        return await client.post(f"{API_URL}/api/v1/price-alerts/", json=payload)
 
-async def _api_search_stocks(query: str) -> list:
+async def _api_search_stocks(query: str, auth_token: str = None) -> list:
     """Helper to call the stock search API."""
-    async with get_retry_client() as client:
+    async with get_retry_client(auth_token=auth_token) as client:
         response = await client.get(f"{API_URL}/api/v1/symbols/search", params={"query": query})
         response.raise_for_status()
         return response.json()
 
-async def _api_get_alerts(telegram_id: int) -> list:
+async def _api_get_alerts(telegram_id: int, auth_token: str = None) -> list:
     """Helper to call the get alerts API."""
-    async with get_retry_client() as client:
+    async with get_retry_client(auth_token=auth_token) as client:
         response = await client.get(f"{API_URL}/api/v1/alerts/{telegram_id}")
         response.raise_for_status()
         return response.json()
 
-async def _api_get_current_price(symbol: str) -> dict:
+async def _api_get_current_price(symbol: str, auth_token: str = None) -> dict:
     """Helper to call the get current price API."""
-    async with get_retry_client() as client:
+    async with get_retry_client(auth_token=auth_token) as client:
         response = await client.get(f"{API_URL}/api/v1/symbols/{symbol}/price")
         response.raise_for_status()
         return response.json()
 
-async def _api_delete_alert(alert_id: int) -> httpx.Response:
+async def _api_delete_alert(alert_id: int, auth_token: str = None) -> httpx.Response:
     """Helper to call the delete alert API."""
-    async with get_retry_client() as client:
+    async with get_retry_client(auth_token=auth_token) as client:
         return await client.delete(f"{API_URL}/api/v1/alerts/{alert_id}")
 
 # =====================================================================================
@@ -227,9 +227,9 @@ async def alert_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         # 공시 알림 토글 로직
         elif action == "disclosure":
             telegram_id = query.from_user.id
-            async with get_retry_client() as client:
+            async with get_retry_client(auth_token=context.user_data.get('auth_token')) as client:
                 # 먼저 현재 알림 설정을 가져옴
-                get_resp = await client.get(f"{API_URL}/alerts/user/{telegram_id}/symbol/{symbol}", timeout=10) 
+                get_resp = await client.get(f"{API_URL}/api/v1/alerts/user/{telegram_id}/symbol/{symbol}", timeout=10, auth_token=context.user_data.get('auth_token')) 
                 
                 notify_on_disclosure = True # 기본값은 True (켜기)
                 if get_resp.status_code == 200:
@@ -238,7 +238,7 @@ async def alert_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     notify_on_disclosure = not existing_alert.get('notify_on_disclosure', False)
                 
                 payload = {"notify_on_disclosure": notify_on_disclosure}
-                resp = await client.put(f"{API_URL}/alerts/{telegram_id}/{symbol}", json=payload, timeout=10)
+                resp = await client.put(f"{API_URL}/api/v1/alerts/{telegram_id}/{symbol}", json=payload, timeout=10, auth_token=context.user_data.get('auth_token'))
 
                 if resp.status_code == 200:
                     status_text = "ON" if notify_on_disclosure else "OFF"

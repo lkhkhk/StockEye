@@ -46,7 +46,7 @@ class UserService:
             logger.error(f"사용자 생성 실패: {e}", exc_info=True)
             raise
 
-    def create_user_from_telegram(self, db: Session, telegram_id: int, username: str, first_name: str, last_name: str):
+    def create_user_from_telegram(self, db: Session, telegram_id: int, username: str, first_name: str, last_name: str, password: str):
         logger.debug(f"create_user_from_telegram 호출: telegram_id={telegram_id}, username={username}")
         
         admin_telegram_id = os.getenv("TELEGRAM_ADMIN_ID")
@@ -56,13 +56,15 @@ class UserService:
             role = 'admin'
             
         full_name = f"{first_name} {last_name}".strip()
+        hashed_password = get_password_hash(password)
         
         db_user = User(
             telegram_id=telegram_id,
             username=username,
             nickname=username,
             full_name=full_name,
-            role=role
+            role=role,
+            hashed_password=hashed_password
         )
         try:
             db.add(db_user)

@@ -27,13 +27,11 @@ class StockMasterService:
             logger.debug(f"종목 없음: {name}")
         return stock
 
-    def search_stocks(self, keyword: str, db: Session, limit: int = 10):
-        logger.debug(f"search_stocks 호출: keyword={keyword}, limit={limit}")
+    def search_stocks(self, keyword: str, db: Session, limit: int = 10, offset: int = 0):
         stocks = db.query(StockMaster).filter(
             (StockMaster.symbol.like(f"%{keyword}%")) | 
             (StockMaster.name.like(f"%{keyword}%"))
-        ).limit(limit).all()
-        logger.debug(f"검색 결과: {len(stocks)}개 종목 발견.")
+        ).offset(offset).limit(limit).all()
         return stocks
 
     @staticmethod

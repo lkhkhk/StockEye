@@ -35,7 +35,7 @@
 -   [x] **[완료] 알림 기능 리팩토링 및 테스트:**
     -   **목표:** 기존의 동기적 알림 로직을 Redis Pub/Sub 기반의 비동기 방식으로 변경하고, 이에 대한 테스트를 작성합니다.
     -   **작업 단계:**
-        1.  **`api` 서비스:** `price_alert_service.py` 등에서 `bot`을 직접 호출하던 로직을 제거하고, `chat_id`와 메시지 내용을 Redis의 `notifications` 채널에 발행(Publish)하도록 수정합니다. (확인 결과, 이 로직은 `worker` 서비스에 이미 구현되어 있었음)
+        1.  **`api` 서비스:** `price_alert_service.py` 등에서 `bot`을 직접 호출하던 로직을 제거하고, `chat_id`와 메시지 내용을 Redis의 `notifications` 채널에 발행(Publish)하도록 수정합니다.
         2.  **`worker` 서비스:** `notification_listener`가 수신한 메시지를 바탕으로 `telegram-bot` 라이브러리를 사용하여 실제 텔레그램 메시지를 발송하도록 구현합니다.
         3.  [x] **`src/worker/tests/unit/test_listener.py`를 작성하여 `notification_listener`에 대한 단위 테스트를 구현합니다.** (Redis 메시지 수신 및 `send_telegram_message` 호출 검증)
         4.  **`src/api/tests/integration/test_notification_publish.py`를 작성하여 `api`가 Redis에 메시지를 올바르게 발행하는지 통합 테스트를 구현합니다.**
@@ -333,3 +333,4 @@ Oracle VM 환경에서 안정적인 서비스 운영을 위해 리소스 관리�
 
 -   [ ] **`tests/integration/test_stock_service_integration.py` - 4행의 `ModuleNotFoundError: No module named 'src.common.services.stock_service'`**
     -   이는 임포트 오류를 나타내며, `stock_service.py` 파일이 없거나 잘못 배치되었거나 임포트 경로가 잘못되었을 가능성이 높습니다. 이 또한 `predict_service.py` 변경과 관련이 없습니다.
+-   [ ] Add integration test for `symbols` command in `src/bot/tests/integration/`. This test should cover the bot's interaction with a mocked API service for retrieving stock symbols.

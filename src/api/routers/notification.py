@@ -1,12 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+import logging
 
 from src.common.database import db_connector
 from src.common.models.user import User
 from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertRead, PriceAlertUpdate
 from src.api.auth.jwt_handler import get_current_active_user
 from src.common.services.price_alert_service import PriceAlertService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -23,6 +26,8 @@ async def create_price_alert(
     current_user: User = Depends(get_current_active_user),
     price_alert_service: PriceAlertService = Depends(get_price_alert_service)
 ):
+    print(f"[API] create_price_alert called! current_user.id={current_user.id}, alert={alert.model_dump()}")
+    logger.debug(f"create_price_alert: current_user={current_user.id}, alert={alert.model_dump()}")
     existing_alert = price_alert_service.get_alert_by_user_and_symbol(db, current_user.id, alert.symbol)
     if existing_alert:
         raise HTTPException(status_code=409, detail="이미 해당 종목에 대한 알림이 존재합니다.")

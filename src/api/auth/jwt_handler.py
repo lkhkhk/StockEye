@@ -54,11 +54,18 @@ def verify_token(token: str) -> dict:
 
 def get_current_active_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)):
     """현재 활성 사용자 정보 반환"""
+    # --- TEMPORARY DEBUGGING: Bypass JWT validation ---
+    # logger.warning("Bypassing JWT validation for debugging purposes!")
+    # dummy_user = User(id=1, username="debug_user", email="debug@example.com", hashed_password="dummy_hash", is_active=True, role="user")
+    # return dummy_user
+    # --- END TEMPORARY DEBUGGING ---
+
     token = credentials.credentials
     payload = verify_token(token)
     user_id: int = payload.get("user_id")
 
     user = user_service.get_user_by_id(db, user_id)
+    logger.debug(f"get_current_active_user: user_id={user_id}, user={user}, is_active={user.is_active if user else 'N/A'}")
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
     return user

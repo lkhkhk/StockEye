@@ -24,13 +24,14 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # 로깅 설정
 logging.basicConfig(
-    level=LOGGING_LEVEL,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
         RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=2, encoding='utf-8')
     ]
 )
+logging.getLogger("src.api.routers.notification").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Define the security scheme for JWT Bearer token

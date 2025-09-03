@@ -40,16 +40,19 @@ async def test_alert_scenario_e2e():
     """
     symbol = "005930"  # Samsung Electronics
 
+    # Create a single MagicMock for context and initialize user_data
+    context_mock = MagicMock()
+    context_mock.user_data = {}
+
     # --- 1. Set a price alert ---
-    # Mock Update and Context for set_price_alert
+    # Mock Update for set_price_alert
     update_set = MagicMock()
-    context_set = MagicMock()
     update_set.effective_user.id = TEST_USER_ID
     update_set.message.reply_text = AsyncMock()
-    context_set.args = [symbol, "80000", "이상"]
+    context_mock.args = [symbol, "80000", "이상"]
 
     print(f"\n[E2E] 1. Setting price alert for {symbol}...")
-    await set_price_alert(update_set, context_set)
+    await set_price_alert(update_set, context_mock)
 
     # Verify the confirmation message
     update_set.message.reply_text.assert_called_once()
@@ -59,15 +62,13 @@ async def test_alert_scenario_e2e():
     print("[E2E] 1. Price alert set successfully.")
 
     # --- 2. List alerts to verify ---
-    # Mock Update and Context for alert_list
+    # Mock Update for alert_list
     update_list = MagicMock()
-    context_list = MagicMock()
     update_list.effective_user.id = TEST_USER_ID
     update_list.message.reply_text = AsyncMock()
-    context_list.user_data = {} # Simulate user_data
 
     print(f"\n[E2E] 2. Listing alerts for user {TEST_USER_ID}...")
-    await alert_list(update_list, context_list)
+    await alert_list(update_list, context_mock)
 
     # Verify the alert is listed
     update_list.message.reply_text.assert_called_once()
@@ -78,17 +79,14 @@ async def test_alert_scenario_e2e():
 
 
     # --- 3. Remove the alert ---
-    # Mock Update and Context for alert_remove
+    # Mock Update for alert_remove
     update_remove = MagicMock()
-    context_remove = MagicMock()
     update_remove.effective_user.id = TEST_USER_ID
     update_remove.message.reply_text = AsyncMock()
-    # The user_data now contains the mapping from the alert_list call
-    context_remove.user_data = context_list.user_data
-    context_remove.args = ["1"] # The number of the alert to remove
+    context_mock.args = ["1"] # The number of the alert to remove
 
     print(f"\n[E2E] 3. Removing alert #1 for user {TEST_USER_ID}...")
-    await alert_remove(update_remove, context_remove)
+    await alert_remove(update_remove, context_mock)
 
     # Verify the removal confirmation
     update_remove.message.reply_text.assert_called_once()
@@ -98,17 +96,13 @@ async def test_alert_scenario_e2e():
 
 
     # --- 4. List alerts again to verify removal ---
-    # Mock Update and Context for the final alert_list
+    # Mock Update for the final alert_list
     update_final_list = MagicMock()
-    context_final_list = MagicMock()
     update_final_list.effective_user.id = TEST_USER_ID
     update_final_list.message.reply_text = AsyncMock()
-    # user_data would be updated after removal, so we use a fresh one
-    context_final_list.user_data = {} 
-
 
     print(f"\n[E2E] 4. Listing alerts again for user {TEST_USER_ID}...")
-    await alert_list(update_final_list, context_final_list)
+    await alert_list(update_final_list, context_mock)
 
     # Verify that no alerts are listed
     update_final_list.message.reply_text.assert_called_once_with("등록된 알림이 없습니다.")

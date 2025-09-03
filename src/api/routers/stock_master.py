@@ -5,8 +5,10 @@ from src.common.database.db_connector import get_db
 from typing import List
 from src.common.services.stock_master_service import StockMasterService
 from src.common.services.market_data_service import MarketDataService
+import logging
 
 router = APIRouter(prefix="/symbols", tags=["symbols"])
+logger = logging.getLogger(__name__)
 
 def get_stock_master_service():
     return StockMasterService()
@@ -26,7 +28,7 @@ def get_all_symbols(limit: int = Query(10, ge=1, le=100), offset: int = Query(0,
 @router.get("/search", response_model=dict)
 def search_symbols(query: str = Query(..., min_length=1), limit: int = Query(10, ge=1, le=100), offset: int = Query(0, ge=0), db: Session = Depends(get_db), stock_master_service: StockMasterService = Depends(get_stock_master_service)):
     # 기존의 직접 쿼리 대신 StockMasterService의 search_stocks 메서드 사용
-    stocks = stock_master_service.search_stocks(query, db, limit=limit)
+    stocks = stock_master_service.search_stocks(query, db, limit=limit, offset=offset)
     total_count = db.query(StockMaster).filter(StockMaster.name.ilike(f"%{query}%") | StockMaster.symbol.ilike(f"%{query}%")).count()
     return {
         "items": [{"symbol": r.symbol, "name": r.name, "market": r.market} for r in stocks],
