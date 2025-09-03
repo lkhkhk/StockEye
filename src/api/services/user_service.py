@@ -4,6 +4,7 @@ from src.common.models.user import User
 from src.common.schemas.user import UserCreate
 from src.api.auth.password_utils import get_password_hash
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -47,18 +48,27 @@ class UserService:
 
     def create_user_from_telegram(self, db: Session, telegram_id: int, username: str, first_name: str, last_name: str):
         logger.debug(f"create_user_from_telegram 호출: telegram_id={telegram_id}, username={username}")
+        
+        admin_telegram_id = os.getenv("TELEGRAM_ADMIN_ID")
+        
+        role = 'user'
+        if admin_telegram_id and str(telegram_id) == admin_telegram_id:
+            role = 'admin'
+            
         full_name = f"{first_name} {last_name}".strip()
+        
         db_user = User(
             telegram_id=telegram_id,
             username=username,
             nickname=username,
-            full_name=full_name
+            full_name=full_name,
+            role=role
         )
         try:
             db.add(db_user)
             db.commit()
             db.refresh(db_user)
-            logger.info(f"텔레그램 사용자 생성 성공: telegram_id={telegram_id}, id={db_user.id}")
+            logger.info(f"텔레그램 사용자 생성 성공: telegram_id={telegram_id}, id={db_user.id}, role={role}")
             return db_user
         except SQLAlchemyError as e:
             db.rollback()

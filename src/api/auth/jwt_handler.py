@@ -56,14 +56,8 @@ def get_current_active_user(credentials: HTTPAuthorizationCredentials = Depends(
     """현재 활성 사용자 정보 반환"""
     token = credentials.credentials
     payload = verify_token(token)
-    username: str = payload.get("sub")
     user_id: int = payload.get("user_id")
-    if username is None or user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+
     user = user_service.get_user_by_id(db, user_id)
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")

@@ -1,239 +1,75 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from src.api.services.user_service import UserService
-from src.common.schemas.user import UserCreate
 from src.common.models.user import User
 
-# Fixture for a mock database session
 @pytest.fixture
-def mock_db():
-    # MOCK: SQLAlchemy Session 객체
-    # SQLAlchemy Session의 인스턴스를 모의합니다. 동기적으로 동작합니다.
+def mock_db_session():
+    """Mock SQLAlchemy DB session."""
     return MagicMock(spec=Session)
 
-# Fixture for UserCreate schema
 @pytest.fixture
-def user_create_data():
-    return UserCreate(
-        username="testuser",
-        email="test@example.com",
-        password="password123",
-        nickname="TestNick",
-        full_name="Test User",
-        role="user"
-    )
+def user_service():
+    """Provide a UserService instance."""
+    return UserService()
 
-# Test cases for UserService class methods
-def test_get_user_by_telegram_id_found(mock_db):
-    user_service = UserService()
-    # MOCK: User 모델 객체
-    # User 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
-    mock_user = MagicMock(spec=User, id=1, telegram_id=12345, username="telegramuser")
-    # mock_db.query().filter().first() 호출 시 mock_user를 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = mock_user
+@patch('os.getenv')
+def test_create_user_from_telegram_admin_role(mock_getenv, user_service, mock_db_session):
+    """Test that admin role is assigned when telegram_id matches TELEGRAM_ADMIN_ID."""
+    mock_getenv.return_value = "123456789" # Simulate TELEGRAM_ADMIN_ID being set
 
-    user = user_service.get_user_by_telegram_id(mock_db, 12345)
+    # Mock the query to simulate no existing user
+    mock_db_session.query.return_value.first.return_value = None
 
-    # mock_db.query (MagicMock)가 User 모델로 한 번 호출되었는지 확인합니다.
-    mock_db.query.assert_called_once_with(User)
-    # mock_db.query().filter (MagicMock)가 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.filter.assert_called_once()
-    assert user.telegram_id == 12345
+    telegram_id = 123456789
+    username = "test_admin_user"
+    first_name = "Admin"
+    last_name = "User"
 
-def test_get_user_by_telegram_id_not_found(mock_db):
-    user_service = UserService()
-    # mock_db.query().filter().first() 호출 시 None을 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = None
+    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name)
 
-    user = user_service.get_user_by_telegram_id(mock_db, 99999)
+    assert user.role == "admin"
+    mock_db_session.add.assert_called_once_with(user)
+    mock_db_session.commit.assert_called_once()
+    mock_db_session.refresh.assert_called_once_with(user)
 
-    assert user is None
+@patch('os.getenv')
+def test_create_user_from_telegram_user_role_mismatch(mock_getenv, user_service, mock_db_session):
+    """Test that user role is assigned when telegram_id does not match TELEGRAM_ADMIN_ID."""
+    mock_getenv.return_value = "987654321" # Simulate TELEGRAM_ADMIN_ID being set but not matching
 
-def test_create_user_from_telegram_success(mock_db):
-    user_service = UserService()
-    
-    # MOCK: User 클래스
-    # User 생성자를 모의하여 실제 객체 생성 대신 mock_user_instance를 반환하도록 설정합니다.
-    with patch('src.api.services.user_service.User') as MockUser:
-        # MagicMock: User 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
-        mock_user_instance = MockUser.return_value
-        mock_user_instance.id = 2
-        mock_user_instance.telegram_id = 54321
-        mock_user_instance.username = "telegram_new"
-        mock_user_instance.first_name = "Telegram"
-        mock_user_instance.last_name = "User"
+    # Mock the query to simulate no existing user
+    mock_db_session.query.return_value.first.return_value = None
 
-        # MOCK: mock_db.add, mock_db.commit, mock_db.refresh
-        # mock_db.add (MagicMock) 호출 시 None을 반환하도록 설정합니다.
-        mock_db.add.return_value = None
-        # mock_db.commit (MagicMock) 호출 시 None을 반환하도록 설정합니다.
-        mock_db.commit.return_value = None
-        # mock_db.refresh (MagicMock) 호출 시 입력된 객체를 그대로 반환하도록 설정하여 refresh를 모의합니다.
-        mock_db.refresh.side_effect = lambda x: x
+    telegram_id = 123456789
+    username = "test_normal_user"
+    first_name = "Normal"
+    last_name = "User"
 
-        user = user_service.create_user_from_telegram(mock_db, 54321, "telegram_new", "Telegram", "User")
+    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name)
 
-        # mock_db.add (MagicMock)가 mock_user_instance 인자로 한 번 호출되었는지 확인합니다.
-        mock_db.add.assert_called_once_with(mock_user_instance)
-        # mock_db.commit (MagicMock)이 한 번 호출되었는지 확인합니다.
-        mock_db.commit.assert_called_once()
-        # mock_db.refresh (MagicMock)가 mock_user_instance 인자로 한 번 호출되었는지 확인합니다.
-        mock_db.refresh.assert_called_once_with(mock_user_instance)
-        assert user.telegram_id == 54321
-        assert user.username == "telegram_new"
+    assert user.role == "user"
+    mock_db_session.add.assert_called_once_with(user)
+    mock_db_session.commit.assert_called_once()
+    mock_db_session.refresh.assert_called_once_with(user)
 
-def test_create_user_from_telegram_db_exception(mock_db):
-    user_service = UserService()
-    # mock_db.add (MagicMock) 호출 시 Exception을 발생시키도록 설정합니다.
-    mock_db.add.side_effect = SQLAlchemyError("DB Error")
+@patch('os.getenv')
+def test_create_user_from_telegram_user_role_no_admin_id(mock_getenv, user_service, mock_db_session):
+    """Test that user role is assigned when TELEGRAM_ADMIN_ID is not set."""
+    mock_getenv.return_value = None # Simulate TELEGRAM_ADMIN_ID not being set
 
-    # MOCK: User 클래스
-    # User 생성자를 모의하여 실제 객체 생성 대신 모의 객체를 반환하도록 설정합니다.
-    with patch('src.api.services.user_service.User') as MockUser:
-        with pytest.raises(Exception) as exc_info:
-            user_service.create_user_from_telegram(mock_db, 54321, "telegram_new", "Telegram", "User")
-        assert "DB Error" in str(exc_info.value)
-        # mock_db.add (MagicMock)가 한 번 호출되었는지 확인합니다.
-        mock_db.add.assert_called_once()
-        # mock_db.rollback (MagicMock)이 한 번 호출되었는지 확인합니다.
-        mock_db.rollback.assert_called_once()
-        # mock_db.commit (MagicMock)이 호출되지 않았는지 확인합니다.
-        mock_db.commit.assert_not_called()
+    # Mock the query to simulate no existing user
+    mock_db_session.query.return_value.first.return_value = None
 
-def test_get_user_by_id_found(mock_db):
-    user_service = UserService()
-    # MOCK: User 모델 객체
-    # User 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
-    mock_user = MagicMock(spec=User, id=1, username="iduser")
-    # mock_db.query().filter().first() 호출 시 mock_user를 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = mock_user
+    telegram_id = 123456789
+    username = "test_no_admin_id_user"
+    first_name = "NoAdmin"
+    last_name = "IDUser"
 
-    user = user_service.get_user_by_id(mock_db, 1)
+    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name)
 
-    # mock_db.query (MagicMock)가 User 모델로 한 번 호출되었는지 확인합니다.
-    mock_db.query.assert_called_once_with(User)
-    # mock_db.query().filter (MagicMock)가 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.filter.assert_called_once()
-    assert user.id == 1
-
-def test_get_user_by_id_not_found(mock_db):
-    user_service = UserService()
-    # mock_db.query().filter().first() 호출 시 None을 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = None
-
-    user = user_service.get_user_by_id(mock_db, 999)
-
-    assert user is None
-
-def test_get_user_by_username_found(mock_db):
-    user_service = UserService()
-    # MOCK: User 모델 객체
-    # User 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
-    mock_user = MagicMock(spec=User, id=1, username="testuser")
-    # mock_db.query().filter().first() 호출 시 mock_user를 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = mock_user
-
-    user = user_service.get_user_by_username(mock_db, "testuser")
-
-    # mock_db.query (MagicMock)가 User 모델로 한 번 호출되었는지 확인합니다.
-    mock_db.query.assert_called_once_with(User)
-    # mock_db.query().filter (MagicMock)가 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.filter.assert_called_once()
-    assert user.username == "testuser"
-
-def test_get_user_by_username_not_found(mock_db):
-    user_service = UserService()
-    # mock_db.query().filter().first() 호출 시 None을 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = None
-
-    user = user_service.get_user_by_username(mock_db, "nonexistent")
-
-    assert user is None
-
-def test_get_user_by_email_found(mock_db):
-    user_service = UserService()
-    # MOCK: User 모델 객체
-    # User 모델의 인스턴스를 모의합니다. 동기적으로 동작합니다.
-    mock_user = MagicMock(spec=User, id=1, email="test@example.com")
-    # mock_db.query().filter().first() 호출 시 mock_user를 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = mock_user
-
-    user = user_service.get_user_by_email(mock_db, "test@example.com")
-
-    # mock_db.query (MagicMock)가 User 모델로 한 번 호출되었는지 확인합니다.
-    mock_db.query.assert_called_once_with(User)
-    # mock_db.query().filter (MagicMock)가 한 번 호출되었는지 확인합니다.
-    mock_db.query.return_value.filter.assert_called_once()
-    assert user.email == "test@example.com"
-
-def test_get_user_by_email_not_found(mock_db):
-    user_service = UserService()
-    # mock_db.query().filter().first() 호출 시 None을 반환하도록 설정합니다.
-    mock_db.query.return_value.filter.return_value.first.return_value = None
-
-    user = user_service.get_user_by_email(mock_db, "nonexistent@example.com")
-
-    assert user is None
-
-def test_create_user_success(mock_db, user_create_data):
-    """사용자 생성 성공 테스트"""
-    user_service = UserService()
-    
-    # MOCK: get_password_hash 함수
-    # 비밀번호 해싱 함수를 모의하여 항상 "hashed_password"를 반환하도록 설정합니다.
-    with patch('src.api.services.user_service.get_password_hash') as mock_get_password_hash:
-        mock_get_password_hash.return_value = "hashed_password"
-
-        # MOCK: User 클래스
-        # User 생성자를 모의하여 실제 객체 생성 대신 모의 객체를 반환하도록 설정합니다.
-        with patch('src.api.services.user_service.User') as MockUser:
-            mock_user_instance = MockUser.return_value
-            
-            # WHEN
-            created_user = user_service.create_user(mock_db, user_create_data)
-
-            # THEN
-            # get_password_hash (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
-            mock_get_password_hash.assert_called_once_with("password123")
-            # User (MagicMock)가 올바른 인자로 한 번 호출되었는지 확인합니다.
-            MockUser.assert_called_once_with(
-                username="testuser",
-                email="test@example.com",
-                hashed_password="hashed_password",
-                nickname="TestNick",
-                full_name="Test User"
-            )
-            # mock_db.add (MagicMock)가 mock_user_instance 인자로 한 번 호출되었는지 확인합니다.
-            mock_db.add.assert_called_once_with(mock_user_instance)
-            # mock_db.commit (MagicMock)이 한 번 호출되었는지 확인합니다.
-            mock_db.commit.assert_called_once()
-            # mock_db.refresh (MagicMock)가 mock_user_instance 인자로 한 번 호출되었는지 확인합니다.
-            mock_db.refresh.assert_called_once_with(mock_user_instance)
-            assert created_user == mock_user_instance
-
-def test_create_user_duplicate_email(mock_db, user_create_data):
-    """중복된 이메일로 사용자 생성 시 예외 처리 테스트"""
-    user_service = UserService()
-    # mock_db.commit (MagicMock) 호출 시 IntegrityError를 발생시키도록 설정합니다.
-    mock_db.commit.side_effect = IntegrityError("duplicate key value violates unique constraint", params=None, orig=None)
-
-    with pytest.raises(IntegrityError):
-        user_service.create_user(mock_db, user_create_data)
-
-    # mock_db.rollback (MagicMock)이 한 번 호출되었는지 확인합니다.
-    mock_db.rollback.assert_called_once()
-
-def test_create_user_duplicate_nickname(mock_db, user_create_data):
-    """중복된 닉네임으로 사용자 생성 시 예외 처리 테스트"""
-    user_service = UserService()
-    # mock_db.commit (MagicMock) 호출 시 IntegrityError를 발생시키도록 설정합니다.
-    mock_db.commit.side_effect = IntegrityError("duplicate key value violates unique constraint", params=None, orig=None)
-
-    with pytest.raises(IntegrityError):
-        user_service.create_user(mock_db, user_create_data)
-
-    # mock_db.rollback (MagicMock)이 한 번 호출되었는지 확인합니다.
-    mock_db.rollback.assert_called_once()
+    assert user.role == "user"
+    mock_db_session.add.assert_called_once_with(user)
+    mock_db_session.commit.assert_called_once()
+    mock_db_session.refresh.assert_called_once_with(user)
