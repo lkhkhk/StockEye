@@ -66,7 +66,7 @@ def get_admin_token_for_bot(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User with telegram_id {token_request.telegram_id} not found"
         )
-    if not user.is_admin:
+    if user.role != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is not an admin"
