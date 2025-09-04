@@ -17,4 +17,5 @@ class User(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
-    alerts = relationship("PriceAlert", back_populates="user")
+    price_alerts = relationship("PriceAlert", back_populates="user")
+    disclosure_alerts = relationship("DisclosureAlert", back_populates="user")

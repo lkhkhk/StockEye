@@ -21,9 +21,19 @@
 | `/watchlist_add` | 관심 종목을 추가합니다. | `/watchlist_add 005930` |
 | `/watchlist_remove` | 관심 종목을 삭제합니다. | `/watchlist_remove 005930` |
 | `/watchlist_get` | 나의 관심 종목 목록을 확인합니다. | `/watchlist_get` |
-| `/set_price` | 특정 종목에 대한 가격 알림을 설정합니다. | `/set_price 005930 80000 gte` (8만원 이상 시 알림) |
+| `/alert` | 가격, 공시 등 다양한 조건의 알림을 관리합니다. | `/alert list` |
 | `/trade_simulate` | 모의 거래를 기록합니다. | `/trade_simulate buy 005930 10 75000` (10주를 75000원에 매수) |
 | `/trade_history` | 나의 모의 거래 내역을 확인합니다. | `/trade_history` |
+
+### `/alert` 명령어 상세
+
+`/alert` 명령어는 하위 명령어를 통해 세부 기능을 제공합니다.
+
+- **`/alert add [종목명]`**: 새로운 알림을 추가합니다. 종목명을 입력하면 가격 알림과 공시 알림 중 선택할 수 있습니다.
+- **`/alert list`**: 현재 등록된 모든 알림의 목록과 상태(활성/비활성)를 확인합니다.
+- **`/alert delete [번호]`**: `list`로 확인한 목록의 특정 번호에 해당하는 알림을 삭제합니다.
+- **`/alert pause [번호]`**: 특정 알림을 일시적으로 중지합니다.
+- **`/alert resume [번호]`**: 중지했던 알림을 다시 활성화합니다.
 
 ## 3. 자연어 사용법
 

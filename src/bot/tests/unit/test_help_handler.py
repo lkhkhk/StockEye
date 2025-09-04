@@ -1,9 +1,35 @@
-from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
-import os
+import pytest
+from unittest.mock import AsyncMock, patch
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    HELP_TEXT_USER = (
+from telegram import Update, User
+from telegram.ext import ContextTypes
+
+from src.bot.handlers.help import help_command
+
+@pytest.mark.asyncio
+@patch('os.getenv')
+async def test_help_command_user(mock_getenv):
+    """Tests the /help command for a regular user."""
+    # 1. Setup Mocks
+    mock_getenv.return_value = "admin_id" # Ensure user is not admin
+
+    update = AsyncMock(spec=Update)
+    context = AsyncMock(spec=ContextTypes.DEFAULT_TYPE)
+    
+    update.effective_user = AsyncMock(spec=User)
+    update.effective_user.id = 12345 # A regular user ID
+
+    update.message = AsyncMock()
+    update.message.reply_text = AsyncMock()
+
+    # 2. Execute the handler
+    await help_command(update, context)
+
+    # 3. Verify the response
+    update.message.reply_text.assert_called_once()
+    sent_text = update.message.reply_text.call_args.args[0]
+
+    expected_text = (
         "[StockEye 봇 도움말]\n"
         "\n"
         "**계정 관리**\n"
@@ -45,14 +71,4 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "- \"카카오 오를까?\"\n"
     )
 
-    HELP_TEXT_ADMIN = HELP_TEXT_USER + "\n\n[관리자 전용]\n관리자 명령어는 /admin 을 입력하세요."
-
-    user_id = str(update.effective_user.id)
-    admin_id = os.getenv("TELEGRAM_ADMIN_ID", "")
-    if user_id == admin_id:
-        await update.message.reply_text(HELP_TEXT_ADMIN)
-    else:
-        await update.message.reply_text(HELP_TEXT_USER)
-
-def get_help_handler():
-    return CommandHandler("help", help_command)
+    assert sent_text == expected_text

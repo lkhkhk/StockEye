@@ -1,7 +1,14 @@
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import (
+    ApplicationBuilder, 
+    CommandHandler, 
+    MessageHandler, 
+    filters, 
+    CallbackQueryHandler,
+    ConversationHandler
+)
 from dotenv import load_dotenv
 
 # 핸들러 함수 직접 임포트
@@ -20,8 +27,15 @@ from handlers.symbols import (
 )
 from handlers.natural import natural_message_handler
 from handlers.alert import (
-    alert_add, alert_list, alert_remove, alert_button_callback, 
-    set_price_alert, alert_set_repeat_callback
+    alert_command,
+    ask_alert_type,
+    add_disclosure_alert,
+    ask_price_condition,
+    set_price_alert,
+    cancel_alert_conversation,
+    ASK_ALERT_TYPE,
+    ASK_PRICE_CONDITION,
+    ASK_PRICE_TARGET,
 )
 from handlers.register import register_command, unregister_command
 from handlers.start import start_command
@@ -49,7 +63,27 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # Command Handlers (일관성을 위해 CommandHandler 직접 사용)
+    # Conversation Handler for alerts
+    alert_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("alert", alert_command)],
+        states={
+            ASK_ALERT_TYPE: [
+                CallbackQueryHandler(ask_alert_type, pattern="^alert_add_select_")
+            ],
+            ASK_PRICE_CONDITION: [
+                CallbackQueryHandler(add_disclosure_alert, pattern="^alert_add_type_disclosure$"),
+                CallbackQueryHandler(ask_price_condition, pattern="^alert_add_type_price$"),
+            ],
+            ASK_PRICE_TARGET: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_price_alert)
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel_alert_conversation)],
+    )
+
+    app.add_handler(alert_conv_handler)
+
+    # Command Handlers
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("register", register_command))
@@ -61,29 +95,20 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("watchlist_get", watchlist_get_command))
     app.add_handler(CommandHandler("symbols", symbols_command))
     app.add_handler(CommandHandler("symbol_info", symbol_info_command))
-    app.add_handler(CommandHandler("alert_add", alert_add))
-    app.add_handler(CommandHandler("alert_list", alert_list))
-    app.add_handler(CommandHandler("alert_remove", alert_remove))
-    app.add_handler(CommandHandler("set_price", set_price_alert))
     app.add_handler(CommandHandler("test_notify", test_notify_command))
 
     # Admin Command Handlers
-    app.add_handler(CommandHandler("admin", admin_command)) # /admin 명령어 추가
+    app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(CommandHandler("health", health_command))
     app.add_handler(CommandHandler("admin_stats", admin_stats))
     app.add_handler(CommandHandler("show_schedules", admin_show_schedules))
     app.add_handler(CommandHandler("trigger_job", admin_trigger_job))
 
-    # Callback Query Handlers
+    # Other Callback Query Handlers
     app.add_handler(CallbackQueryHandler(symbols_pagination_callback, pattern="^symbols_page_"))
     app.add_handler(CallbackQueryHandler(symbol_info_callback, pattern="^symbol_info_"))
     app.add_handler(CallbackQueryHandler(symbols_search_pagination_callback, pattern="^symbols_search_page_"))
     app.add_handler(CallbackQueryHandler(trigger_job_callback, pattern="^trigger_job_"))
-    app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_select_")) # 더 구체적인 패턴으로 수정
-    app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_price_"))
-    app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_disclosure_"))
-    app.add_handler(CallbackQueryHandler(alert_button_callback, pattern="^alert_repeat_"))
-    app.add_handler(CallbackQueryHandler(alert_set_repeat_callback, pattern="^alert_set_repeat_"))
 
     # Message Handler
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message_handler))

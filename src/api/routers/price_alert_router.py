@@ -28,12 +28,24 @@ async def create_price_alert(
 ):
     print(f"[API] create_price_alert called! current_user.id={current_user.id}, alert={alert.model_dump()}")
     logger.debug(f"create_price_alert: current_user={current_user.id}, alert={alert.model_dump()}")
-    existing_alert = price_alert_service.get_alert_by_user_and_symbol(db, current_user.id, alert.symbol)
-    if existing_alert:
-        raise HTTPException(status_code=409, detail="이미 해당 종목에 대한 알림이 존재합니다.")
 
-    new_alert = await price_alert_service.create_alert(db=db, user_id=current_user.id, alert_data=alert)
-    return new_alert
+    # Check for an existing alert with the same user, symbol, and condition
+    existing_alert = price_alert_service.get_alert_by_user_symbol_and_condition(
+        db, current_user.id, alert.symbol, alert.condition
+    )
+
+    if existing_alert:
+        # If an alert with the same condition exists, update it
+        updated_alert = await price_alert_service.update_alert(
+            db, existing_alert.id, alert
+        )
+        updated_alert.status_message = "갱신되었습니다."
+        return updated_alert
+    else:
+        # Otherwise, create a new alert
+        new_alert = await price_alert_service.create_alert(db=db, user_id=current_user.id, alert_data=alert)
+        new_alert.status_message = "생성되었습니다."
+        return new_alert
 
 
 @router.get("/price-alerts/", response_model=List[PriceAlertRead],
@@ -100,3 +112,39 @@ async def delete_price_alert(
 
     await price_alert_service.delete_alert(db, alert_id)
     return
+
+
+@router.put("/price-alerts/{alert_id}/pause", response_model=PriceAlertRead,
+            summary="가격 알림 일시정지",
+            description="ID를 사용하여 특정 가격 알림을 일시정지합니다.",
+            response_description="일시정지된 가격 알림의 상세 정보.")
+async def pause_price_alert(
+    alert_id: int,
+    db: Session = Depends(db_connector.get_db),
+    current_user: User = Depends(get_current_active_user),
+    price_alert_service: PriceAlertService = Depends(get_price_alert_service)
+):
+    alert = price_alert_service.get_alert_by_id(db, alert_id)
+    if not alert or alert.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="알림을 찾을 수 없습니다.")
+    
+    paused_alert = await price_alert_service.update_alert_status(db, alert_id, is_active=False)
+    return paused_alert
+
+
+@router.put("/price-alerts/{alert_id}/resume", response_model=PriceAlertRead,
+            summary="가격 알림 재개",
+            description="ID를 사용하여 특정 가격 알림을 재개합니다.",
+            response_description="재개된 가격 알림의 상세 정보.")
+async def resume_price_alert(
+    alert_id: int,
+    db: Session = Depends(db_connector.get_db),
+    current_user: User = Depends(get_current_active_user),
+    price_alert_service: PriceAlertService = Depends(get_price_alert_service)
+):
+    alert = price_alert_service.get_alert_by_id(db, alert_id)
+    if not alert or alert.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="알림을 찾을 수 없습니다.")
+    
+    resumed_alert = await price_alert_service.update_alert_status(db, alert_id, is_active=True)
+    return resumed_alert

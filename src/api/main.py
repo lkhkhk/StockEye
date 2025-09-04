@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-# 'auth' 라우터 임포트 추가
-from src.api.routers import user, notification, predict, watchlist, simulated_trade, prediction_history, admin, stock_master, bot_router, auth
+# 라우터 임포트 수정 및 추가
+from src.api.routers import user, price_alert_router, disclosure_alert_router, predict, watchlist, simulated_trade, prediction_history, admin, stock_master, bot_router, auth
 from src.common.database.db_connector import Base, engine, SessionLocal
 from src.common.models.stock_master import StockMaster
 from src.common.models.daily_price import DailyPrice # 추가
@@ -31,7 +31,7 @@ logging.basicConfig(
         RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=2, encoding='utf-8')
     ]
 )
-logging.getLogger("src.api.routers.notification").setLevel(logging.DEBUG)
+logging.getLogger("src.api.routers.price_alert_router").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Define the security scheme for JWT Bearer token
@@ -122,7 +122,8 @@ def on_startup():
 
 # --- Routers ---
 app.include_router(user.router, prefix="/api/v1")
-app.include_router(notification.router, prefix="/api/v1")
+app.include_router(price_alert_router, prefix="/api/v1")
+app.include_router(disclosure_alert_router, prefix="/api/v1")
 app.include_router(predict.router, prefix="/api/v1")
 app.include_router(watchlist.router, prefix="/api/v1")
 app.include_router(simulated_trade.router, prefix="/api/v1")
