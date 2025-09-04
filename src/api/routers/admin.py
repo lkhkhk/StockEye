@@ -3,7 +3,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from src.common.database.db_connector import get_db, Base, engine
 from src.common.models.user import User
@@ -29,6 +29,9 @@ WORKER_API_URL = f"http://{WORKER_HOST}:{WORKER_PORT}/api/v1"
 class TriggerJobRequest(BaseModel):
     chat_id: Optional[int] = None
 
+class StockSeedRequest(BaseModel):
+    stocks: List[dict] # List of stock dictionaries, e.g., [{"symbol": "005930", "name": "삼성전자", "market": "KOSPI"}]
+
 @router.post("/debug/reset-database", tags=["debug"])
 def reset_database(db: Session = Depends(get_db)):
     if APP_ENV != "development":
@@ -45,12 +48,44 @@ def reset_database(db: Session = Depends(get_db)):
         seed_test_data(db)
         
         db.commit()
-        logger.info("DB 초기화 및 데이터 시딩이 완료되었습니다.")
+        
+        stock_count = db.query(StockMaster).count()
+        logger.info(f"DB 초기화 및 데이터 시딩 완료. 현재 StockMaster 개수: {stock_count}")
+
         return {"message": "DB 초기화 및 데이터 시딩이 완료되었습니다."}
     except Exception as e:
         db.rollback()
         logger.error(f"DB 초기화 중 오류 발생: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"DB 초기화 실패: {str(e)}")
+
+@router.delete("/stocks/all", tags=["admin"])
+def delete_all_stocks(db: Session = Depends(get_db), user: User = Depends(get_current_active_admin_user)):
+    """모든 StockMaster 데이터를 삭제합니다."""
+    try:
+        db.query(StockMaster).delete() # StockMaster 테이블의 모든 데이터 삭제
+        db.commit()
+        logger.info("모든 StockMaster 데이터가 삭제되었습니다.")
+        return {"message": "모든 StockMaster 데이터가 삭제되었습니다."}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"StockMaster 데이터 삭제 중 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"StockMaster 데이터 삭제 실패: {str(e)}")
+
+@router.post("/stocks/seed", tags=["admin"])
+def seed_stocks(request: StockSeedRequest, db: Session = Depends(get_db), user: User = Depends(get_current_active_admin_user)):
+    """지정된 StockMaster 데이터를 시딩합니다."""
+    try:
+        stocks_to_add = []
+        for stock_data in request.stocks:
+            stocks_to_add.append(StockMaster(**stock_data))
+        db.add_all(stocks_to_add)
+        db.commit()
+        logger.info(f"{len(stocks_to_add)}개의 StockMaster 데이터가 시딩되었습니다.")
+        return {"message": f"{len(stocks_to_add)}개의 StockMaster 데이터가 시딩되었습니다."}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"StockMaster 데이터 시딩 중 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"StockMaster 데이터 시딩 실패: {str(e)}")
 
 @router.get("/admin_stats", tags=["admin"])
 def admin_stats(db: Session = Depends(get_db), user: User = Depends(get_current_active_admin_user)):

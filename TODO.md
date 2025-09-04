@@ -351,3 +351,12 @@ Oracle VM 환경에서 안정적인 서비스 운영을 위해 리소스 관리�
 - [ ] **`test_http_client.py::test_get_retry_client_initialization`**: `AsyncClient` 모의(mock) 호출 인자 문제로 실패.
 - [x] **`test_predict_schema.py::test_stock_prediction_response_invalid_data_types`**: `ValidationError` 메시지 확인 중 실패. (해결)
 - [ ] **`test_stock_master_service.py`**: `test_search_stocks_found`와 `test_search_stocks_not_found`가 모의(mock) 단언문에서 실패.
+
+  ### Phase 14: API Symbols Test Refinement
+
+- [ ] API Symbols 단위 테스트 개선 (`src/api/tests/router_unit/test_api_symbols.py`):
+    - [ ] test_get_symbol_by_code_success: mock_stock_master_service.get_stock_by_symbol이 symbol, name, market 키를 가진 딕셔너리로 올바르게 직렬화되는 모의(mock) 객체를 반환하는지 확인합니다.
+    - [ ] test_get_symbol_by_code_not_found: mock_stock_master_service.get_stock_by_symbol.assert_called_once_with 단언문 실패를 디버깅합니다.
+    - [ ] test_get_all_symbols_service_exception, test_search_symbols_service_exception, test_get_symbol_by_code_service_exception: 특정 HTTPException 상세 메시지가 테스트 클라이언트에 전파되지
+        않고 일반적인 "Internal Server Error"로 대체되는 이유를 조사합니다. 필요에 따라 테스트 또는 라우터 구성을 조정합니다.
+        

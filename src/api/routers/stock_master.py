@@ -35,6 +35,13 @@ def search_symbols(query: str = Query(..., min_length=1), limit: int = Query(10,
         "total_count": total_count
     }
 
+@router.get("/{symbol_code}", response_model=dict) # New endpoint
+def get_symbol_by_code(symbol_code: str, db: Session = Depends(get_db), stock_master_service: StockMasterService = Depends(get_stock_master_service)):
+    stock = stock_master_service.get_stock_by_symbol(symbol_code, db)
+    if stock is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="종목을 찾을 수 없습니다.")
+    return {"symbol": stock.symbol, "name": stock.name, "market": stock.market}
+
 @router.get("/{symbol}/current_price_and_change", response_model=dict)
 def get_current_price_and_change_api(symbol: str, db: Session = Depends(get_db), market_data_service: MarketDataService = Depends(get_market_data_service)):
     price_data = market_data_service.get_current_price_and_change(symbol, db)

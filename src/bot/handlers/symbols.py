@@ -57,7 +57,10 @@ async def _get_symbols_message_and_keyboard(symbols_data: dict, offset: int):
         if item.get('market'):
             button_text += f" ({item['market']})"
         stock_buttons.append([InlineKeyboardButton(button_text, callback_data=f"symbol_info_{item['symbol']}")])
-        stock_list_text += f"- {item['symbol']} {item['name']}\n" # Add to the list text
+        stock_list_text += f"- {item['symbol']} {item['name']}"
+        if item.get('market'):
+            stock_list_text += f" ({item['market']})"
+        stock_list_text += "\n"
 
     current_page = (offset // PAGE_SIZE) + 1
     total_pages = (total_count + PAGE_SIZE - 1) // PAGE_SIZE
