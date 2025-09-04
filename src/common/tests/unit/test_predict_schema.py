@@ -28,13 +28,13 @@ def test_stock_prediction_response_valid():
     response_data = {
         "symbol": "MSFT",
         "prediction": "UP",
-        "confidence": 85,
+        "confidence": 85.5,
         "reason": "Strong earnings report"
     }
     response = StockPredictionResponse(**response_data)
     assert response.symbol == "MSFT"
     assert response.prediction == "UP"
-    assert response.confidence == 85
+    assert response.confidence == 85.5
     assert response.reason == "Strong earnings report"
 
 def test_stock_prediction_response_missing_fields():
@@ -82,7 +82,7 @@ def test_stock_prediction_response_invalid_data_types():
     with pytest.raises(ValidationError) as exc_info:
         StockPredictionResponse(**response_data)
     assert "confidence" in str(exc_info.value)
-    assert "Input should be a valid integer" in str(exc_info.value)
+    assert "Input should be a valid number" in str(exc_info.value)
 
     # Test invalid symbol type (e.g., int instead of str)
     response_data = {

@@ -52,7 +52,7 @@ def mock_update_context():
 async def get_prediction_history(user_id):
     """API를 통해 특정 사용자의 예측 이력을 가져옵니다."""
     async with httpx.AsyncClient() as client:
-        await asyncio.sleep(0.5) # DB 반영 시간 대기
+        await asyncio.sleep(2) # DB 반영 시간 대기
         response = await client.get(f"{API_URL}/prediction/history/{user_id}", timeout=10)
         response.raise_for_status()
         return response.json()

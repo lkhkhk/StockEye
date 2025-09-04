@@ -39,7 +39,7 @@
         2.  **`worker` 서비스:** `notification_listener`가 수신한 메시지를 바탕으로 `telegram-bot` 라이브러리를 사용하여 실제 텔레그램 메시지를 발송하도록 구현합니다.
         3.  [x] **`src/worker/tests/unit/test_listener.py`를 작성하여 `notification_listener`에 대한 단위 테스트를 구현합니다.** (Redis 메시지 수신 및 `send_telegram_message` 호출 검증)
         4.  **`src/api/tests/integration/test_notification_publish.py`를 작성하여 `api`가 Redis에 메시지를 올바르게 발행하는지 통합 테스트를 구현합니다.**
-            -   **현황:** 수많은 테스트 환경 문제(DB 손상, Fixture 설계 오류, 라우터 설정 오류 등)를 해결하고, 최종적으로 `async/await` 누락 버그를 수정하여 **알림 생성 기능에 대한 통합 테스트(`test_create_price_alert_successfully`)가 통과됨을 확인**했습니다.
+            -   **현황:** 수많은 테스트 환경 문제(DB 손상, Fixture 설계 오류, 라우터 설정 오류 등)를 해결하고, 최종적으로 `async/await` 누락 버그를 수정하여 **알림 생성 기능에 대한 통합 테스트(`test_create_price_alert_successfully`)가 통과됨을 확인**했습니다。
             -   **다음 단계:** 알림 '생성'이 아닌, `worker`의 스케줄러에 의해 알림 조건이 맞는다고 판단되었을 때 Redis에 메시지를 **'발행'**하는 로직(`price_alert_service.check_price_alerts`)에 대한 별도의 통합 테스트를 작성해야 합니다.
         5.  [x] **`price_alert_service.check_price_alerts`에 대한 통합 테스트를 작성합니다.**
             -   **테스트 케이스 설계:**
@@ -76,7 +76,7 @@
         *   **테스트 데이터 시딩 불일치:** `api` 서비스 시작 시 `StockMaster` 테이블에 이미 존재한다고 판단하여 시딩을 건너뛰었으나, 실제 검색 시 데이터가 조회되지 않는 문제 발생. (시딩 로직 보강 완료)
         *   **`predict_service` 로직 오류:** `predict_stock_movement` 함수가 `calculate_analysis_items`의 결과를 `None`으로 잘못 판단하여 "예측 불가"를 반환하는 문제 발생. (`predict_service` 로직 수정 완료)
         *   **E2E 테스트 실패 지속:** 위 모든 수정에도 불구하고 E2E 테스트가 동일한 오류로 계속 실패하고 있음. 이는 DB 환경, Docker 네트워크, 또는 `pytest`와 `asyncio`의 상호작용 등 더 근본적인 환경적 문제일 가능성이 높음.
-    -   **해결:** `httpx.Response.ok` 속성 Deprecated 문제로 확인되어, `response.is_success` 또는 `response.status_code < 400`으로 변경하여 해결했습니다.
+    -   **해결:** `httpx.Response.ok` 속성 Deprecated 문제로 확인되어, `response.is_success` 또는 `response.status_code < 400`으로 변경하여 해결했습니다。
     -   **검증:** `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트 통과 확인.
     -   **현황:** 공시 데이터 저장 및 알림 기능 정상 작동 확인.
 
@@ -86,7 +86,7 @@
     -   **해결 계획:**
         1.  `worker` 서비스에 FastAPI를 도입하여 스케줄러 제어용 API를 구현합니다.
         2.  `api` 서비스에 `worker` API를 호출하는 프록시 엔드포인트를 추가합니다.
-        3.  `bot` 핸들러가 `api` 서비스의 프록시 엔드포인트를 호출하도록 수정합니다.
+        3.  `bot` 핸들러가 `api` 서비스의 프록시 엔드포인트를 호출하도록 수정합니다。
     -   **검증:** `src/bot/tests/e2e/test_prediction_history_e2e.py` 테스트 통과 확인.
 
 -   [x] **[완료] 봇 관리자 명령어(`show_schedules`) 오류 해결:**
@@ -105,8 +105,8 @@
         -   **추정 원인:** 프로젝트 테스트 환경 설정 또는 라이브러리 버전 간의 충돌 문제로 추정됨
         -   **임시 조치:** `@pytest.mark.skip`으로 해당 테스트들을 임시 비활성화함
 
--   [ ] **(기존) 통합 테스트 보강**
-    -   [ ] `predict.py` 등 통합 테스트가 없는 API 라우터에 대해 신규 작성합니다.
+-   [x] **[기존] 통합 테스트 보강**
+    -   [x] `predict.py` API 라우터에 대한 통합 테스트를 새로 작성하고 검증을 완료했습니다.
 
 ## ⚙️ Phase 5: 환경 변수 및 DB 설정 안정화
 
@@ -184,7 +184,7 @@
             -   `src/bot/handlers/admin.py`의 `admin_trigger_job` 함수를 Worker의 새로운 JSON 응답 형식에 맞게 메시지 포맷팅 부분을 수정하여, `job_id`와 `triggered_at` 등의 정보가 정확히 표시되도록 합니다.
         4.  **검증:**
             -   `docker compose`를 통해 전체 서비스를 재기동하고, 실제 봇 명령어를 통해 E2E 테스트를 수행하여 최종 결과를 검증합니다.
-            -   `worker` 서비스의 로그를 확인하여 잡 실행 과정에서 오류가 없는지 확인합니다.
+            -   `worker` 서비스의 로그를 확인하여 잡 실행 과정에서 오류가 없는지 확인합니다。
 
 ## Phase 8: 리소스 최적화 과제
 
@@ -223,6 +223,13 @@
 *   **관련 파일:** `src/api/services/price_alert_service.py`
 *   **상태:** 과제 등록 및 진행 예정.
 
+### 8.5. `natural` 핸들러 메모리 사용량 최적화 (완료)
+*   **과제 ID:** OPT-004
+*   **문제:** `bot` 서비스의 E2E 테스트 시 간헐적으로 메모리 부족(OOM) 오류가 발생했습니다. 원인 분석 결과 `src/bot/handlers/natural.py` 핸들러가 동기 방식의 `requests` 라이브러리를 사용하여 API를 호출하고 있어, `asyncio` 이벤트 루프를 블로킹하고 메모리 사용량을 증가시키는 것으로 확인되었습니다.
+*   **해결 방안:** `natural.py` 핸들러의 모든 `requests` 호출을 비동기 방식의 `httpx` 라이브러리를 사용하도록 리팩토링하여 이벤트 루프 블로킹을 해소하고 메모리 효율성을 개선했습니다.
+*   **관련 파일:** `src/bot/handlers/natural.py`
+*   **상태:** 과제 완료 및 Docker Compose 환경에서 성공적으로 검증 완료.
+
 ---
 
 **[중요] 리소스 관리 및 향후 계획:**
@@ -231,12 +238,12 @@ Oracle VM 환경에서 안정적인 서비스 운영을 위해 리소스 관리�
 
 ### Phase 9: Common 모듈 테스트 및 개선
 
--   [x] **[Test] `common` 모듈 단위 테스트 보강:**
+-   [x] **[테스트] `common` 모듈 단위 테스트 보강:**
     -   `dart_utils.py`의 DART API 에러 응답 및 페이지네이션 로직에 대한 단위 테스트를 추가하여 코드 안정성을 높입니다.
 
 ### Phase 10: Common 모듈 구조 리팩토링
 
--   [ ] **[Refactor] `common` 모듈 소스 파일 재분류:**
+-   [ ] **[리팩토링] `common` 모듈 소스 파일 재분류:**
     -   `utils`, `database` 등 하위 디렉토리를 생성하고 관련 소스 파일을 이동하여 구조를 개선합니다.
     -   파일 이동에 따른 프로젝트 전체의 `import` 구문을 수정합니다.
 
@@ -280,10 +287,10 @@ Oracle VM 환경에서 안정적인 서비스 운영을 위해 리소스 관리�
     -   [x] **`api` 모듈 테스트 행(hang) 문제 해결:** `src/api/tests/unit/test_predict_service.py` 실행 시 발생하는 무한 대기 현상을 분석하고 수정했습니다.
     -   [x] **`api` 모듈 `test_predict_stock_movement_stock_not_found` 단언문 수정:** `src/api/tests/unit/test_predict_service.py`의 실패하는 단언문을 한국어 메시지로 변경했습니다.
     -   [x] **`bot` 모듈 테스트 실패 수정:** `src/bot/tests/unit/test_alert_handler.py`의 `test_alert_list_success` 테스트가 실패하는 원인을 분석하고 수정했습니다.
-    -   [x] **`api` 모듈 `test_api_admin.py::test_update_master_success` 수정:** `StockMasterService` 의존성 주입 Mocking 오류를 해결했습니다.
-    -   [x] **`api` 모듈 `test_api_admin.py::test_update_disclosure_all_stocks_success` 수정:** `DisclosureService` 의존성 주입 Mocking 오류를 해결했습니다.
-    -   [x] **`api` 모듈 `test_api_admin.py::test_update_disclosure_specific_stock_success` 수정:** `DisclosureService` 및 `dart_get_disclosures` Mocking 오류를 해결했습니다.
-    -   [x] **`api` 모듈 `test_api_admin.py::test_update_price_success` 수정:** `MarketDataService` 의존성 주입 Mocking 오류를 해결했습니다.
+    -   [x] **`api` 모듈 `test_api_admin.py::test_update_master_success` 수정:** `StockMasterService` 의존성 주입 모의(Mocking) 오류를 해결했습니다.
+    -   [x] **`api` 모듈 `test_api_admin.py::test_update_disclosure_all_stocks_success` 수정:** `DisclosureService` 의존성 주입 모의(Mocking) 오류를 해결했습니다.
+    -   [x] **`api` 모듈 `test_api_admin.py::test_update_disclosure_specific_stock_success` 수정:** `DisclosureService` 및 `dart_get_disclosures` 모의(Mocking) 오류를 해결했습니다.
+    -   [x] **`api` 모듈 `test_api_admin.py::test_update_price_success` 수정:** `MarketDataService` 의존성 주입 모의(Mocking) 오류를 해결했습니다.
     -   [x] **`api` 모듈 `test_api_notification.py::test_get_my_alerts_success_with_alerts` 수정:** `PriceAlertRead` Pydantic 모델의 `stock_name` 필드 유효성 검사 오류 해결.
 
 # StockEyeDev 통합 테스트 정규화 TODO 목록
@@ -303,8 +310,8 @@ Oracle VM 환경에서 안정적인 서비스 운영을 위해 리소스 관리�
     - [x] 인증되지 않은 테스트의 경우 `assert response.status_code == 401`을 `assert response.status_code == 403`으로 변경.
     - [x] `@patch` 데코레이터의 `ModuleNotFoundError`를 임포트 경로 수정으로 해결.
     - [ ] **스케줄러 테스트 주석 처리 후 `test_api_admin_integration.py`의 `IndentationError` 수정.**
-    - [ ] **`test_update_disclosure_single_by_symbol_success_as_admin` 메시지 어설션 수정.**
-    - [ ] **`test_update_disclosure_not_found_as_admin` 목(mock) 수정.**
+    - [ ] **`test_update_disclosure_single_by_symbol_success_as_admin` 메시지 단언문 수정.**
+    - [ ] **`test_update_disclosure_not_found_as_admin` 모의(mock) 수정.**
 
 - [ ] **`test_notification_publish_integration.py` 로그인 요청 본문 수정:**
     - 테스트의 로그인 요청을 폼 데이터 대신 JSON으로 전송하도록 변경.
@@ -333,4 +340,14 @@ Oracle VM 환경에서 안정적인 서비스 운영을 위해 리소스 관리�
 
 -   [ ] **`tests/integration/test_stock_service_integration.py` - 4행의 `ModuleNotFoundError: No module named 'src.common.services.stock_service'`**
     -   이는 임포트 오류를 나타내며, `stock_service.py` 파일이 없거나 잘못 배치되었거나 임포트 경로가 잘못되었을 가능성이 높습니다. 이 또한 `predict_service.py` 변경과 관련이 없습니다.
--   [ ] Add integration test for `symbols` command in `src/bot/tests/integration/`. This test should cover the bot's interaction with a mocked API service for retrieving stock symbols.
+-   [ ] `src/bot/tests/integration/`에 `symbols` 명령어 통합 테스트 추가. 이 테스트는 봇이 모의(mock) API 서비스를 통해 주식 심볼을 검색하는 상호작용을 다뤄야 합니다.
+
+### Phase 13: 기존 테스트 실패
+
+- [ ] **`test_api_bot_e2e.py::test_alert_scenario_e2e`**: 가격 알림 설정 시 `403 Forbidden` 오류로 실패.
+- [x] **`test_prediction_history_e2e.py::test_natural_handler_e2e`**: 예측 이력이 비어 있어 실패. (`natural.py`를 `httpx` 사용으로 리팩토링하여 해결)
+- [ ] **`test_symbols_integration.py::test_symbols_command_no_symbols_found`**: `reply_text`에 대한 모의(mock) 단언문에서 실패.
+- [ ] **`test_bot_symbols.py`**: `_api_search_symbols` 모의(mock) 호출 인자 문제로 다수의 테스트 실패.
+- [ ] **`test_http_client.py::test_get_retry_client_initialization`**: `AsyncClient` 모의(mock) 호출 인자 문제로 실패.
+- [x] **`test_predict_schema.py::test_stock_prediction_response_invalid_data_types`**: `ValidationError` 메시지 확인 중 실패. (해결)
+- [ ] **`test_stock_master_service.py`**: `test_search_stocks_found`와 `test_search_stocks_not_found`가 모의(mock) 단언문에서 실패.

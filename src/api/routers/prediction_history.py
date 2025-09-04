@@ -46,11 +46,8 @@ def get_prediction_history(
         logger.debug(f"Telegram ID {telegram_id}에 해당하는 사용자를 찾을 수 없습니다.")
         return PredictionHistoryResponse(history=[], total_count=0, page=page, page_size=page_size)
     
-    # TEMPORARY: Return user object directly for testing user query mocking
-    # return {"total_count": 1, "history": [{"id": user.id, "telegram_id": user.telegram_id, "symbol": "TEST", "prediction": "TEST", "created_at": datetime.utcnow()}]}
-
     # 기본 쿼리
-    query = db.query(PredictionHistory).filter(PredictionHistory.user_id == user.id) # Changed filter
+    query = db.query(PredictionHistory).filter(PredictionHistory.user_id == user.id)
     
     # 필터 적용
     if symbol:
@@ -68,9 +65,8 @@ def get_prediction_history(
     offset = (page - 1) * page_size
     
     # User 테이블과 조인하여 telegram_id 가져오기
-    records = db.query(PredictionHistory, User.telegram_id)\
-        .join(User, PredictionHistory.user_id == User.id)\
-        .filter(PredictionHistory.user_id == user.id)\
+    records = query.join(User, PredictionHistory.user_id == User.id)\
+        .add_columns(PredictionHistory, User.telegram_id)\
         .order_by(PredictionHistory.created_at.desc())\
         .offset(offset).limit(page_size).all()
     

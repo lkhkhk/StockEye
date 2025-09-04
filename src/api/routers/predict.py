@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Callable
 from src.api.services.predict_service import PredictService
 from src.api.services.user_service import UserService # Import UserService
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,8 @@ async def predict_stock(request: StockPredictionRequest, db: Session = Depends(g
                         telegram_id=request.telegram_id,
                         username=f"tg_{request.telegram_id}",
                         first_name="Telegram",
-                        last_name="User"
+                        last_name="User",
+                        password=str(uuid4())
                     )
                 logger.debug(f"User ID confirmed: user_id={user.id}")
 

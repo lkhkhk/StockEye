@@ -53,7 +53,7 @@ class TestPredictionHistoryRouter:
 
     def test_get_prediction_history_success(self, client: TestClient, real_db: Session):
         """
-        - **테스트 대상**: `GET /prediction/history/{user_id}`
+        - **테스트 대상**: `GET /api/v1/prediction/history/{telegram_id}`
         - **목적**: 특정 사용자의 주가 예측 이력을 성공적으로 조회하는지 확인합니다.
         - **시나리오**:
             - 테스트용 사용자와 두 개의 예측 이력을 생성합니다.
@@ -62,12 +62,12 @@ class TestPredictionHistoryRouter:
         - **Mock 대상**: 없음
         """
         # Given: 테스트 사용자 및 예측 이력 데이터 생성
-        user = create_test_user(real_db)
+        user = create_test_user(real_db, telegram_id=12345)
         self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1, 10, 0, 0))
         self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2, 11, 0, 0))
 
         # When: API 호출
-        response = client.get(f"/prediction/history/{user.id}")
+        response = client.get(f"/api/v1/prediction/history/{user.telegram_id}")
 
         # Then: 결과 검증
         assert response.status_code == 200
@@ -78,7 +78,7 @@ class TestPredictionHistoryRouter:
 
     def test_get_prediction_history_not_found_user(self, client: TestClient):
         """
-        - **테스트 대상**: `GET /prediction/history/{user_id}`
+        - **테스트 대상**: `GET /api/v1/prediction/history/{telegram_id}`
         - **목적**: 존재하지 않는 사용자에 대해 API 호출 시, 빈 목록을 정상적으로 반환하는지 확인합니다.
         - **시나리오**:
             - 존재하지 않는 사용자 ID(99999)로 API를 호출합니다.
@@ -86,7 +86,7 @@ class TestPredictionHistoryRouter:
         - **Mock 대상**: 없음
         """
         # When: 존재하지 않는 사용자 ID로 API 호출
-        response = client.get("/prediction/history/99999")
+        response = client.get("/api/v1/prediction/history/99999")
 
         # Then: 404 Not Found 대신 200 OK와 빈 리스트를 반환하는 것이 현재 정책
         assert response.status_code == 200
@@ -94,7 +94,7 @@ class TestPredictionHistoryRouter:
 
     def test_get_prediction_history_empty(self, client: TestClient, real_db: Session):
         """
-        - **테스트 대상**: `GET /prediction/history/{user_id}`
+        - **테스트 대상**: `GET /api/v1/prediction/history/{telegram_id}`
         - **목적**: 예측 이력이 없는 사용자에 대해 API 호출 시, 빈 목록을 정상적으로 반환하는지 확인합니다.
         - **시나리오**:
             - 테스트 사용자를 생성하지만 예측 이력은 생성하지 않습니다.
@@ -103,10 +103,10 @@ class TestPredictionHistoryRouter:
         - **Mock 대상**: 없음
         """
         # Given: 사용자만 생성
-        user = create_test_user(real_db)
+        user = create_test_user(real_db, telegram_id=12345)
 
         # When: API 호출
-        response = client.get(f"/prediction/history/{user.id}")
+        response = client.get(f"/api/v1/prediction/history/{user.telegram_id}")
 
         # Then: 결과 검증
         assert response.status_code == 200
@@ -114,7 +114,7 @@ class TestPredictionHistoryRouter:
 
     def test_get_prediction_history_pagination(self, client: TestClient, real_db: Session):
         """
-        - **테스트 대상**: `GET /prediction/history/{user_id}`
+        - **테스트 대상**: `GET /api/v1/prediction/history/{telegram_id}`
         - **목적**: 페이지네이션(페이지 번호, 페이지 크기) 기능이 정상적으로 동작하는지 확인합니다.
         - **시나리오**:
             - 14개의 예측 이력 데이터를 생성합니다.
@@ -123,12 +123,12 @@ class TestPredictionHistoryRouter:
         - **Mock 대상**: 없음
         """
         # Given: 14개의 테스트 데이터 생성
-        user = create_test_user(real_db)
+        user = create_test_user(real_db, telegram_id=12345)
         for i in range(1, 15):
             self._create_prediction_history(real_db, user.id, f"SYMBOL{i:02d}", "상승", datetime(2023, 1, i, 10, 0, 0))
 
         # When: 1페이지 요청 (페이지 크기 5)
-        response_page1 = client.get(f"/prediction/history/{user.id}?page=1&page_size=5")
+        response_page1 = client.get(f"/api/v1/prediction/history/{user.telegram_id}?page=1&page_size=5")
 
         # Then: 1페이지 결과 검증
         assert response_page1.status_code == 200
@@ -139,7 +139,7 @@ class TestPredictionHistoryRouter:
         assert data1["history"][0]["symbol"] == "SYMBOL14"
 
         # When: 2페이지 요청 (페이지 크기 5)
-        response_page2 = client.get(f"/prediction/history/{user.id}?page=2&page_size=5")
+        response_page2 = client.get(f"/api/v1/prediction/history/{user.telegram_id}?page=2&page_size=5")
 
         # Then: 2페이지 결과 검증
         assert response_page2.status_code == 200
@@ -151,7 +151,7 @@ class TestPredictionHistoryRouter:
 
     def test_get_prediction_history_filter_by_symbol(self, client: TestClient, real_db: Session):
         """
-        - **테스트 대상**: `GET /prediction/history/{user_id}`
+        - **테스트 대상**: `GET /api/v1/prediction/history/{telegram_id}`
         - **목적**: 특정 종목 코드로 예측 이력을 필터링하는 기능이 정상적으로 동작하는지 확인합니다.
         - **시나리오**:
             - 여러 종목의 예측 이력을 생성합니다.
@@ -160,13 +160,13 @@ class TestPredictionHistoryRouter:
         - **Mock 대상**: 없음
         """
         # Given: 다양한 예측 이력 데이터 생성
-        user = create_test_user(real_db)
+        user = create_test_user(real_db, telegram_id=12345)
         self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1))
         self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2))
         self._create_prediction_history(real_db, user.id, "005930", "유지", datetime(2023, 1, 3))
 
         # When: 특정 종목 코드로 필터링하여 API 호출
-        response = client.get(f"/prediction/history/{user.id}?symbol=005930")
+        response = client.get(f"/api/v1/prediction/history/{user.telegram_id}?symbol=005930")
 
         # Then: 결과 검증
         assert response.status_code == 200
@@ -176,7 +176,7 @@ class TestPredictionHistoryRouter:
 
     def test_get_prediction_history_filter_by_prediction(self, client: TestClient, real_db: Session):
         """
-        - **테스트 대상**: `GET /prediction/history/{user_id}`
+        - **테스트 대상**: `GET /api/v1/prediction/history/{telegram_id}`
         - **목적**: 특정 예측 결과로 이력을 필터링하는 기능이 정상적으로 동작하는지 확인합니다.
         - **시나리오**:
             - 여러 예측 결과(상승, 하락, 유지)를 포함하는 이력을 생성합니다.
@@ -185,13 +185,13 @@ class TestPredictionHistoryRouter:
         - **Mock 대상**: 없음
         """
         # Given: 다양한 예측 이력 데이터 생성
-        user = create_test_user(real_db)
+        user = create_test_user(real_db, telegram_id=12345)
         self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1))
         self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2))
         self._create_prediction_history(real_db, user.id, "005930", "유지", datetime(2023, 1, 3))
 
         # When: 특정 예측 결과로 필터링하여 API 호출
-        response = client.get(f"/prediction/history/{user.id}?prediction=상승")
+        response = client.get(f"/api/v1/prediction/history/{user.telegram_id}?prediction=상승")
 
         # Then: 결과 검증
         assert response.status_code == 200
@@ -201,7 +201,7 @@ class TestPredictionHistoryRouter:
 
     def test_get_prediction_history_filter_by_symbol_and_prediction(self, client: TestClient, real_db: Session):
         """
-        - **테스트 대상**: `GET /prediction/history/{user_id}`
+        - **테스트 대상**: `GET /api/v1/prediction/history/{telegram_id}`
         - **목적**: 종목 코드와 예측 결과를 동시에 사용하여 이력을 필터링하는 기능이 정상 동작하는지 확인합니다.
         - **시나리오**:
             - 여러 예측 이력을 생성합니다.
@@ -210,13 +210,13 @@ class TestPredictionHistoryRouter:
         - **Mock 대상**: 없음
         """
         # Given: 다양한 예측 이력 데이터 생성
-        user = create_test_user(real_db)
+        user = create_test_user(real_db, telegram_id=12345)
         self._create_prediction_history(real_db, user.id, "005930", "상승", datetime(2023, 1, 1))
         self._create_prediction_history(real_db, user.id, "035720", "하락", datetime(2023, 1, 2))
         self._create_prediction_history(real_db, user.id, "005930", "유지", datetime(2023, 1, 3))
 
         # When: 종목 코드와 예측 결과로 필터링하여 API 호출
-        response = client.get(f"/prediction/history/{user.id}?symbol=005930&prediction=유지")
+        response = client.get(f"/api/v1/prediction/history/{user.telegram_id}?symbol=005930&prediction=유지")
 
         # Then: 결과 검증
         assert response.status_code == 200
