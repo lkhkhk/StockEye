@@ -1,7 +1,7 @@
 import os
 import logging
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 from src.common.utils.http_client import get_retry_client
 import httpx
 
@@ -85,7 +85,7 @@ async def _get_symbols_message_and_keyboard(symbols_data: dict, offset: int):
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     return msg, reply_markup
 
-async def _get_search_results_message_and_keyboard(search_data: dict, query_str: str, offset: int):
+async def _get_search_results_message_and_keyboard(search_data: dict, query_str: str, offset: int, pagination_callback_prefix: str = "symbols_search_page"):
     items = search_data.get('items', [])
     total_count = search_data.get('total_count', 0)
 
@@ -114,11 +114,11 @@ async def _get_search_results_message_and_keyboard(search_data: dict, query_str:
     # 페이지네이션 버튼 생성
     pagination_buttons = []
     if offset > 0:
-        pagination_buttons.append(InlineKeyboardButton("맨앞", callback_data=f"symbols_search_page_{query_str}_0"))
-        pagination_buttons.append(InlineKeyboardButton("이전", callback_data=f"symbols_search_page_{query_str}_{offset - PAGE_SIZE}"))
+        pagination_buttons.append(InlineKeyboardButton("맨앞", callback_data=f"{pagination_callback_prefix}:{query_str}:0"))
+        pagination_buttons.append(InlineKeyboardButton("이전", callback_data=f"{pagination_callback_prefix}:{query_str}:{offset - PAGE_SIZE}"))
     if offset + PAGE_SIZE < total_count:
-        pagination_buttons.append(InlineKeyboardButton("다음", callback_data=f"symbols_search_page_{query_str}_{offset + PAGE_SIZE}"))
-        pagination_buttons.append(InlineKeyboardButton("맨뒤", callback_data=f"symbols_search_page_{query_str}_{(total_pages - 1) * PAGE_SIZE}"))
+        pagination_buttons.append(InlineKeyboardButton("다음", callback_data=f"{pagination_callback_prefix}:{query_str}:{offset + PAGE_SIZE}"))
+        pagination_buttons.append(InlineKeyboardButton("맨뒤", callback_data=f"{pagination_callback_prefix}:{query_str}:{(total_pages - 1) * PAGE_SIZE}"))
 
     # 메시지 텍스트
     msg = f"'{query_str}' 검색 결과 (총 {total_count}개)\n페이지: {current_page}/{total_pages}\n\n{stock_list_text}\n원하는 종목을 선택하거나 페이지를 이동하세요."
@@ -214,9 +214,13 @@ async def symbols_search_pagination_callback(update: Update, context: ContextTyp
     await query.answer()
 
     # callback_data 형식: symbols_search_page_{query_str}_{offset}
-    parts = query.data.split('_')
-    query_str = parts[3]
-    new_offset = int(parts[4])
+    # Use the common parser
+    try:
+        query_str, new_offset = parse_pagination_callback_data(query.data, "symbols_search_page")
+    except ValueError as e:
+        logger.error(f"Error parsing pagination callback data: {e}")
+        await query.edit_message_text(text="오류: 잘못된 페이지네이션 데이터입니다.")
+        return
     
     # Retrieve total_count from user_data
     total_count = context.user_data.get(f'symbols_search_total_count_{query_str}', 0)
@@ -286,3 +290,12 @@ async def symbol_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         logger.error(f"Unknown Error in symbol_info_command: {e}", exc_info=True)
         await reply_target.reply_text(f"종목 상세 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (알 수 없는 오류)")
+
+def get_symbols_handlers():
+    return [
+        CommandHandler("symbols", symbols_command),
+        CommandHandler("symbol_info", symbol_info_command),
+        CallbackQueryHandler(symbols_pagination_callback, pattern="^symbols_page_"),
+        CallbackQueryHandler(symbols_search_pagination_callback, pattern="^symbols_search_page_"),
+        CallbackQueryHandler(symbol_info_callback, pattern="^symbol_info_"),
+    ]

@@ -4,7 +4,7 @@ import os
 import httpx
 import asyncio # Import asyncio for sleep
 
-from src.bot.handlers.symbols import symbols_command, symbols_pagination_callback, symbol_info_callback, symbols_search_pagination_callback
+from src.bot.handlers.symbols import symbols_command, symbol_info_callback
 
 # Mock environment variables for testing
 TEST_USER_ID = 12345
@@ -38,18 +38,15 @@ async def setup_environment():
     print("\n--- E2E 테스트 환경 설정 종료 ---")
 
 @pytest.mark.asyncio
-async def test_symbols_command_e2e():
+async def test_symbols_list_and_info_e2e():
     """
-    Tests the /symbols command by directly calling the handler
-    and interacting with the live API.
+    Tests the /symbols command and symbol_info_callback for a clean E2E flow.
     """
-    print(f"httpx version: {httpx.__version__}")
-    # Create a single MagicMock for context and initialize user_data
+    # 1. Test /symbols command
     context_mock = MagicMock()
     context_mock.user_data = {}
     context_mock.args = [] # No arguments for /symbols command
 
-    # Mock Update for symbols_command
     update_mock = MagicMock()
     update_mock.effective_user.id = TEST_USER_ID
     update_mock.message.reply_text = AsyncMock()
@@ -57,36 +54,57 @@ async def test_symbols_command_e2e():
     print(f"\n[E2E] Calling /symbols command for user {TEST_USER_ID}...")
     await symbols_command(update_mock, context_mock)
 
-    # Verify the response message
+    # Verify the response message for /symbols
     update_mock.message.reply_text.assert_called_once()
     call_args = update_mock.message.reply_text.call_args[0][0]
     assert "[종목 목록]" in call_args
-    assert "총 5개" in call_args # Now expecting 5 test stocks
+    assert "총 5개" in call_args # Asserting based on controlled, seeded data
     assert "페이지: 1/1" in call_args
-    # Assert that 5 items are listed
     listed_items = [line for line in call_args.split('\n') if line.startswith('- ')]
     assert len(listed_items) == 5
-
     print("[E2E] /symbols command test passed.")
 
-    # Test symbol_info_callback (clicking a symbol button)
+    # 2. Test symbol_info_callback (clicking a symbol button)
     print("\n[E2E] Testing symbol_info_callback (clicking a symbol button)...")
     query_mock_symbol_info = MagicMock()
-    query_mock_symbol_info.data = "symbol_info_005930" # Simulate clicking Samsung Electronics button
+    query_mock_symbol_info.data = "symbol_info_005930" # Simulate clicking Samsung Electronics
     query_mock_symbol_info.answer = AsyncMock()
-    update_mock.callback_query = query_mock_symbol_info # Attach callback_query to update_mock
-
-    # Reset reply_text mock before this specific test to ensure it's called only once here
-    update_mock.message.reply_text.reset_mock()
+    update_mock.callback_query = query_mock_symbol_info
+    update_mock.message = query_mock_symbol_info.message # CallbackQuery has a message attribute
+    update_mock.message.reply_text = AsyncMock() # Reset mock for the new reply
 
     await symbol_info_callback(update_mock, context_mock)
 
     query_mock_symbol_info.answer.assert_called_once()
-    # symbol_info_callback calls symbols_search_command, which then calls reply_text
     update_mock.message.reply_text.assert_called_once()
     call_args_symbol_info = update_mock.message.reply_text.call_args[0][0]
     assert "[종목 상세]" in call_args_symbol_info
     assert "코드: 005930" in call_args_symbol_info
     assert "이름: 삼성전자" in call_args_symbol_info
+    print("[E2E] symbol_info_callback test passed.")
 
-    print("[E2E] Symbol_info_callback (clicking a symbol button) test passed.")
+@pytest.mark.asyncio
+async def test_symbols_search_e2e():
+    """
+    Tests the /symbols [keyword] command for a clean E2E flow.
+    """
+    # 1. Test /symbols [keyword] command
+    context_mock = MagicMock()
+    context_mock.user_data = {}
+    context_mock.args = ["삼성"] # Search for a stock
+
+    update_mock = MagicMock()
+    update_mock.effective_user.id = TEST_USER_ID
+    update_mock.message.reply_text = AsyncMock()
+
+    print(f"\n[E2E] Calling /symbols search for user {TEST_USER_ID} with keyword '삼성'...")
+    await symbols_command(update_mock, context_mock)
+
+    # Verify the response message for the search
+    update_mock.message.reply_text.assert_called_once()
+    call_args = update_mock.message.reply_text.call_args[0][0]
+    assert "'삼성' 검색 결과" in call_args
+    assert "총 1개" in call_args # Expecting only '삼성전자' from seeded data
+    assert "페이지: 1/1" in call_args
+    assert "- 005930 삼성전자" in call_args
+    print("[E2E] /symbols search test passed.")

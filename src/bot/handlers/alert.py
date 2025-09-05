@@ -1,5 +1,6 @@
 import logging
 import httpx
+from datetime import timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
@@ -439,3 +440,19 @@ async def delete_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("알림 삭제 중 오류가 발생했습니다.")
     
     await list_alerts(update, context)
+
+def get_alert_handler():
+    """/alert 명령어와 관련된 모든 핸들러를 포함하는 ConversationHandler를 반환합니다."""
+    return ConversationHandler(
+        entry_points=[CommandHandler('alert', alert_command)],
+        states={
+            ASK_ALERT_TYPE: [CallbackQueryHandler(ask_alert_type, pattern='^alert_add_select_')],
+            ASK_PRICE_CONDITION: [
+                CallbackQueryHandler(ask_price_condition, pattern='^alert_add_type_price'),
+                CallbackQueryHandler(add_disclosure_alert, pattern='^alert_add_type_disclosure')
+            ],
+            ASK_PRICE_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_price_alert)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_alert_conversation)],
+        conversation_timeout=timedelta(minutes=5)
+    )

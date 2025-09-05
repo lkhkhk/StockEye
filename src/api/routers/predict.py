@@ -1,7 +1,7 @@
 # 각 엔드포인트에 tags를 명시적으로 지정해야 Swagger UI에서 그룹화가 100% 보장됩니다.
 # (FastAPI 라우터의 tags만으로는 일부 환경에서 그룹화가 누락될 수 있음)
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from src.common.schemas.predict import StockPredictionRequest, StockPredictionResponse
 from src.common.models.prediction_history import PredictionHistory
@@ -31,6 +31,10 @@ async def predict_stock(request: StockPredictionRequest, db: Session = Depends(g
         # 예측 수행
         result = await predict_service.predict_stock_movement(db, symbol)
         logger.debug(f"Prediction result: {result}")
+
+        # Check for insufficient data and raise HTTPException
+        if result["prediction"] == "예측 불가" and "분석에 필요한 데이터" in result["reason"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["reason"])
 
         # 예측 이력 저장 (telegram_id가 있는 경우)
         if request.telegram_id and result["prediction"] not in ["N/A", "예측 불가"]:

@@ -52,21 +52,45 @@ def admin_only(func):
         return await func(update, context, *args, **kwargs)
     return wrapped
 
-# --- 관리자 명령어 텍스트 ---
-ADMIN_COMMANDS_TEXT = (
-    "[관리자 전용 명령어 안내]\n" 
-    "\n" 
-    "**시스템 관리**\n" 
-    "- /admin_stats          : 전체 시스템 통계 조회\n" 
-    "- /show_schedules       : 스케줄러 상태 및 등록된 잡 목록 조회 (잡 즉시 실행 가능)\n" 
-    "- /trigger_job [job_id] : (비상용) 특정 스케줄러 잡 ID로 수동 실행\n" 
-    "- /update_historical_prices [종목코드/종목명] [end_date] 또는 [종목코드/종목명] [start_date] [end_date] : 과거 일별 시세 갱신 (YYYY-MM-DD 형식)\n"
-)
-
 @admin_only
 @ensure_user_registered
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(ADMIN_COMMANDS_TEXT)
+    """관리자 메뉴를 버튼과 함께 보여줍니다."""
+    keyboard = [
+        [InlineKeyboardButton("📊 시스템 통계 조회", callback_data="admin:stats")],
+        [InlineKeyboardButton("⏰ 스케줄러 상태 조회", callback_data="admin:show_schedules")],
+        [InlineKeyboardButton("🔔 테스트 알림 발송", callback_data="admin:test_notify")],
+        [InlineKeyboardButton("💾 (초기 1회) 과거 시세 전체 갱신", callback_data="admin:update_prices_all")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "[관리자 전용 명령어]\n\n원하시는 작업을 선택해주세요.\n\n`과거 시세 전체 갱신`은 시스템 초기 설정 시 한 번만 실행하면 되며, 이후에는 스케줄러에 의해 자동으로 관리됩니다.",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+@admin_only
+@ensure_user_registered
+async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """관리자 메뉴 버튼 콜백을 처리합니다."""
+    query = update.callback_query
+    await query.answer()
+    
+    action = query.data
+    
+    if action == "admin:stats":
+        await query.message.reply_text("📊 시스템 통계 조회를 시작합니다...")
+        await admin_stats(update, context)
+    elif action == "admin:show_schedules":
+        await query.message.reply_text("⏰ 스케줄러 상태 조회를 시작합니다...")
+        await admin_show_schedules(update, context)
+    elif action == "admin:test_notify":
+        await query.message.reply_text("🔔 테스트 알림을 발송합니다...")
+        await test_notify_command(update, context)
+    elif action == "admin:update_prices_all":
+        await query.message.reply_text("💾 과거 시세 전체 갱신을 요청합니다. 시간이 다소 소요될 수 있습니다.")
+        # Call the original function with default parameters for a full update
+        await admin_update_historical_prices(update, context, full_update=True)
 
 @ensure_user_registered
 async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -117,7 +141,7 @@ async def admin_show_schedules(update: Update, context: ContextTypes.DEFAULT_TYP
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=message, reply_markup=reply_markup, parse_mode='Markdown')
             else:
-                await update.message.reply_text(f"조회 실패: {response.status_code} {response.text}")
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"조회 실패: {response.status_code} {response.text}")
     except Exception as e:
         logger.error(f"스케줄러 상태 조회 중 오류: {str(e)}")
         await context.bot.send_message(chat_id=update.effective_chat.id, text="스케줄러 상태 조회 중 오류가 발생했습니다.")
@@ -141,7 +165,6 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         job_id = parts[1]
         
-        # 작업 시작 메시지 즉시 전송
         await context.bot.send_message(chat_id=chat_id, text=f"⏳ 잡 실행 요청 접수: `{job_id}`. 작업이 완료되면 알림이 전송됩니다.", parse_mode='Markdown')
 
         async with get_retry_client() as client:
@@ -151,8 +174,7 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 json={"chat_id": chat_id},
                 timeout=10
             )
-            response.raise_for_status() # 2xx 상태 코드가 아니면 예외 발생
-            # API 응답은 이미 성공 메시지를 포함하므로 추가 메시지 불필요
+            response.raise_for_status()
 
     except httpx.HTTPStatusError as e:
         error_detail = e.response.text
@@ -167,7 +189,7 @@ async def admin_trigger_job(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @admin_only
 @ensure_user_registered
-async def admin_update_historical_prices(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def admin_update_historical_prices(update: Update, context: ContextTypes.DEFAULT_TYPE, full_update: bool = False):
     chat_id = update.effective_chat.id
     token = await get_auth_token(chat_id)
     if not token:
@@ -176,57 +198,54 @@ async def admin_update_historical_prices(update: Update, context: ContextTypes.D
 
     headers = {"Authorization": f"Bearer {token}"}
     try:
-        text = update.message.text
-        parts = text.split()
-        
         stock_identifier = None
-        start_date_str = "1990-01-01" # 기본 시작 날짜
-        end_date_str = datetime.now().strftime('%Y-%m-%d') # 기본 종료 날짜 (오늘)
+        start_date_str = "1990-01-01"
+        end_date_str = datetime.now().strftime('%Y-%m-%d')
 
-        def is_valid_date(date_string):
-            try:
-                datetime.strptime(date_string, '%Y-%m-%d')
-                return True
-            except ValueError:
-                return False
+        if not full_update:
+            text = update.message.text
+            parts = text.split()
+            
+            def is_valid_date(date_string):
+                try:
+                    datetime.strptime(date_string, '%Y-%m-%d')
+                    return True
+                except ValueError:
+                    return False
 
-        if len(parts) == 2: # /command [stock_identifier] or /command [end_date]
-            if is_valid_date(parts[1]):
-                end_date_str = parts[1]
-            else:
-                stock_identifier = parts[1]
-        elif len(parts) == 3: # /command [stock_identifier] [end_date] or /command [start_date] [end_date]
-            if is_valid_date(parts[1]) and is_valid_date(parts[2]):
-                start_date_str = parts[1]
-                end_date_str = parts[2]
-            elif not is_valid_date(parts[1]) and is_valid_date(parts[2]):
-                stock_identifier = parts[1]
-                end_date_str = parts[2]
-            else: # Both are invalid or first is date and second is not
-                await context.bot.send_message(chat_id=chat_id, text="❌ 날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.")
+            if len(parts) == 2:
+                if is_valid_date(parts[1]):
+                    end_date_str = parts[1]
+                else:
+                    stock_identifier = parts[1]
+            elif len(parts) == 3:
+                if is_valid_date(parts[1]) and is_valid_date(parts[2]):
+                    start_date_str = parts[1]
+                    end_date_str = parts[2]
+                elif not is_valid_date(parts[1]) and is_valid_date(parts[2]):
+                    stock_identifier = parts[1]
+                    end_date_str = parts[2]
+                else:
+                    await context.bot.send_message(chat_id=chat_id, text="❌ 날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.")
+                    return
+            elif len(parts) == 4:
+                if is_valid_date(parts[2]) and is_valid_date(parts[3]):
+                    stock_identifier = parts[1]
+                    start_date_str = parts[2]
+                    end_date_str = parts[3]
+                else:
+                    await context.bot.send_message(chat_id=chat_id, text="❌ 날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.")
+                    return
+            elif len(parts) == 1 and not full_update:
+                pass # Full update, no args needed
+            elif len(parts) > 1:
+                await context.bot.send_message(chat_id=chat_id, text="❌ 사용법: /update_historical_prices [종목코드/종목명] [종료_날짜] 또는 [종목코드/종목명] [시작_날짜] [종료_날짜]\n날짜 형식: YYYY-MM-DD")
                 return
-        elif len(parts) == 4: # /command [stock_identifier] [start_date] [end_date]
-            if is_valid_date(parts[2]) and is_valid_date(parts[3]):
-                stock_identifier = parts[1]
-                start_date_str = parts[2]
-                end_date_str = parts[3]
-            else:
-                await context.bot.send_message(chat_id=chat_id, text="❌ 날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.")
-                return
-        elif len(parts) != 1: # 잘못된 인자 수
-            await context.bot.send_message(chat_id=chat_id, text="❌ 사용법: /update_historical_prices [종목코드/종목명] [종료_날짜] 또는 [종목코드/종목명] [시작_날짜] [종료_날짜]\n날짜 형식: YYYY-MM-DD")
-            return
 
-        # 최종 날짜 유효성 검증 (기본값 포함)
-        if not is_valid_date(start_date_str) or not is_valid_date(end_date_str):
-            await context.bot.send_message(chat_id=chat_id, text="❌ 날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.")
-            return
-
-        # 작업 시작 메시지 즉시 전송
         if stock_identifier:
             await context.bot.send_message(chat_id=chat_id, text=f"⏳ 과거 일별 시세 갱신 요청 접수: {stock_identifier} ({start_date_str} ~ {end_date_str}). 작업이 완료되면 알림이 전송됩니다.", parse_mode='Markdown')
         else:
-            await context.bot.send_message(chat_id=chat_id, text=f"⏳ 과거 일별 시세 갱신 요청 접수: {start_date_str} ~ {end_date_str}. 작업이 완료되면 알림이 전송됩니다.", parse_mode='Markdown')
+            await context.bot.send_message(chat_id=chat_id, text=f"⏳ 과거 일별 시세 전체 갱신 요청 접수: {start_date_str} ~ {end_date_str}. 작업이 완료되면 알림이 전송됩니다.", parse_mode='Markdown')
 
         async with get_retry_client() as client:
             response = await client.post(
@@ -238,12 +257,9 @@ async def admin_update_historical_prices(update: Update, context: ContextTypes.D
                     "stock_identifier": stock_identifier,
                     "chat_id": chat_id
                 },
-                timeout=30 # 워커로의 요청 타임아웃을 늘립니다.
+                timeout=30
             )
-            response.raise_for_status() # 2xx 상태 코드가 아니면 예외 발생
-            
-            # API 응답은 이미 성공 메시지를 포함하므로 추가 메시지 불필요
-            # 워커에서 최종 완료 메시지를 보낼 것이므로 여기서는 간단한 확인 메시지만 보냅니다.
+            response.raise_for_status()
             await context.bot.send_message(chat_id=chat_id, text="✅ 과거 일별 시세 갱신 작업이 성공적으로 트리거되었습니다.", parse_mode='Markdown')
 
     except httpx.HTTPStatusError as e:
@@ -253,7 +269,6 @@ async def admin_update_historical_prices(update: Update, context: ContextTypes.D
     except Exception as e:
         logger.error(f"과거 일별 시세 갱신 중 오류: {str(e)}", exc_info=True)
         await context.bot.send_message(chat_id=chat_id, text="과거 일별 시세 갱신 중 오류가 발생했습니다.")
-
 
 @admin_only
 @ensure_user_registered
@@ -271,7 +286,6 @@ async def trigger_job_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     headers = {"Authorization": f"Bearer {token}"}
     try:
-        # 작업 시작 메시지 즉시 전송
         await context.bot.send_message(chat_id=chat_id, text=f"⏳ 잡 실행 요청 접수: `{job_id}`. 작업이 완료되면 알림이 전송됩니다.", parse_mode='Markdown')
 
         async with get_retry_client() as client:
@@ -281,8 +295,7 @@ async def trigger_job_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 json={"chat_id": chat_id},
                 timeout=10
             )
-            response.raise_for_status() # 2xx 상태 코드가 아니면 예외 발생
-            # API 응답은 이미 성공 메시지를 포함하므로 추가 메시지 불필요
+            response.raise_for_status()
 
     except httpx.HTTPStatusError as e:
         error_detail = e.response.text
@@ -300,7 +313,7 @@ async def trigger_job_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     token = await get_auth_token(update.effective_chat.id)
     if not token:
-        await update.message.reply_text("❌ 인증 토큰 발급에 실패했습니다.")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ 인증 토큰 발급에 실패했습니다.")
         return
 
     headers = {"Authorization": f"Bearer {token}"}
@@ -309,13 +322,12 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response = await client.get(f"{API_V1_URL}/admin/admin_stats", headers=headers, timeout=10)
             if response.status_code == 200:
                 stats = response.json()
-                await update.message.reply_text(f"📊 **시스템 통계**\n\n👥 사용자 수: {stats['user_count']}명\n💰 모의매매 기록: {stats['trade_count']}건\n🔮 예측 기록: {stats['prediction_count']}건", parse_mode='Markdown')
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"📊 **시스템 통계**\n\n👥 사용자 수: {stats['user_count']}명\n💰 모의매매 기록: {stats['trade_count']}건\n🔮 예측 기록: {stats['prediction_count']}건", parse_mode='Markdown')
             else:
-                await update.message.reply_text(f"❌ 조회 실패: {response.status_code} {response.text}")
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"❌ 조회 실패: {response.status_code} {response.text}")
     except Exception as e:
         logger.error(f"통계 조회 중 오류: {str(e)}")
         await context.bot.send_message(chat_id=update.effective_chat.id, text="통계 조회 중 오류가 발생했습니다.")
-
 
 @admin_only
 @ensure_user_registered
@@ -329,6 +341,9 @@ async def test_notify_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 # --- 핸들러 등록 ---
 def get_admin_handler():
     return CommandHandler("admin", admin_command)
+
+def get_admin_callback_handler():
+    return CallbackQueryHandler(admin_callback_handler, pattern="^admin:")
 
 def get_health_handler():
     return CommandHandler("health", health_command)

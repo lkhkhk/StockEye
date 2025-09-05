@@ -215,7 +215,7 @@ def run_historical_price_update_task(chat_id: int, start_date_str: str, end_date
     db_gen = get_db()
     db = next(db_gen)
     redis_client = redis.from_url(f"redis://{REDIS_HOST}")
-    stock_master_service = StockMasterService() # Add this line
+    stock_master_service = StockMasterService()
     
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
@@ -229,12 +229,14 @@ def run_historical_price_update_task(chat_id: int, start_date_str: str, end_date
     try:
         if stock_identifier:
             # 특정 종목만 갱신
-            found_stocks = stock_master_service.search_stocks(stock_identifier, db, limit=1)
+            found_stocks = stock_master_service.search_stocks(keyword=stock_identifier, db=db, limit=1)
             if not found_stocks:
                 _publish_message(redis_client, chat_id, f"❌ 종목코드/종목명 '{stock_identifier}'에 해당하는 종목을 찾을 수 없습니다.")
                 return
+            stock_for_name = found_stocks[0]
+            display_name = stock_for_name.name if stock_for_name and stock_for_name.name else stock_identifier
             stocks = found_stocks
-            job_name = f"과거 일별 시세 갱신 ({stock_identifier})"
+            job_name = f"과거 일별 시세 갱신 ({display_name}:{stock_identifier})"
         else:
             # 상장 폐지되지 않은 주식만 가져오도록 필터링
             stocks = db.query(StockMaster).filter(StockMaster.is_delisted == False).all()
@@ -250,14 +252,14 @@ def run_historical_price_update_task(chat_id: int, start_date_str: str, end_date
             logger.debug(f"종목 {stock.symbol} ({stock.name}) 과거 시세 갱신 시작.")
             try:
                 ticker = f"{stock.symbol}.KS"
-                data = yf.download(ticker, start=start_date, end=end_date + timedelta(days=1)) # Corrected: Added missing closing parenthesis for timedelta
+                data = yf.download(ticker, start=start_date, end=end_date + timedelta(days=1))
                 
                 if data.empty:
                     logger.warning(f"종목 {stock.symbol} ({ticker})에 대한 과거 시세 데이터가 없습니다.")
                     total_error_stocks.append(stock.symbol)
                     # 데이터가 없으면 상장 폐지됨으로 표시
                     stock.is_delisted = True
-                    db.add(stock) # 변경사항을 DB에 추가
+                    db.add(stock)
                     continue
 
                 for index, row in data.iterrows():
@@ -297,15 +299,15 @@ def run_historical_price_update_task(chat_id: int, start_date_str: str, end_date
                 total_error_stocks.append(stock.symbol)
                 # 오류 발생 시 상장 폐지됨으로 표시
                 stock.is_delisted = True
-                db.add(stock) # 변경사항을 DB에 추가
-                db.rollback() # 현재 트랜잭션 롤백
+                db.add(stock)
+                db.rollback()
                 continue
 
             if processed_stocks % 50 == 0:
                 progress_msg = f"⏳ {job_name} 진행 중... ({processed_stocks}/{total_stocks}개 종목 처리 완료)"
                 _publish_message(redis_client, chat_id, progress_msg)
 
-        db.commit() # 최종 커밋
+        db.commit()
         success = True
     except Exception as e:
         logger.error(f"[Process] {job_name} 중 오류: {e}", exc_info=True)
