@@ -8,7 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from src.api.auth import jwt_handler
 from src.api.auth import password_utils
 from src.common.models.user import User
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 
 # Test constants
 TEST_SECRET_KEY = "test_secret_key"

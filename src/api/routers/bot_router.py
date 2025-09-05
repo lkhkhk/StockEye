@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from src.common.database.db_connector import get_db
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.common.services.price_alert_service import PriceAlertService
 from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate, PriceAlertRead
 from pydantic import BaseModel

@@ -15,9 +15,11 @@ pytest-asyncio
 pytest-cov
 pytest-timeout
 python-multipart
+alembic
 lxml
 pandas_datareader
 yfinance
 redis
 tenacity
 httpx==0.25.0
+pytest-mock

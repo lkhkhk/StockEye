@@ -35,10 +35,11 @@ def ensure_user_registered(func):
                     
                     # 사용자 등록/확인 후 로그인하여 토큰 발급
                     login_payload = {"username": f"tg_{user_id}", "password": TELEGRAM_USER_PASSWORD}
+                    print(f"DEBUG: Attempting client.post to {API_V1_URL}/users/login") # DEBUG PRINT
                     login_response = await client.post(f"{API_V1_URL}/users/login", json=login_payload)
                     
                     if login_response.status_code == 200:
-                        token_data = login_response.json()
+                        token_data = login_response.json() # Await removed
                         context.user_data['auth_token'] = token_data['access_token']
                         logger.debug(f"사용자 {user_id} 토큰 발급 성공")
                     else:

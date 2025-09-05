@@ -6,7 +6,7 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 
 from src.api.routers.auth import router as auth_router, verify_bot_secret_key
-from src.api.services.user_service import get_user_service, UserService
+from src.common.services.user_service import get_user_service, UserService
 from src.common.database.db_connector import get_db
 from src.common.models.user import User
 

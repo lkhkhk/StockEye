@@ -10,7 +10,7 @@ from src.api.auth.jwt_handler import get_current_active_user
 from src.common.database.db_connector import get_db
 from src.common.models.user import User
 from src.api.services.auth_service import AuthService
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.common.schemas.user import UserCreate, UserUpdate, TelegramRegister, UserRead, Token
 
 # --- Test Setup ---

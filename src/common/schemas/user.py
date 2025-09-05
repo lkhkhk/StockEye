@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     nickname: Optional[str] = None
     full_name: Optional[str] = None
     role: Optional[str] = "user"
+    telegram_id: Optional[int] = None
 
 class UserLogin(BaseModel):
     username: str
@@ -29,7 +30,7 @@ class UserRead(BaseModel):
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    telegram_id: Optional[str] = None
+    telegram_id: Optional[int] = None
     is_active: Optional[bool] = None
 
 class Token(BaseModel):
@@ -44,4 +45,4 @@ class TokenData(BaseModel):
 
 class TelegramRegister(BaseModel):
     telegram_id: str
-    is_active: bool 
+    is_active: bool

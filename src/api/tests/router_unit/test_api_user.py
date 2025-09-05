@@ -8,7 +8,7 @@ from src.common.schemas.user import UserCreate, UserLogin, UserRead, UserUpdate,
 from src.common.models.user import User
 from src.api.routers.user import router, get_auth_service, get_user_service
 from src.api.services.auth_service import AuthService
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.api.auth.jwt_handler import create_access_token, get_current_active_user
 from datetime import timedelta
 

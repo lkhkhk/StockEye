@@ -17,6 +17,7 @@ class HistoricalPriceUpdateRequest(BaseModel):
     chat_id: Optional[int] = None
     start_date: str
     end_date: str
+    stock_identifier: Optional[str] = None
 
 @router.get("/status")
 async def get_scheduler_status():
@@ -60,7 +61,7 @@ async def trigger_historical_prices_update(request: HistoricalPriceUpdateRequest
     # Moved import inside the function to resolve circular dependency
     from src.worker.main import run_historical_price_update_task 
 
-    logger.info(f"과거 일별 시세 갱신 요청 수신: {request.start_date} ~ {request.end_date}, chat_id: {request.chat_id}")
+    logger.info(f"과거 일별 시세 갱신 요청 수신: {request.start_date} ~ {request.end_date}, chat_id: {request.chat_id}, stock_identifier: {request.stock_identifier}")
     try:
         parsed_start_date = datetime.strptime(request.start_date, '%Y-%m-%d')
         parsed_end_date = datetime.strptime(request.end_date, '%Y-%m-%d')
@@ -69,7 +70,8 @@ async def trigger_historical_prices_update(request: HistoricalPriceUpdateRequest
         asyncio.create_task(run_historical_price_update_task(
             chat_id=request.chat_id,
             start_date=parsed_start_date,
-            end_date=parsed_end_date
+            end_date=parsed_end_date,
+            stock_identifier=request.stock_identifier
         ))
         return {"message": "과거 일별 시세 갱신 작업이 성공적으로 트리거되었습니다.", "status": "triggered"}
     except ValueError:

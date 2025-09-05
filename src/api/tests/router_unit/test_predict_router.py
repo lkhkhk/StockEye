@@ -10,7 +10,7 @@ from src.common.schemas.predict import StockPredictionRequest, StockPredictionRe
 from src.common.models.prediction_history import PredictionHistory
 from src.common.models.user import User
 from src.api.services.predict_service import PredictService
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 
 # --- Test Setup ---
 

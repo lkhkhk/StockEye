@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.common.models.user import User
 
 @pytest.fixture

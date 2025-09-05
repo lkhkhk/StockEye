@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.common.database.db_connector import get_db
 from src.common.schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate, TelegramRegister
 from src.api.services.auth_service import AuthService
-from src.api.services.user_service import UserService # UserService 임포트
+from src.common.services.user_service import UserService # UserService 임포트
 from src.api.auth.jwt_handler import get_current_active_user
 from src.common.models.user import User
 from src.common.models.simulated_trade import SimulatedTrade

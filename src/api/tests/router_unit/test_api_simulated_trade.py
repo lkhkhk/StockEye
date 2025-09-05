@@ -9,7 +9,7 @@ from src.common.models.simulated_trade import SimulatedTrade
 from src.common.schemas.simulated_trade import SimulatedTradeItem
 from src.api.routers.simulated_trade import router, get_market_data_service, get_user_service
 from src.common.services.market_data_service import MarketDataService
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from datetime import datetime, timedelta
 
 # Include the router in the test app

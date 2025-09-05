@@ -75,6 +75,7 @@ class StockMasterService:
                     existing_stock.market = stock_data.get("market", "")
                     existing_stock.corp_code = stock_data.get("corp_code", None)
                     existing_stock.updated_at = datetime.now()
+                    # is_delisted 플래그는 여기서 변경하지 않음 (워커에서 관리)
                 else:
                     now = datetime.now()
                     new_stock = StockMaster(
@@ -82,6 +83,7 @@ class StockMasterService:
                         name=stock_data["name"],
                         market=stock_data.get("market", ""),
                         corp_code=stock_data.get("corp_code", None),
+                        is_delisted=False, # 새로 추가되는 종목은 기본적으로 상장 폐지되지 않음
                         created_at=now,
                         updated_at=now
                     )

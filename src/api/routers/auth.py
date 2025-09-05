@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from src.common.database.db_connector import get_db
-from src.api.services.user_service import UserService, get_user_service
+from src.common.services.user_service import UserService, get_user_service
 from src.api.auth.jwt_handler import create_access_token
 from pydantic import BaseModel
 import os

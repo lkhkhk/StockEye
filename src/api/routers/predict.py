@@ -9,7 +9,7 @@ from src.common.database.db_connector import get_db
 from datetime import datetime
 from typing import Callable
 from src.api.services.predict_service import PredictService
-from src.api.services.user_service import UserService # Import UserService
+from src.common.services.user_service import UserService # Import UserService
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)

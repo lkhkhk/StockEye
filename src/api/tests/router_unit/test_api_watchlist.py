@@ -9,7 +9,7 @@ from src.common.models.stock_master import StockMaster
 from src.common.models.watchlist import Watchlist
 from src.api.routers.watchlist import router, get_user_service, get_stock_master_service
 from src.common.schemas.watchlist import WatchlistCreate, Watchlist as WatchlistSchema
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.common.services.stock_master_service import StockMasterService
 
 # Include the router in the test app

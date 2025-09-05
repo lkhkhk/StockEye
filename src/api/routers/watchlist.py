@@ -8,7 +8,7 @@ from src.common.schemas.watchlist import WatchlistCreate, Watchlist as Watchlist
 from pydantic import BaseModel
 from typing import List
 import logging
-from src.api.services.user_service import UserService # UserService 임포트
+from src.common.services.user_service import UserService # UserService 임포트
 from src.common.services.stock_master_service import StockMasterService # StockService 임포트
 
 logger = logging.getLogger(__name__)

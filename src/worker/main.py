@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from contextlib import asynccontextmanager
 import multiprocessing
+from typing import Optional
 
 from fastapi import FastAPI
 
@@ -78,12 +79,12 @@ async def update_daily_price_job(chat_id: int = None):
     p = multiprocessing.Process(target=tasks.update_daily_price_task, args=(chat_id,))
     p.start()
 
-async def run_historical_price_update_task(chat_id: int, start_date: datetime, end_date: datetime):
+async def run_historical_price_update_task(chat_id: int, start_date: datetime, end_date: datetime, stock_identifier: Optional[str] = None):
     """과거 일별 시세 갱신 작업을 별도 프로세스로 실행합니다."""
-    logger.info(f"[Trigger] 'run_historical_price_update_task' process for chat_id: {chat_id}")
+    logger.info(f"[Trigger] 'run_historical_price_update_task' process for chat_id: {chat_id}, stock_identifier: {stock_identifier}")
     start_date_str = start_date.strftime('%Y-%m-%d')
     end_date_str = end_date.strftime('%Y-%m-%d')
-    p = multiprocessing.Process(target=tasks.run_historical_price_update_task, args=(chat_id, start_date_str, end_date_str))
+    p = multiprocessing.Process(target=tasks.run_historical_price_update_task, args=(chat_id, start_date_str, end_date_str, stock_identifier))
     p.start()
 
 async def check_disclosures_job(chat_id: int = None):

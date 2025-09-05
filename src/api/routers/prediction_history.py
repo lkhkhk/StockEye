@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import logging
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.common.models.user import User
 
 logger = logging.getLogger(__name__)

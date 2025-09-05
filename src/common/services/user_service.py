@@ -33,7 +33,8 @@ class UserService:
             email=user.email,
             hashed_password=hashed_password,
             nickname=user.nickname,
-            full_name=user.full_name
+            full_name=user.full_name,
+            telegram_id=user.telegram_id # Add this line
         )
         try:
             db.add(db_user)

@@ -74,7 +74,7 @@ def real_db(db_engine):
 
 from src.common.models.user import User
 from src.common.models.stock_master import StockMaster
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.common.schemas.user import UserCreate # Added import
 from uuid import uuid4
 

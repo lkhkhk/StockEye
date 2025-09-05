@@ -11,7 +11,7 @@ import redis.asyncio as redis
 
 from src.common.database.db_connector import SessionLocal
 from src.common.models.user import User
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 from src.common.schemas.user import UserCreate
 
 # Mock user and chat IDs for testing

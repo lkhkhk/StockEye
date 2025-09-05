@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.common.models.user import User
 from src.common.database.db_connector import get_db
-from src.api.services.user_service import UserService
+from src.common.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
