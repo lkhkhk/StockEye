@@ -7,18 +7,14 @@ from logging.handlers import RotatingFileHandler
 import sys
 from datetime import datetime
 from contextlib import asynccontextmanager
+import multiprocessing
 
 from fastapi import FastAPI
 
-from src.common.database.db_connector import get_db
-from src.common.services.price_alert_service import PriceAlertService
-from src.common.services.stock_master_service import StockMasterService
-from src.common.services.market_data_service import MarketDataService
-from src.common.services.disclosure_service import DisclosureService
-from src.common.models.user import User
 from src.common.services.notify_service import send_telegram_message
 from src.worker.routers import scheduler as scheduler_router
-from src.worker.scheduler_instance import scheduler # Import scheduler from the new file
+from src.worker.scheduler_instance import scheduler
+from src.worker import tasks
 
 # 로깅 설정
 APP_ENV = os.getenv("APP_ENV", "development")
@@ -68,149 +64,39 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(scheduler_router.router, prefix="/api/v1")
 
 
-# --- Scheduler Jobs ---
+# --- Scheduler Jobs (Process Triggers) ---
 
 async def update_stock_master_job(chat_id: int = None):
-    """종목마스터 정보 갱신 잡"""
-    job_name = "종목마스터 갱신"
-    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
-    db_gen = get_db()
-    db = next(db_gen)
-    stock_master_service = StockMasterService()
-    success = False
-    try:
-        await stock_master_service.update_stock_master(db)
-        success = True
-    except Exception as e:
-        logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
-    finally:
-        try:
-            next(db_gen, None)
-        except StopIteration:
-            pass
-        if chat_id:
-            if success:
-                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
-            else:
-                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
-            r = redis.from_url(f"redis://{REDIS_HOST}")
-            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
+    """종목마스터 정보 갱신 잡을 별도 프로세스로 실행합니다."""
+    logger.info(f"[Trigger] 'update_stock_master_task' process for chat_id: {chat_id}")
+    p = multiprocessing.Process(target=tasks.update_stock_master_task, args=(chat_id,))
+    p.start()
 
 async def update_daily_price_job(chat_id: int = None):
-    """일별시세 갱신 잡"""
-    job_name = "일별시세 갱신"
-    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
-    db_gen = get_db()
-    db = next(db_gen)
-    market_data_service = MarketDataService()
-    success = False
-    try:
-        await market_data_service.update_daily_prices(db)
-        success = True
-    except Exception as e:
-        logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
-    finally:
-        try:
-            next(db_gen, None)
-        except StopIteration:
-            pass
-        if chat_id:
-            if success:
-                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
-            else:
-                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
-            r = redis.from_url(f"redis://{REDIS_HOST}")
-            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
+    """일별시세 갱신 잡을 별도 프로세스로 실행합니다."""
+    logger.info(f"[Trigger] 'update_daily_price_task' process for chat_id: {chat_id}")
+    p = multiprocessing.Process(target=tasks.update_daily_price_task, args=(chat_id,))
+    p.start()
+
+async def run_historical_price_update_task(chat_id: int, start_date: datetime, end_date: datetime):
+    """과거 일별 시세 갱신 작업을 별도 프로세스로 실행합니다."""
+    logger.info(f"[Trigger] 'run_historical_price_update_task' process for chat_id: {chat_id}")
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+    p = multiprocessing.Process(target=tasks.run_historical_price_update_task, args=(chat_id, start_date_str, end_date_str))
+    p.start()
 
 async def check_disclosures_job(chat_id: int = None):
-    """최신 공시 확인 및 알림 잡"""
-    job_name = "최신 공시 확인"
-    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
-    db_gen = get_db()
-    db = next(db_gen)
-    disclosure_service = DisclosureService()
-    success = False
-    try:
-        await disclosure_service.check_and_notify_new_disclosures(db)
-        success = True
-    except Exception as e:
-        logger.error(f"{job_name} 잡 실행 중 오류: {e}", exc_info=True)
-    finally:
-        try:
-            next(db_gen, None)
-        except StopIteration:
-            pass
-        if chat_id:
-            if success:
-                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
-            else:
-                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
-            r = redis.from_url(f"redis://{REDIS_HOST}")
-            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
+    """최신 공시 확인 및 알림 잡을 별도 프로세스로 실행합니다."""
+    logger.info(f"[Trigger] 'check_disclosures_task' process for chat_id: {chat_id}")
+    p = multiprocessing.Process(target=tasks.check_disclosures_task, args=(chat_id,))
+    p.start()
 
 async def check_price_alerts_job(chat_id: int = None):
-    """가격 알림 조건 확인 및 알림 잡"""
-    job_name = "가격 알림 확인"
-    logger.info(f"[APScheduler] {job_name} 잡 실행: {datetime.now()}")
-    db_gen = get_db()
-    db = next(db_gen)
-    alert_service = PriceAlertService()
-    stock_master_service = StockMasterService()
-    market_data_service = MarketDataService()
-    success = False
-    try:
-        active_alerts = alert_service.get_all_active_alerts(db)
-        alerts_by_symbol = {}
-        for alert in active_alerts:
-            if alert.symbol not in alerts_by_symbol:
-                alerts_by_symbol[alert.symbol] = []
-            alerts_by_symbol[alert.symbol].append(alert)
-
-        for symbol, alerts in alerts_by_symbol.items():
-            try:
-                price_data = market_data_service.get_current_price_and_change(symbol, db)
-                current_price = price_data.get("current_price")
-                if current_price is None:
-                    continue
-
-                for alert in alerts:
-                    triggered = False
-                    if alert.condition == 'gte' and current_price >= alert.target_price:
-                        triggered = True
-                    elif alert.condition == 'lte' and current_price <= alert.target_price:
-                        triggered = True
-                    
-                    if triggered:
-                        user = db.query(User).filter(User.id == alert.user_id).first()
-                        if user and user.telegram_id:
-                            msg = f"🔔 가격 알림: {alert.symbol}\n현재가 {current_price}원이 목표가 {alert.target_price}({alert.condition})에 도달했습니다."
-                            r = redis.from_url(f"redis://{REDIS_HOST}")
-                            await r.publish("notifications", json.dumps({"chat_id": user.telegram_id, "text": msg}, ensure_ascii=False))
-                        
-                        if alert.repeat_interval is None:
-                            alert.is_active = False
-                            db.add(alert)
-                db.commit()
-            except Exception as e:
-                logger.error(f"가격 알림 확인 중 '{symbol}' 처리 오류: {e}", exc_info=True)
-                continue
-        db.commit()
-        success = True
-    except Exception as e:
-        logger.error(f"{job_name} 잡 실행 중 상위 레벨 오류: {e}", exc_info=True)
-        db.rollback()
-    finally:
-        try:
-            next(db_gen, None)
-        except StopIteration:
-            pass
-        if chat_id:
-            if success:
-                msg = f"✅ 작업 완료: {job_name} 실행을 성공했습니다."
-            else:
-                msg = f"❌ 작업 실패: {job_name} 실행 중 오류가 발생했습니다."
-            r = redis.from_url(f"redis://{REDIS_HOST}")
-            await r.publish("notifications", json.dumps({"chat_id": chat_id, "text": msg}, ensure_ascii=False))
+    """가격 알림 조건 확인 및 알림 잡을 별도 프로세스로 실행합니다."""
+    logger.info(f"[Trigger] 'check_price_alerts_task' process for chat_id: {chat_id}")
+    p = multiprocessing.Process(target=tasks.check_price_alerts_task, args=(chat_id,))
+    p.start()
 
 async def notification_listener():
     """Redis 'notifications' 채널을 구독하고 메시지를 처리합니다."""

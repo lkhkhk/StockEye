@@ -16,7 +16,7 @@ from handlers.history import history_command
 from handlers.help import help_command
 from handlers.admin import (
     health_command, admin_stats, admin_show_schedules, 
-    admin_trigger_job, trigger_job_callback,
+    admin_trigger_job, trigger_job_callback, admin_update_historical_prices,
     test_notify_command, admin_command
 )
 from handlers.predict import predict_command
@@ -103,6 +103,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("admin_stats", admin_stats))
     app.add_handler(CommandHandler("show_schedules", admin_show_schedules))
     app.add_handler(CommandHandler("trigger_job", admin_trigger_job))
+    app.add_handler(CommandHandler("update_historical_prices", admin_update_historical_prices))
 
     # Other Callback Query Handlers
     app.add_handler(CallbackQueryHandler(symbols_pagination_callback, pattern="^symbols_page_"))

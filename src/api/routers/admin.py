@@ -32,6 +32,11 @@ class TriggerJobRequest(BaseModel):
 class StockSeedRequest(BaseModel):
     stocks: List[dict] # List of stock dictionaries, e.g., [{"symbol": "005930", "name": "삼성전자", "market": "KOSPI"}]
 
+class HistoricalPriceUpdateRequest(BaseModel):
+    start_date: str
+    end_date: str
+    chat_id: Optional[int] = None
+
 @router.post("/debug/reset-database", tags=["debug"])
 def reset_database(db: Session = Depends(get_db)):
     if APP_ENV != "development":
@@ -139,6 +144,53 @@ async def update_price(
             raise HTTPException(status_code=500, detail=f"일별시세 갱신 실패: {result.get('error', '알 수 없는 오류')}")
     except Exception as e:
         logger.error(f"update_price 엔드포인트에서 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+@router.post("/update_historical_prices", tags=["admin"])
+async def update_historical_prices(
+    request: HistoricalPriceUpdateRequest,
+    user: User = Depends(get_current_active_admin_user)
+):
+    """지정된 기간 동안 모든 종목의 과거 일별 시세를 갱신합니다.
+
+    Args:
+        request (HistoricalPriceUpdateRequest): 시작 날짜, 종료 날짜, 챗 ID를 포함하는 요청 바디.
+
+    Returns:
+        dict: 갱신 결과 메시지.
+    """
+    try:
+        # 날짜 형식 검증 (API 레벨에서 다시 한번)
+        datetime.strptime(request.start_date, '%Y-%m-%d')
+        datetime.strptime(request.end_date, '%Y-%m-%d')
+
+        if request.chat_id is None:
+            # 텔레그램 봇을 통하지 않은 요청일 경우, user.telegram_id를 사용
+            if user.telegram_id is None:
+                raise HTTPException(status_code=400, detail="텔레그램 ID가 없거나 요청에 chat_id가 포함되지 않았습니다.")
+            request.chat_id = user.telegram_id
+
+        # 워커 서비스에 비동기적으로 작업 트리거
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{WORKER_API_URL}/scheduler/trigger_historical_prices_update",
+                json=request.dict(),
+                timeout=10 # 워커로의 요청 타임아웃
+            )
+            response.raise_for_status() # 2xx 상태 코드가 아니면 예외 발생
+            
+            return {"message": "과거 일별 시세 갱신 작업이 성공적으로 트리거되었습니다.", "status": "triggered"}
+
+    except ValueError:
+        raise HTTPException(status_code=400, detail="날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.")
+    except httpx.RequestError as e:
+        logger.error(f"워커 서비스에 연결할 수 없습니다: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail="워커 서비스에 연결할 수 없습니다.")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"워커 서비스 응답 오류: {e.response.status_code} - {e.response.text}", exc_info=True)
+        raise HTTPException(status_code=e.response.status_code, detail=f"워커 서비스 오류: {e.response.text}")
+    except Exception as e:
+        logger.error(f"update_historical_prices 엔드포인트에서 오류 발생: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
 
 @router.post("/update_disclosure", tags=["admin"])

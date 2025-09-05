@@ -5,10 +5,10 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import logging
+from sqlalchemy.orm import Session
 
 from src.common.models.user import User
 from src.common.database.db_connector import get_db
-from sqlalchemy.orm import Session
 from src.api.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
@@ -31,26 +31,32 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, os.getenv("JWT_SECRET_KEY"), algorithm=ALGORITHM)
+    signing_secret_key = os.getenv("JWT_SECRET_KEY")
+    logger.debug(f"JWT_SECRET_KEY used for signing: {signing_secret_key}") # DEBUG LINE for signing
+    encoded_jwt = jwt.encode(to_encode, signing_secret_key, algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_token(token: str) -> dict:
-    try:
-        payload = jwt.decode(token, os.getenv("JWT_SECRET_KEY"), algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return payload
-    except JWTError:
+    # try:
+    jwt_secret_key = os.getenv("JWT_SECRET_KEY")
+    logger.debug(f"JWT_SECRET_KEY used for verification: {jwt_secret_key}") # DEBUG LINE for verification
+    payload = jwt.decode(token, jwt_secret_key, algorithms=[ALGORITHM])
+    logger.debug(f"JWT Payload: {payload}")
+    username: str = payload.get("sub")
+    if username is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    return payload
+    # except JWTError as e:
+    #     logger.error(f"JWTError during token verification: {e}", exc_info=True)
+    #     raise HTTPException(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         detail="Could not validate credentials",
+    #         headers={"WWW-Authenticate": "Bearer"},
+    #     )
 
 def get_current_active_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)):
     """현재 활성 사용자 정보 반환"""

@@ -4,10 +4,15 @@ from src.common.models.daily_price import DailyPrice
 import yfinance as yf
 import logging
 from datetime import datetime, timedelta
+import anyio # Import anyio
 
 logger = logging.getLogger(__name__)
 
 class MarketDataService:
+    """
+    시장 데이터를 관리하는 서비스 클래스입니다.
+    주식 현재가, 일별 시세 조회 및 갱신 기능을 제공합니다.
+    """
     def get_current_price_and_change(self, symbol: str, db: Session):
         logger.debug(f"get_current_price_and_change 호출: symbol={symbol}")
         
@@ -69,7 +74,7 @@ class MarketDataService:
         
         try:
             while True:
-                stocks_batch = db.query(StockMaster).offset(offset).limit(batch_size).all()
+                stocks_batch = await anyio.to_thread.run_sync(lambda: db.query(StockMaster).offset(offset).limit(batch_size).all())
                 if not stocks_batch:
                     break
 
@@ -80,7 +85,7 @@ class MarketDataService:
                     logger.debug(f"종목 {stock.symbol} ({stock.name}) 일별시세 갱신 시작.")
                     try:
                         ticker = f"{stock.symbol}.KS"
-                        data = yf.download(ticker, start=datetime.now() - timedelta(days=30), end=datetime.now())
+                        data = await anyio.to_thread.run_sync(lambda: yf.download(ticker, start=datetime.now() - timedelta(days=30), end=datetime.now()))
                         
                         if data.empty:
                             logger.warning(f"종목 {stock.symbol} ({ticker})에 대한 일별시세 데이터가 없습니다.")
@@ -90,10 +95,7 @@ class MarketDataService:
                         for index, row in data.iterrows():
                             target_date = index.date()
                             
-                            existing_price = db.query(DailyPrice).filter(
-                                DailyPrice.symbol == stock.symbol,
-                                DailyPrice.date == target_date
-                            ).first()
+                            existing_price = await anyio.to_thread.run_sync(lambda: db.query(DailyPrice).filter(DailyPrice.symbol == stock.symbol, DailyPrice.date == target_date).first())
                             
                             if not existing_price:
                                 new_price = DailyPrice(
@@ -112,17 +114,17 @@ class MarketDataService:
                         error_stocks.append(stock.symbol)
                 
                 if prices_to_add:
-                    db.bulk_save_objects(prices_to_add)
-                    db.commit()
+                    await anyio.to_thread.run_sync(lambda: db.bulk_save_objects(prices_to_add))
+                    await anyio.to_thread.run_sync(lambda: db.commit())
                     logger.info(f"배치 처리 완료: {len(prices_to_add)}개 일별시세 데이터 삽입.")
                 else:
-                    db.rollback()
+                    await anyio.to_thread.run_sync(lambda: db.rollback())
 
                 offset += batch_size
 
             logger.info(f"일별시세 갱신 완료. 총 {updated_count}개 데이터 처리. 오류: {len(error_stocks)}개 종목")
             return {"success": True, "updated_count": updated_count, "errors": error_stocks}
         except Exception as e:
-            db.rollback()
+            await anyio.to_thread.run_sync(lambda: db.rollback())
             logger.error(f"일별시세 갱신 작업 전체 실패: {e}", exc_info=True)
             return {"success": False, "error": f"일별시세 갱신 중 심각한 오류 발생: {e}"}

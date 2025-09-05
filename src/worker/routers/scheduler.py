@@ -4,12 +4,19 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from src.worker.scheduler_instance import scheduler # Import scheduler from the new file
+import asyncio
+# from src.worker.main import run_historical_price_update_task # Removed this import
 
 router = APIRouter(prefix="/scheduler", tags=["scheduler"])
 logger = logging.getLogger(__name__)
 
 class TriggerJobRequest(BaseModel):
     chat_id: Optional[int] = None
+
+class HistoricalPriceUpdateRequest(BaseModel):
+    chat_id: Optional[int] = None
+    start_date: str
+    end_date: str
 
 @router.get("/status")
 async def get_scheduler_status():
@@ -46,3 +53,27 @@ async def trigger_scheduler_job(job_id: str, request: TriggerJobRequest):
     except Exception as e:
         logger.error(f"Failed to trigger job '{job_id}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to trigger job '{job_id}': {str(e)}")
+
+@router.post("/trigger_historical_prices_update")
+async def trigger_historical_prices_update(request: HistoricalPriceUpdateRequest):
+    """과거 일별 시세 갱신 작업을 비동기적으로 트리거합니다."""
+    # Moved import inside the function to resolve circular dependency
+    from src.worker.main import run_historical_price_update_task 
+
+    logger.info(f"과거 일별 시세 갱신 요청 수신: {request.start_date} ~ {request.end_date}, chat_id: {request.chat_id}")
+    try:
+        parsed_start_date = datetime.strptime(request.start_date, '%Y-%m-%d')
+        parsed_end_date = datetime.strptime(request.end_date, '%Y-%m-%d')
+
+        # 비동기 작업을 생성하고 즉시 응답
+        asyncio.create_task(run_historical_price_update_task(
+            chat_id=request.chat_id,
+            start_date=parsed_start_date,
+            end_date=parsed_end_date
+        ))
+        return {"message": "과거 일별 시세 갱신 작업이 성공적으로 트리거되었습니다.", "status": "triggered"}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.")
+    except Exception as e:
+        logger.error(f"과거 일별 시세 갱신 트리거 중 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"과거 일별 시세 갱신 트리거 실패: {str(e)}")
