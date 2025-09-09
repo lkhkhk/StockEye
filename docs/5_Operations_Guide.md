@@ -9,18 +9,18 @@
 1.  **서버 준비:** Git, Docker, Docker Compose가 설치된 서버를 준비합니다.
 2.  **소스 코드 복제:** `git clone`으로 소스 코드를 내려받습니다.
 3.  **운영 환경변수 설정:** `settings.env.example` 파일을 복사하여 `.env.production` 파일을 생성하고, 운영에 필요한 실제 값(DB 정보, API 키, 토큰 등)을 입력합니다.
-4.  **서비스 빌드 및 기동:** `dev_ops.sh` 스크립트를 사용하여 운영 환경으로 서비스를 빌드하고 시작합니다.
+4.  **서비스 빌드 및 기동:** `stockeye.sh` 스크립트를 사용하여 운영 환경으로 서비스를 빌드하고 시작합니다.
     ```bash
-    ./dev_ops.sh build production
+    ./stockeye.sh build production
     ```
 5.  **상태 확인:** `docker compose ps`로 모든 컨테이너가 `Up` 상태인지, `docker compose logs -f api bot`으로 서비스 로그에 오류가 없는지 확인합니다.
 
 ### 1.2. 업데이트 배포
 
 1.  **최신 소스 반영:** `git pull`로 최신 소스 코드를 받습니다.
-2.  **서비스 재빌드 및 재시작:** `dev_ops.sh` 스크립트를 사용하여 서비스를 다시 빌드하고 재시작합니다.
+2.  **서비스 재빌드 및 재시작:** `stockeye.sh` 스크립트를 사용하여 서비스를 다시 빌드하고 재시작합니다.
     ```bash
-    ./dev_ops.sh build production
+    ./stockeye.sh build production
     ```
 
 ## 2. 백업 및 복구
@@ -63,6 +63,6 @@
 - **서비스가 시작되지 않을 때:**
   - `docker compose logs`로 특정 서비스의 로그를 확인하여 오류의 원인을 파악합니다. (DB 연결 정보, 환경 변수 설정 등)
 - **텔레그램 알림이 오지 않을 때:**
-  - `api` 서비스의 동기 코드(스케줄러 등)에서 `python-telegram-bot`의 비동기 함수를 `asyncio.run()`으로 올바르게 호출했는지 확인합니다. (`src/common/notify_service.py` 참고)
+  - `api` 서비스의 동기 코드(스케줄러 등)에서 `python-telegram-bot`의 비동기 함수를 `asyncio.run()`으로 올바르게 호출했는지 확인합니다. (`src/common/services/notify_service.py` 참고)
 - **컨테이너 내부 접속:**
   - `docker compose exec <service_name> bash` 명령으로 컨테이너 내부에 직접 접속하여 문제를 진단할 수 있습니다. (e.g., `docker compose exec api bash`)

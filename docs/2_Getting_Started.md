@@ -13,7 +13,7 @@
 ### 2.1. 소스 코드 복제
 
 ```bash
-git clone https://github.com/your-repo/StockEye.git
+git clone https://github.com/lkhkhk/StockEye.git
 cd StockEye
 ```
 
@@ -53,18 +53,18 @@ cp settings.env.example .env.production
 
 ### 2.5. Docker를 이용한 서비스 실행
 
-`dev_ops.sh` 스크립트를 사용하여 모든 서비스를 한 번에 빌드하고 실행할 수 있습니다.
+`stockeye.sh` 스크립트를 사용하여 모든 서비스를 한 번에 빌드하고 실행할 수 있습니다.
 
 **개발 환경으로 실행 (기본값):**
 ```bash
-./dev_ops.sh build
+./stockeye.sh build
 # 또는
-./dev_ops.sh build development
+./stockeye.sh build development
 ```
 
 **운영 환경으로 실행:**
 ```bash
-./dev_ops.sh build production
+./stockeye.sh build production
 ```
 
 스크립트를 사용하지 않고 직접 `docker compose` 명령을 사용할 수도 있습니다.

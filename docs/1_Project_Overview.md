@@ -84,3 +84,4 @@ graph TD
     class BotService,ApiService,WorkerService service;
     class Database,Redis,ExternalAPIs,TelegramApi infra;
 ```
+<!-- VS Code 기본 마크다운 프리뷰는 그래프(다이어그램)를 지원하지 않으므로, Mermaid 또는 Markdown Preview Mermaid Support 같은 확장 기능을 반드시 설치해야 합니다. -->
