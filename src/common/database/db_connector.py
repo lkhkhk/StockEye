@@ -6,7 +6,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
+# APP_ENV 환경 변수에 따라 적절한 .env 파일 로드
+app_env = os.getenv('APP_ENV', 'development')
+env_file = f'.env.{app_env}'
+load_dotenv(env_file)
 
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
