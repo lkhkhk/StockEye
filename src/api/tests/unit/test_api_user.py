@@ -47,6 +47,7 @@ def mock_user():
     user.role = "user"
     user.is_active = True
     user.telegram_id = None
+    user.notification_preferences = {"telegram": True, "email": False}
     return user
 
 @pytest.fixture
@@ -59,6 +60,7 @@ def mock_admin_user():
     admin_user.role = "admin"
     admin_user.is_active = True
     admin_user.telegram_id = None
+    admin_user.notification_preferences = {"telegram": True, "email": False}
     return admin_user
 
 # --- POST /users/register tests ---

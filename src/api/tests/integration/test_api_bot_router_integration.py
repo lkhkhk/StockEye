@@ -21,8 +21,8 @@ from src.common.models.price_alert import PriceAlert
 from src.common.schemas.price_alert import PriceAlertCreate
 from src.common.services.price_alert_service import PriceAlertService
 
-# TestClient 인스턴스 생성
-client = TestClient(app)
+# TestClient 인스턴스 생성 제거 (fixture 사용)
+# client = TestClient(app)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -40,7 +40,7 @@ def override_bot_router_dependencies(real_db: Session):
 
 
 @pytest.mark.asyncio
-async def test_toggle_disclosure_alert_new_user_and_alert(real_db: Session, test_user: User):
+async def test_toggle_disclosure_alert_new_user_and_alert(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/disclosure-toggle`
     - **목적**: 신규 사용자가 특정 종목에 대해 공시 알림을 처음 켰을 때, 알림이 정상적으로 생성되는지 확인합니다.
@@ -50,7 +50,7 @@ async def test_toggle_disclosure_alert_new_user_and_alert(real_db: Session, test
     - **Mock 대상**: 없음
     """
     response = client.post(
-        "/bot/alert/disclosure-toggle",
+        "/api/v1/bot/alert/disclosure-toggle",
         json={"telegram_user_id": test_user.telegram_id, "telegram_username": test_user.username, "symbol": "GOOG"}
     )
     assert response.status_code == 200
@@ -60,7 +60,7 @@ async def test_toggle_disclosure_alert_new_user_and_alert(real_db: Session, test
 
 
 @pytest.mark.asyncio
-async def test_toggle_disclosure_alert_existing_alert_on_to_off(real_db: Session, test_user: User):
+async def test_toggle_disclosure_alert_existing_alert_on_to_off(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/disclosure-toggle`
     - **목적**: 기존에 켜져 있던 공시 알림을 껐을 때, `notify_on_disclosure`가 `False`로 업데이트되는지 확인합니다.
@@ -74,12 +74,12 @@ async def test_toggle_disclosure_alert_existing_alert_on_to_off(real_db: Session
     # Given: 공시 알림이 켜진 초기 데이터 생성
     price_alert_service = PriceAlertService()
     initial_alert = await price_alert_service.create_alert(
-        real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="AMZN", notify_on_disclosure=True, is_active=True)
+        real_db, user_id=test_user.id, alert_data=PriceAlertCreate(symbol="AMZN", notify_on_disclosure=True, is_active=True)
     )
 
     # When: API 호출
     response = client.post(
-        "/bot/alert/disclosure-toggle",
+        "/api/v1/bot/alert/disclosure-toggle",
         json={"telegram_user_id": test_user.telegram_id, "symbol": initial_alert.symbol}
     )
 
@@ -91,7 +91,7 @@ async def test_toggle_disclosure_alert_existing_alert_on_to_off(real_db: Session
 
 
 @pytest.mark.asyncio
-async def test_set_price_alert_existing_user_new_alert(real_db: Session, test_user: User):
+async def test_set_price_alert_existing_user_new_alert(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/price`
     - **목적**: 기존 사용자가 새로운 가격 알림을 설정했을 때, 알림이 정상적으로 생성되는지 확인합니다.
@@ -101,24 +101,24 @@ async def test_set_price_alert_existing_user_new_alert(real_db: Session, test_us
     - **Mock 대상**: 없음
     """
     response = client.post(
-        "/bot/alert/price",
+        "/api/v1/bot/alert/price",
         json={
             "telegram_user_id": test_user.telegram_id,
             "telegram_username": test_user.username,
             "symbol": "NVDA",
             "target_price": 1000.0,
-            "condition": "below"
+            "condition": "lte"
         }
     )
     assert response.status_code == 200
     data = response.json()
     assert data["target_price"] == 1000.0
-    assert data["condition"] == "below"
+    assert data["condition"] == "lte"
     assert data["is_active"] is True
 
 
 @pytest.mark.asyncio
-async def test_set_price_alert_existing_alert_update(real_db: Session, test_user: User):
+async def test_set_price_alert_existing_alert_update(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/price`
     - **목적**: 기존에 있던 가격 알림을 새로운 정보로 업데이트하는 기능이 정상 동작하는지 확인합니다.
@@ -131,17 +131,17 @@ async def test_set_price_alert_existing_alert_update(real_db: Session, test_user
     # Given: 초기 가격 알림 생성
     price_alert_service = PriceAlertService()
     await price_alert_service.create_alert(
-        real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="GOOGL", target_price=100.0, condition="above")
+        real_db, user_id=test_user.id, alert_data=PriceAlertCreate(symbol="GOOGL", target_price=100.0, condition="gte")
     )
 
     # When: 새로운 정보로 업데이트 요청
     response = client.post(
-        "/bot/alert/price",
+        "/api/v1/bot/alert/price",
         json={
             "telegram_user_id": test_user.telegram_id,
             "symbol": "GOOGL",
             "target_price": 110.0,
-            "condition": "below",
+            "condition": "lte",
             "repeat_interval": "weekly"
         }
     )
@@ -150,13 +150,13 @@ async def test_set_price_alert_existing_alert_update(real_db: Session, test_user
     assert response.status_code == 200
     data = response.json()
     assert data["target_price"] == 110.0
-    assert data["condition"] == "below"
+    assert data["condition"] == "lte"
     assert data["repeat_interval"] == "weekly"
     assert data["is_active"] is True  # 업데이트 시 활성화 상태가 되어야 함
 
 
 @pytest.mark.asyncio
-async def test_list_alerts_for_bot(real_db: Session, test_user: User):
+async def test_list_alerts_for_bot(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/list`
     - **목적**: 특정 사용자의 모든 알림 목록을 정상적으로 조회하는지 확인합니다.
@@ -168,11 +168,11 @@ async def test_list_alerts_for_bot(real_db: Session, test_user: User):
     """
     # Given: 테스트용 알림 2개 생성
     price_alert_service = PriceAlertService()
-    await price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="AAPL", target_price=150.0, condition="above"))
-    await price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="GOOG", notify_on_disclosure=True))
+    await price_alert_service.create_alert(real_db, user_id=test_user.id, alert_data=PriceAlertCreate(symbol="AAPL", target_price=150.0, condition="gte"))
+    await price_alert_service.create_alert(real_db, user_id=test_user.id, alert_data=PriceAlertCreate(symbol="GOOG", notify_on_disclosure=True))
 
     # When: 목록 조회 API 호출
-    response = client.post("/bot/alert/list", json={"telegram_user_id": test_user.telegram_id})
+    response = client.post("/api/v1/bot/alert/list", json={"telegram_user_id": test_user.telegram_id})
 
     # Then: 결과 검증
     assert response.status_code == 200
@@ -182,7 +182,7 @@ async def test_list_alerts_for_bot(real_db: Session, test_user: User):
     assert any(a["symbol"] == "GOOG" for a in data)
 
 
-def test_list_alerts_for_bot_no_alerts(real_db: Session, test_user: User):
+def test_list_alerts_for_bot_no_alerts(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/list`
     - **목적**: 알림이 없는 사용자에 대해 빈 리스트를 정상적으로 반환하는지 확인합니다.
@@ -191,13 +191,13 @@ def test_list_alerts_for_bot_no_alerts(real_db: Session, test_user: User):
         2. 200 OK 응답과 함께 빈 리스트가 반환되는지 확인합니다.
     - **Mock 대상**: 없음
     """
-    response = client.post("/bot/alert/list", json={"telegram_user_id": test_user.telegram_id})
+    response = client.post("/api/v1/bot/alert/list", json={"telegram_user_id": test_user.telegram_id})
     assert response.status_code == 200
     assert response.json() == []
 
 
 @pytest.mark.asyncio
-async def test_remove_alert_for_bot_success(real_db: Session, test_user: User):
+async def test_remove_alert_for_bot_success(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/remove`
     - **목적**: 특정 알림을 ID를 통해 성공적으로 삭제하는지 확인합니다.
@@ -210,19 +210,19 @@ async def test_remove_alert_for_bot_success(real_db: Session, test_user: User):
     """
     # Given: 삭제할 알림 생성
     price_alert_service = PriceAlertService()
-    alert = await price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="TEST", target_price=100.0))
+    alert = await price_alert_service.create_alert(real_db, user_id=test_user.id, alert_data=PriceAlertCreate(symbol="AAPL", target_price=100.0))
 
     # When: 삭제 API 호출
-    response = client.post("/bot/alert/remove", json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id})
+    response = client.post("/api/v1/bot/alert/remove", json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id})
 
     # Then: 결과 검증
     assert response.status_code == 200
     assert response.json()["message"] == f"Alert {alert.id} removed successfully"
-    list_response = client.post("/bot/alert/list", json={"telegram_user_id": test_user.telegram_id})
+    list_response = client.post("/api/v1/bot/alert/list", json={"telegram_user_id": test_user.telegram_id})
     assert len(list_response.json()) == 0
 
 
-def test_remove_alert_for_bot_not_found(real_db: Session):
+def test_remove_alert_for_bot_not_found(client, real_db: Session):
     """
     - **테스트 대상**: `POST /bot/alert/remove`
     - **목적**: 존재하지 않는 사용자나 알림에 대해 삭제 시도 시 404 에러를 반환하는지 확인합니다.
@@ -231,12 +231,12 @@ def test_remove_alert_for_bot_not_found(real_db: Session):
         2. 404 Not Found 응답을 확인합니다.
     - **Mock 대상**: 없음
     """
-    response = client.post("/bot/alert/remove", json={"telegram_user_id": 99999, "alert_id": 99999})
+    response = client.post("/api/v1/bot/alert/remove", json={"telegram_user_id": 99999, "alert_id": 99999})
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_remove_alert_for_bot_unauthorized(real_db: Session, test_user: User):
+async def test_remove_alert_for_bot_unauthorized(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/remove`
     - **목적**: 다른 사용자의 알림을 삭제하려고 할 때, 권한 없음(또는 찾을 수 없음) 오류를 반환하는지 확인합니다.
@@ -251,10 +251,10 @@ async def test_remove_alert_for_bot_unauthorized(real_db: Session, test_user: Us
     real_db.add(other_user)
     real_db.commit()
     price_alert_service = PriceAlertService()
-    alert = await price_alert_service.create_alert(real_db, user_id=other_user.id, alert=PriceAlertCreate(symbol="OTHER"))
+    alert = await price_alert_service.create_alert(real_db, user_id=other_user.id, alert_data=PriceAlertCreate(symbol="AAPL", notify_on_disclosure=True))
 
     # When: test_user가 other_user의 알림 삭제 시도
-    response = client.post("/bot/alert/remove", json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id})
+    response = client.post("/api/v1/bot/alert/remove", json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id})
 
     # Then: 결과 검증
     assert response.status_code == 404
@@ -262,7 +262,7 @@ async def test_remove_alert_for_bot_unauthorized(real_db: Session, test_user: Us
 
 
 @pytest.mark.asyncio
-async def test_deactivate_alert_for_bot_success(real_db: Session, test_user: User):
+async def test_deactivate_alert_for_bot_success(client, real_db: Session, test_user: User, test_stock_master_data):
     """
     - **테스트 대상**: `POST /bot/alert/deactivate`
     - **목적**: 특정 알림을 성공적으로 비활성화하는지 확인합니다.
@@ -275,10 +275,10 @@ async def test_deactivate_alert_for_bot_success(real_db: Session, test_user: Use
     """
     # Given: 활성화된 알림 생성
     price_alert_service = PriceAlertService()
-    alert = await price_alert_service.create_alert(real_db, user_id=test_user.id, alert=PriceAlertCreate(symbol="DEACT", is_active=True))
+    alert = await price_alert_service.create_alert(real_db, user_id=test_user.id, alert_data=PriceAlertCreate(symbol="AAPL", is_active=True, notify_on_disclosure=True))
 
     # When: 비활성화 API 호출
-    response = client.post("/bot/alert/deactivate", json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id})
+    response = client.post("/api/v1/bot/alert/deactivate", json={"telegram_user_id": test_user.telegram_id, "alert_id": alert.id})
 
     # Then: 결과 검증
     assert response.status_code == 200

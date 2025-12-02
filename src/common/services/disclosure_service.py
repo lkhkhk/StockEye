@@ -152,12 +152,18 @@ class DisclosureService:
         logger.debug(f"update_disclosures_for_all_stocks 호출: days_to_fetch={days_to_fetch}")
         result = {'success': True, 'inserted': 0, 'skipped': 0, 'errors': []}
         try:
+            # Optimization: Get last checked rcept_no from SystemConfig
+            last_checked_config = db.query(SystemConfig).filter(SystemConfig.key == 'last_checked_rcept_no_all').first()
+            last_checked_rcept_no = last_checked_config.value if last_checked_config else None
+            logger.debug(f"마지막 확인 공시 접수번호 (전체 조회용, DB): {last_checked_rcept_no}")
+            
             end_de = datetime.now()
             bgn_de = end_de - timedelta(days=days_to_fetch)
             disclosures_from_dart = await dart_get_disclosures(
                 corp_code=None, 
                 bgn_de=bgn_de.strftime("%Y%m%d"), 
-                end_de=end_de.strftime("%Y%m%d")
+                end_de=end_de.strftime("%Y%m%d"),
+                last_rcept_no=last_checked_rcept_no  # Pass optimization parameter
             )
             logger.info(f"DART에서 {len(disclosures_from_dart)}건의 공시를 조회했습니다.")
 
@@ -211,6 +217,15 @@ class DisclosureService:
                 db.commit()
                 result['inserted'] = len(new_disclosures_to_add)
                 logger.info(f"신규 공시 {result['inserted']}건을 DB에 추가했습니다.")
+                
+                # Update last_checked_rcept_no_all for optimization
+                newest_rcept_no = max(d.rcept_no for d in new_disclosures_to_add)
+                if last_checked_config:
+                    last_checked_config.value = newest_rcept_no
+                else:
+                    db.add(SystemConfig(key='last_checked_rcept_no_all', value=newest_rcept_no))
+                db.commit()
+                logger.debug(f"마지막 확인 접수번호(전체 조회용)를 {newest_rcept_no}로 DB에 갱신합니다.")
             else:
                 logger.info("추가할 신규 공시가 없습니다.")
                 db.commit() # 추가된 부분: new_disclosures_to_add가 비어있어도 commit 호출

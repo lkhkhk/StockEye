@@ -38,7 +38,7 @@ async def test_create_price_alert_successfully(client: TestClient, real_db):
 
     # When: 로그인 요청
     login_data = {"username": "testuser_alert_create", "password": "testpassword"}
-    login_response = client.post("/api/v1/users/login", data=login_data) # login은 form data를 사용
+    login_response = client.post("/api/v1/users/login", json=login_data) # login은 JSON body를 사용
     assert login_response.status_code == 200, f"로그인 실패: {login_response.text}"
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -52,11 +52,11 @@ async def test_create_price_alert_successfully(client: TestClient, real_db):
     }
 
     # When: 알림 생성 API 호출
-    alert_response = client.post("/api/v1/alerts", json=alert_data, headers=headers)
+    alert_response = client.post("/api/v1/price-alerts/", json=alert_data, headers=headers)
 
     # --- 3. 결과 검증 --- #
     # Then: 알림 생성 결과 확인
-    assert alert_response.status_code == 200, f"알림 생성 실패: {alert_response.text}"
+    assert alert_response.status_code == 201, f"알림 생성 실패: {alert_response.text}"
     response_data = alert_response.json()
     assert response_data["symbol"] == alert_data["symbol"]
     assert response_data["target_price"] == alert_data["target_price"]

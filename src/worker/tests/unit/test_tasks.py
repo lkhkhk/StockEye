@@ -184,7 +184,7 @@ def test_run_historical_price_update_task(mock_yf_download, mock_stock_master_se
 
     tasks.run_historical_price_update_task(chat_id, start_date_str, end_date_str, stock_identifier="005930")
 
-    mock_stock_master_service_instance.search_stocks.assert_called_once_with("005930", db_mock_specific, limit=1)
+    mock_stock_master_service_instance.search_stocks.assert_called_once_with(keyword="005930", db=db_mock_specific, limit=1)
     mock_yf_download.assert_called_once_with("005930.KS", start=datetime(2023, 1, 1), end=datetime(2023, 1, 8))
     assert db_mock_specific.add.call_count == 2 # Two new daily prices
     assert db_mock_specific.commit.call_count == 1
@@ -220,3 +220,128 @@ def test_run_historical_price_update_task(mock_yf_download, mock_stock_master_se
     assert db_mock_all.commit.call_count == 1 # Only one final commit
     assert mock_redis_client.publish.call_count == 1 # Only one final completion message
     mock_redis_client.close.assert_called_once()
+
+
+# --- Helper Function Tests (Phase 2) ---
+
+def test_publish_message_success():
+    """_publish_message가 Redis에 메시지를 성공적으로 게시하는지 테스트"""
+    # GIVEN
+    mock_redis_client = MagicMock()
+    chat_id = 12345
+    text = "테스트 메시지"
+    
+    # WHEN
+    tasks._publish_message(mock_redis_client, chat_id, text)
+    
+    # THEN
+    mock_redis_client.publish.assert_called_once()
+    call_args = mock_redis_client.publish.call_args[0]
+    assert call_args[0] == "notifications"
+    
+    # Verify JSON structure
+    published_data = json.loads(call_args[1])
+    assert published_data["chat_id"] == chat_id
+    assert published_data["text"] == text
+
+
+def test_publish_message_no_chat_id():
+    """_publish_message가 chat_id가 None일 때 메시지를 게시하지 않는지 테스트"""
+    # GIVEN
+    mock_redis_client = MagicMock()
+    chat_id = None
+    text = "테스트 메시지"
+    
+    # WHEN
+    tasks._publish_message(mock_redis_client, chat_id, text)
+    
+    # THEN
+    mock_redis_client.publish.assert_not_called()
+
+
+def test_publish_message_redis_error():
+    """_publish_message가 Redis 에러를 처리하는지 테스트"""
+    # GIVEN
+    mock_redis_client = MagicMock()
+    mock_redis_client.publish.side_effect = Exception("Redis connection error")
+    chat_id = 12345
+    text = "테스트 메시지"
+    
+    # WHEN - should not raise exception
+    tasks._publish_message(mock_redis_client, chat_id, text)
+    
+    # THEN
+    mock_redis_client.publish.assert_called_once()
+
+
+@patch('src.worker.tasks._publish_message')
+def test_publish_completion_message_success(mock_publish_message):
+    """_publish_completion_message가 성공 메시지를 올바르게 포맷하는지 테스트"""
+    # GIVEN
+    mock_redis_client = MagicMock()
+    chat_id = 12345
+    job_name = "테스트 작업"
+    success = True
+    start_time = datetime(2025, 12, 2, 10, 0, 0)
+    details = "추가 정보"
+    
+    # WHEN
+    with patch('src.worker.tasks.datetime') as mock_datetime:
+        mock_datetime.now.return_value = datetime(2025, 12, 2, 10, 0, 5)  # 5 seconds later
+        tasks._publish_completion_message(mock_redis_client, chat_id, job_name, success, start_time, details)
+    
+    # THEN
+    mock_publish_message.assert_called_once()
+    call_args = mock_publish_message.call_args[0]
+    assert call_args[0] == mock_redis_client
+    assert call_args[1] == chat_id
+    
+    message = call_args[2]
+    assert "✅" in message
+    assert job_name in message
+    assert "성공" in message
+    assert "5.00초" in message
+    assert details in message
+
+
+@patch('src.worker.tasks._publish_message')
+def test_publish_completion_message_failure(mock_publish_message):
+    """_publish_completion_message가 실패 메시지를 올바르게 포맷하는지 테스트"""
+    # GIVEN
+    mock_redis_client = MagicMock()
+    chat_id = 12345
+    job_name = "테스트 작업"
+    success = False
+    start_time = datetime(2025, 12, 2, 10, 0, 0)
+    
+    # WHEN
+    with patch('src.worker.tasks.datetime') as mock_datetime:
+        mock_datetime.now.return_value = datetime(2025, 12, 2, 10, 0, 3)  # 3 seconds later
+        tasks._publish_completion_message(mock_redis_client, chat_id, job_name, success, start_time)
+    
+    # THEN
+    mock_publish_message.assert_called_once()
+    call_args = mock_publish_message.call_args[0]
+    
+    message = call_args[2]
+    assert "❌" in message
+    assert job_name in message
+    assert "실패" in message
+    assert "3.00초" in message
+
+
+@patch('src.worker.tasks._publish_message')
+def test_publish_completion_message_no_chat_id(mock_publish_message):
+    """_publish_completion_message가 chat_id가 None일 때 메시지를 게시하지 않는지 테스트"""
+    # GIVEN
+    mock_redis_client = MagicMock()
+    chat_id = None
+    job_name = "테스트 작업"
+    success = True
+    start_time = datetime.now()
+    
+    # WHEN
+    tasks._publish_completion_message(mock_redis_client, chat_id, job_name, success, start_time)
+    
+    # THEN
+    mock_publish_message.assert_not_called()

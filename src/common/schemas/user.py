@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional, Dict
 from datetime import datetime
 
 class UserCreate(BaseModel):
@@ -24,14 +24,15 @@ class UserRead(BaseModel):
     telegram_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+    notification_preferences: Optional[Dict[str, bool]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     telegram_id: Optional[int] = None
     is_active: Optional[bool] = None
+    notification_preferences: Optional[Dict[str, bool]] = None
 
 class Token(BaseModel):
     access_token: str

@@ -37,26 +37,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 def verify_token(token: str) -> dict:
-    # try:
-    jwt_secret_key = os.getenv("JWT_SECRET_KEY")
-    logger.debug(f"JWT_SECRET_KEY used for verification: {jwt_secret_key}") # DEBUG LINE for verification
-    payload = jwt.decode(token, jwt_secret_key, algorithms=[ALGORITHM])
-    logger.debug(f"JWT Payload: {payload}")
-    username: str = payload.get("sub")
-    if username is None:
+    try:
+        jwt_secret_key = os.getenv("JWT_SECRET_KEY")
+        logger.debug(f"JWT_SECRET_KEY used for verification: {jwt_secret_key}") # DEBUG LINE for verification
+        payload = jwt.decode(token, jwt_secret_key, algorithms=[ALGORITHM])
+        logger.debug(f"JWT Payload: {payload}")
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return payload
+    except JWTError as e:
+        logger.error(f"JWTError during token verification: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return payload
-    # except JWTError as e:
-    #     logger.error(f"JWTError during token verification: {e}", exc_info=True)
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Could not validate credentials",
-    #         headers={"WWW-Authenticate": "Bearer"},
-    #     )
 
 def get_current_active_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db), user_service: UserService = Depends(get_user_service)):
     """현재 활성 사용자 정보 반환"""

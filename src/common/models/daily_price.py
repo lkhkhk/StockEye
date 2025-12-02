@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Float, BigInteger, Date, func
+from sqlalchemy import Column, String, DateTime, Float, BigInteger, Date, func, Index
 from src.common.database.db_connector import Base
 
 class DailyPrice(Base):
@@ -12,4 +12,8 @@ class DailyPrice(Base):
     close = Column(Float, nullable=False)
     volume = Column(BigInteger, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False) 
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index('ix_daily_prices_symbol_date', 'symbol', 'date'),
+    ) 

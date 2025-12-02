@@ -100,7 +100,7 @@ def test_search_stocks_found(stock_master_service):
         StockMaster(symbol="006400", name="삼성SDI"),
     ]
 
-    mock_db_session.query.return_value.filter.return_value.limit.return_value.all.return_value = expected_stocks
+    mock_db_session.query.return_value.filter.return_value.offset.return_value.limit.return_value.all.return_value = expected_stocks
 
     # When
     result = stock_master_service.search_stocks(keyword, mock_db_session)
@@ -110,7 +110,8 @@ def test_search_stocks_found(stock_master_service):
     assert len(result) == 2
     mock_db_session.query.assert_called_once_with(StockMaster)
     mock_db_session.query.return_value.filter.assert_called_once()
-    mock_db_session.query.return_value.filter.return_value.limit.assert_called_once_with(10)
+    mock_db_session.query.return_value.filter.return_value.offset.assert_called_once_with(0)
+    mock_db_session.query.return_value.filter.return_value.offset.return_value.limit.assert_called_once_with(10)
 
 def test_search_stocks_not_found(stock_master_service):
     """
@@ -120,7 +121,7 @@ def test_search_stocks_not_found(stock_master_service):
     mock_db_session = MagicMock()
     keyword = "없는회사"
 
-    mock_db_session.query.return_value.filter.return_value.limit.return_value.all.return_value = []
+    mock_db_session.query.return_value.filter.return_value.offset.return_value.limit.return_value.all.return_value = []
 
     # When
     result = stock_master_service.search_stocks(keyword, mock_db_session)
@@ -129,7 +130,8 @@ def test_search_stocks_not_found(stock_master_service):
     assert result == []
     mock_db_session.query.assert_called_once_with(StockMaster)
     mock_db_session.query.return_value.filter.assert_called_once()
-    mock_db_session.query.return_value.filter.return_value.limit.assert_called_once_with(10)
+    mock_db_session.query.return_value.filter.return_value.offset.assert_called_once_with(0)
+    mock_db_session.query.return_value.filter.return_value.offset.return_value.limit.assert_called_once_with(10)
 
 @pytest.mark.asyncio
 @patch('src.common.services.stock_master_service.dart_get_all_stocks')

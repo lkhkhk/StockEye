@@ -282,7 +282,7 @@ async def test_symbols_pagination_callback_api_error(mock_api_call, mock_update_
 async def test_symbols_search_pagination_callback_success(mock_api_call, mock_update_context):
     """심볼 검색 페이지네이션 콜백 성공 테스트."""
     update, context = mock_update_context
-    update.callback_query.data = "symbols_search_page_삼성_10"
+    update.callback_query.data = "symbols_search_page:삼성:10"
     # mock_api_call (AsyncMock) 호출 시 모의 종목 목록을 반환하도록 설정합니다.
     mock_api_call.return_value = {
         "items": [
@@ -306,7 +306,7 @@ async def test_symbols_search_pagination_callback_success(mock_api_call, mock_up
 async def test_symbols_search_pagination_callback_api_error(mock_api_call, mock_update_context):
     """API가 오류를 반환할 때 심볼 검색 페이지네이션 콜백 테스트."""
     update, context = mock_update_context
-    update.callback_query.data = "symbols_search_page_삼성_10"
+    update.callback_query.data = "symbols_search_page:삼성:10"
 
     await symbols_search_pagination_callback(update, context)
 

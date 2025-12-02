@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List
 
 class WatchlistBase(BaseModel):
@@ -9,8 +9,8 @@ class WatchlistCreate(WatchlistBase):
     pass
 
 class Watchlist(WatchlistBase):
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WatchlistResponse(BaseModel):
-    watchlist: List[str] 
+    watchlist: List[str]
+ 

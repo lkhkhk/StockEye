@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="padding: 10px 0;">
+    <h2 style="color: #667eea; margin-top: 0;">🔔 가격 알림</h2>
+    <p style="font-size: 16px; color: #333;">
+        <strong style="color: #667eea;">{{ symbol }}</strong>의 가격이 목표가에 도달했습니다!
+    </p>
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 6px; margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px 0; color: #666;">현재가:</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #333;">{{ current_price }}원</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #666;">목표가:</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #333;">{{ target_price }}원</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #666;">조건:</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #667eea;">{{ condition }}</td>
+            </tr>
+        </table>
+    </div>
+    <p style="color: #666; font-size: 14px; margin-top: 20px;">
+        알림 설정을 변경하려면 StockEye 텔레그램 봇에서 /settings 명령을 사용하세요.
+    </p>
+</div>
+{% endblock %}

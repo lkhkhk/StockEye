@@ -63,7 +63,7 @@ def real_db(db_engine):
     """함수 스코프 fixture: 각 테스트에 대해 깨끗한 테이블과 세션을 제공합니다."""
     # 테이블 생성
     Base.metadata.create_all(bind=db_engine)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine, expire_on_commit=False)
     session = SessionLocal()
 
     yield session
@@ -82,7 +82,9 @@ from uuid import uuid4
 def test_user(real_db: Session):
     """테스트용 사용자 생성 및 반환"""
     user_service = UserService()
-    telegram_id = int(f"123{uuid4().hex[:7]}", 16) # Unique telegram_id
+    # Use test-specific telegram_id to avoid conflicts with production data
+    # Default to 999999999 if TELEGRAM_ADMIN_ID is not set or conflicts
+    telegram_id = int(os.getenv("TEST_TELEGRAM_ID", "999999999"))
     username = f"test_user_{uuid4().hex[:8]}"
     email = f"{username}@test.com"
     password = "test_password"
@@ -91,7 +93,7 @@ def test_user(real_db: Session):
         username=username,
         email=email,
         password=password,
-        telegram_id=telegram_id # telegram_id는 UserCreate 스키마에 없으므로, 필요시 User 모델에 직접 할당하거나 스키마에 추가해야 합니다.
+        telegram_id=telegram_id
     )
 
     user = user_service.create_user(
@@ -99,7 +101,10 @@ def test_user(real_db: Session):
         user=user_create_data
     )
     real_db.commit()
+    # Keep user in session to prevent DetachedInstanceError
+    # Don't expire attributes after commit
     real_db.refresh(user)
+    
     return user
 
 @pytest.fixture(scope="function")

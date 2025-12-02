@@ -53,14 +53,15 @@ class TestBotHistory:
         mock_response = AsyncMock()
         mock_response.status_code = 200
         # MagicMock: raise_for_status 메서드를 모의합니다. 동기적으로 동작합니다.
+        # MagicMock: raise_for_status 메서드를 모의합니다. 동기적으로 동작합니다.
         mock_response.raise_for_status = MagicMock() 
-        # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
-        mock_response.json.return_value = {
+        # json() 메서드는 동기적으로 호출되므로 MagicMock으로 설정합니다.
+        mock_response.json = MagicMock(return_value={
             "history": [
                 {"created_at": "2025-01-01T12:00:00", "symbol": "005930", "prediction": "상승"},
                 {"created_at": "2025-01-02T12:00:00", "symbol": "035720", "prediction": "하락"}
             ]
-        }
+        })
         # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_get_retry_client.get.return_value = mock_response
 
@@ -81,9 +82,10 @@ class TestBotHistory:
         mock_response = AsyncMock()
         mock_response.status_code = 200
         # MagicMock: raise_for_status 메서드를 모의합니다. 동기적으로 동작합니다.
+        # MagicMock: raise_for_status 메서드를 모의합니다. 동기적으로 동작합니다.
         mock_response.raise_for_status = MagicMock() 
-        # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
-        mock_response.json.return_value = {"history": []}
+        # json() 메서드는 동기적으로 호출되므로 MagicMock으로 설정합니다.
+        mock_response.json = MagicMock(return_value={"history": []})
         # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_get_retry_client.get.return_value = mock_response
 
@@ -128,15 +130,16 @@ class TestBotHistory:
         mock_response = AsyncMock()
         mock_response.status_code = 200
         # MagicMock: raise_for_status 메서드를 모의합니다. 동기적으로 동작합니다
+        # MagicMock: raise_for_status 메서드를 모의합니다. 동기적으로 동작합니다
         mock_response.raise_for_status = MagicMock() 
-        # json() 메서드는 비동기적으로 호출될 수 있으므로, 반환값을 직접 설정합니다.
+        # json() 메서드는 동기적으로 호출되므로 MagicMock으로 설정합니다.
         # Simulate malformed data: missing 'symbol' key in one record
-        mock_response.json.return_value = {
+        mock_response.json = MagicMock(return_value={
             "history": [
                 {"created_at": "2025-01-01T12:00:00", "symbol": "005930", "prediction": "상승"},
                 {"created_at": "2025-01-02T12:00:00", "prediction": "하락"} # Missing 'symbol'
             ]
-        }
+        })
         # mock_get_retry_client.get (AsyncMock) 호출 시 mock_response를 반환하도록 설정합니다.
         mock_get_retry_client.get.return_value = mock_response
 

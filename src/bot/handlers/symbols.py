@@ -3,6 +3,7 @@ import logging
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 from src.common.utils.http_client import get_retry_client
+from src.common.utils.callback_parser import parse_pagination_callback_data
 import httpx
 
 API_HOST = os.getenv("API_HOST", "localhost")

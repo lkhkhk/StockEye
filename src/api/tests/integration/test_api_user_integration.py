@@ -80,7 +80,7 @@ def test_login_user_success(client: TestClient, real_db: Session):
     user = create_test_user(real_db)
 
     # When
-    response = client.post("/api/v1/users/login", data={"username": user.username, "password": "password123"})
+    response = client.post("/api/v1/users/login", json={"username": user.username, "password": "password123"})
 
     # Then
     assert response.status_code == 200
@@ -101,7 +101,7 @@ def test_login_user_wrong_password(client: TestClient, real_db: Session):
     user = create_test_user(real_db)
 
     # When
-    response = client.post("/api/v1/users/login", data={"username": user.username, "password": "wrongpassword"})
+    response = client.post("/api/v1/users/login", json={"username": user.username, "password": "wrongpassword"})
 
     # Then
     assert response.status_code == 401
@@ -142,7 +142,7 @@ def test_get_me_unauthenticated(client: TestClient):
     response = client.get("/api/v1/users/me")
     # Then
     # TODO: 미인증 요청에 대해서는 403이 아닌 401을 반환하도록 수정해야 합니다.
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 def test_update_me_success(client: TestClient, real_db: Session):
     """

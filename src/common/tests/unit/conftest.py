@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from sqlalchemy import create_engine, Column, String, DateTime, BigInteger, Integer, Boolean, Float, ForeignKey, event, types, Date
+from sqlalchemy import create_engine, Column, String, DateTime, BigInteger, Integer, Boolean, Float, ForeignKey, event, types, Date, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 import datetime
 import redis
@@ -55,6 +55,7 @@ class TestUser(TestBase):
     telegram_id = Column(BigInteger, unique=True, nullable=True)
     created_at = Column(SQLiteDateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(SQLiteDateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, nullable=False)
+    notification_preferences = Column(JSON, default={"telegram": True, "email": False}, nullable=False)
 
     alerts = relationship("TestPriceAlert", back_populates="user")
 
@@ -65,6 +66,7 @@ class TestStockMaster(TestBase):
     name = Column(String(100), nullable=False)
     market = Column(String(20), nullable=True)
     corp_code = Column(String(20), nullable=True, index=True)
+    is_delisted = Column(Boolean, default=False, nullable=False)
     created_at = Column(SQLiteDateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(SQLiteDateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, nullable=False)
 
@@ -123,9 +125,13 @@ def db_session():
 def price_alert_service():
     # Patch the original models to use the test models
     with patch('src.common.models.price_alert.PriceAlert', TestPriceAlert), \
+         patch('src.common.services.price_alert_service.PriceAlert', TestPriceAlert), \
          patch('src.common.models.user.User', TestUser), \
+         patch('src.common.services.price_alert_service.User', TestUser), \
          patch('src.common.models.stock_master.StockMaster', TestStockMaster), \
-         patch('src.common.models.daily_price.DailyPrice', TestDailyPrice):
+         patch('src.common.services.price_alert_service.StockMaster', TestStockMaster), \
+         patch('src.common.models.daily_price.DailyPrice', TestDailyPrice), \
+         patch('src.common.services.price_alert_service.DailyPrice', TestDailyPrice):
         yield PriceAlertService()
 
 @pytest.fixture

@@ -21,7 +21,7 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.debug(f"Received response. Status code: {response.status_code}")
             response.raise_for_status()
             logger.debug("raise_for_status passed. Attempting to parse JSON.")
-            data = await response.json()
+            data = response.json()
             logger.debug(f"JSON parsed successfully. Data keys: {data.keys()}")
         
         history = data.get("history", [])

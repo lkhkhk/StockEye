@@ -8,8 +8,7 @@ from src.common.models.prediction_history import PredictionHistory
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-@pytest.mark.asyncio
-async def test_prediction_history_e2e(client: TestClient, real_db: Session):
+def test_prediction_history_e2e(client: TestClient, real_db: Session):
     # 1. Setup: Insert StockMaster and DailyPrice data
     symbol = "005930"
     stock_name = "삼성전자"

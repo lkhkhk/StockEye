@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from src.common.models.user import User
-from src.common.schemas.user import UserCreate
-from src.api.auth.password_utils import get_password_hash
+from src.common.schemas.user import UserCreate, UserUpdate
+from src.common.utils.password_utils import get_password_hash
 import logging
 import os
 
@@ -76,6 +76,26 @@ class UserService:
         except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"텔레그램 사용자 생성 실패: {e}", exc_info=True)
+            raise
+
+    def update_user(self, db: Session, user_id: int, user_update: UserUpdate):
+        logger.debug(f"update_user 호출: user_id={user_id}, update_data={user_update.model_dump(exclude_unset=True)}")
+        db_user = self.get_user_by_id(db, user_id)
+        if not db_user:
+            return None
+
+        update_data = user_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_user, key, value)
+
+        try:
+            db.commit()
+            db.refresh(db_user)
+            logger.info(f"사용자 정보 수정 성공: user_id={user_id}")
+            return db_user
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"사용자 정보 수정 실패: {e}", exc_info=True)
             raise
 
 def get_user_service():

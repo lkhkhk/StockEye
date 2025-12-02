@@ -53,7 +53,8 @@ def test_get_retry_client_initialization(mock_getenv):
         mock_async_client_class.assert_called_once_with(
             base_url='http://defaulthost:8000',
             transport=mock_transport_instance,
-            timeout=10.0
+            timeout=10.0,
+            headers={}
         )
         # get_retry_client()가 생성된 모의 클라이언트 인스턴스를 반환하는지 확인합니다.
         assert client == mock_async_client_instance

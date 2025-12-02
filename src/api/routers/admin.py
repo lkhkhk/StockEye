@@ -174,7 +174,7 @@ async def update_historical_prices(
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{WORKER_API_URL}/scheduler/trigger_historical_prices_update",
-                json=request.dict(),
+                json=request.model_dump(),
                 timeout=10
             )
             response.raise_for_status()
@@ -257,7 +257,7 @@ async def trigger_schedule_job(job_id: str, request: TriggerJobRequest, user: Us
     """워커의 특정 스케줄러 잡 수동 실행"""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{WORKER_API_URL}/scheduler/trigger/{job_id}", json=request.dict())
+            response = await client.post(f"{WORKER_API_URL}/scheduler/trigger/{job_id}", json=request.model_dump())
             response.raise_for_status()
             return response.json()
     except httpx.RequestError as e:

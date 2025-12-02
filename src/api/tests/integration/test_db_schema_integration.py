@@ -98,7 +98,9 @@ def test_model_and_db_schema_match(real_db: Session, db_inspector, model_class):
         db_type_str = str(db_col['type']).split('(')[0]
         # 예: `String(100)` -> `String`, `VARCHAR(100)` -> `VARCHAR`
         # PostgreSQL의 `DOUBLE PRECISION`은 SQLAlchemy의 `FLOAT`에 해당
-        assert model_type_str == db_type_str or (model_type_str == "FLOAT" and db_type_str == "DOUBLE PRECISION"), \
+        assert model_type_str == db_type_str or \
+               (model_type_str == "FLOAT" and db_type_str == "DOUBLE PRECISION") or \
+               (model_type_str == "DATETIME" and db_type_str == "TIMESTAMP"), \
             f"Type mismatch for column '{col_name}' in table '{table_name}': Model='{model_type_str}', DB='{db_type_str}'"
 
         # Nullable 속성 검증 (Primary Key는 기본적으로 Not Null이므로 제외)

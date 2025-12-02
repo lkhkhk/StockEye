@@ -16,8 +16,11 @@ DB에 저장된 종목 마스터 정보를 조회하고 검색하는 기능을 �
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from unittest.mock import MagicMock
 
 from src.common.models.stock_master import StockMaster
+from src.api.main import app
+from src.api.routers.stock_master import get_market_data_service
 
 
 class TestStockMasterRouter:
@@ -35,7 +38,18 @@ class TestStockMasterRouter:
         - **적용**: `autouse=True`로 설정되어 이 클래스의 모든 테스트 메서드에 자동으로 적용됩니다.
         """
         real_db.query(StockMaster).delete()
+        real_db.query(StockMaster).delete()
         real_db.commit()
+
+    @pytest.fixture
+    def override_stock_service_dependencies(self):
+        """
+        MarketDataService 의존성을 오버라이드하는 Fixture.
+        """
+        mock_service = MagicMock()
+        app.dependency_overrides[get_market_data_service] = lambda: mock_service
+        yield mock_service
+        app.dependency_overrides.pop(get_market_data_service, None)
 
     def test_get_all_symbols(self, client: TestClient, test_stock_master_data):
         """
@@ -48,13 +62,13 @@ class TestStockMasterRouter:
         - **Mock 대상**: 없음 (DB 직접 사용)
         """
         # When
-        response = client.get("/symbols/")
+        response = client.get("/api/v1/symbols/")
 
         # Then
         assert response.status_code == 200
         data = response.json()
-        assert data["total_count"] == 5
-        assert len(data["items"]) == 5
+        assert data["total_count"] == 10
+        assert len(data["items"]) == 10
         assert {"symbol": "005930", "name": "삼성전자", "market": "KOSPI"} in data["items"]
 
     def test_get_all_symbols_empty(self, client: TestClient):
@@ -68,7 +82,7 @@ class TestStockMasterRouter:
         - **Mock 대상**: 없음
         """
         # When
-        response = client.get("/symbols/")
+        response = client.get("/api/v1/symbols/")
 
         # Then
         assert response.status_code == 200
@@ -87,7 +101,7 @@ class TestStockMasterRouter:
         - **Mock 대상**: 없음
         """
         # When
-        response = client.get("/symbols/search?query=삼성전자")
+        response = client.get("/api/v1/symbols/search?query=삼성전자")
 
         # Then
         assert response.status_code == 200
@@ -106,7 +120,7 @@ class TestStockMasterRouter:
         - **Mock 대상**: 없음
         """
         # When
-        response = client.get("/symbols/search?query=035720")
+        response = client.get("/api/v1/symbols/search?query=035720")
 
         # Then
         assert response.status_code == 200
@@ -124,7 +138,7 @@ class TestStockMasterRouter:
         - **Mock 대상**: 없음
         """
         # When
-        response = client.get("/symbols/search?query=없는종목")
+        response = client.get("/api/v1/symbols/search?query=없는종목")
 
         # Then
         assert response.status_code == 200
@@ -142,7 +156,7 @@ class TestStockMasterRouter:
         - **Mock 대상**: 없음
         """
         # When
-        response = client.get("/symbols/search?query=")
+        response = client.get("/api/v1/symbols/search?query=")
 
         # Then
         assert response.status_code == 422
@@ -163,7 +177,7 @@ class TestStockMasterRouter:
         override_stock_service_dependencies.get_current_price_and_change.return_value = mock_price_data
 
         # When
-        response = client.get(f"/symbols/{symbol}/current_price_and_change")
+        response = client.get(f"/api/v1/symbols/{symbol}/current_price_and_change")
 
         # Then
         assert response.status_code == 200
@@ -185,7 +199,7 @@ class TestStockMasterRouter:
         override_stock_service_dependencies.get_current_price_and_change.return_value = None
 
         # When
-        response = client.get(f"/symbols/{symbol}/current_price_and_change")
+        response = client.get(f"/api/v1/symbols/{symbol}/current_price_and_change")
 
         # Then
         assert response.status_code == 404

@@ -25,22 +25,23 @@ def test_check_db_success(mock_session_local):
 @patch('src.api.check_db.logger') # Patch src.api.check_db.logger
 @patch('src.api.check_db.SessionLocal')
 @patch('time.sleep', MagicMock()) # Patch time.sleep with MagicMock
-def test_check_db_retry_and_fail(mock_sleep, mock_session_local, mock_logger): # Corrected function signature
+def test_check_db_retry_and_fail(mock_session_local, mock_logger): # Corrected function signature
     """DB 연결 재시도 후 최종 실패 테스트"""
+    from tenacity import RetryError
     mock_session_local.side_effect = OperationalError("DB connection failed", {}, None)
     
-    with pytest.raises(OperationalError):
+    with pytest.raises(RetryError):
         check_db_module.check_db()
         
-    assert mock_session_local.call_count == 3
-    assert mock_logger.info.call_count == 2 # Assert on mock_logger
-    assert mock_logger.error.call_count == 3 # Assert on mock_logger
+    assert mock_session_local.call_count == 300
+    assert mock_logger.info.call_count == 299 # Assert on mock_logger
+    assert mock_logger.error.call_count == 300 # Assert on mock_logger
 
 # 실패 후 성공 케이스
 @patch('src.api.check_db.logger') # Patch src.api.check_db.logger
 @patch('src.api.check_db.SessionLocal')
 @patch('time.sleep', MagicMock()) # Patch time.sleep with MagicMock
-def test_check_db_retry_and_succeed(mock_sleep, mock_session_local, mock_logger): # Corrected function signature
+def test_check_db_retry_and_succeed(mock_session_local, mock_logger): # Corrected function signature
     """DB 연결 재시도 후 성공 테스트"""
     mock_db_good = MagicMock()
     

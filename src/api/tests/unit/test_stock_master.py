@@ -77,7 +77,7 @@ def test_search_symbols_success(client, mock_stock_master_service, mock_db_sessi
     assert data["total_count"] == 1
     assert len(data["items"]) == 1
     assert data["items"][0]["name"] == "삼성전자"
-    mock_stock_master_service.search_stocks.assert_called_once_with(query, mock_db_session, limit=10)
+    mock_stock_master_service.search_stocks.assert_called_once_with(query, mock_db_session, limit=10, offset=0)
 
 def test_search_symbols_no_result(client, mock_stock_master_service, mock_db_session):
     # GIVEN

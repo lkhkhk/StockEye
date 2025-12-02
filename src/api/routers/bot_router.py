@@ -5,6 +5,7 @@ from src.common.database.db_connector import get_db
 from src.common.services.user_service import UserService
 from src.common.services.price_alert_service import PriceAlertService
 from src.common.schemas.price_alert import PriceAlertCreate, PriceAlertUpdate, PriceAlertRead
+from src.common.models.price_alert import PriceAlert
 from pydantic import BaseModel
 from typing import Optional
 
@@ -39,17 +40,22 @@ async def toggle_disclosure_alert_for_bot(request: BotAlertRequest = Body(...), 
             telegram_id=request.telegram_user_id,
             username=request.telegram_username or f"telegram_user_{request.telegram_user_id}",
             first_name=request.telegram_first_name,
-            last_name=request.telegram_last_name
+            last_name=request.telegram_last_name,
+            password="telegram_user_password"  # 텔레그램 사용자용 기본 비밀번호
         )
     
-    existing_alert = price_alert_service.get_alert_by_user_and_symbol(db, user_id=user.id, symbol=request.symbol)
+    # 사용자와 심볼로 기존 알림 조회 (condition 무관)
+    existing_alert = db.query(PriceAlert).filter(
+        PriceAlert.user_id == user.id,
+        PriceAlert.symbol == request.symbol
+    ).first()
 
     if existing_alert:
         logger.debug(f"Before toggle: existing_alert.notify_on_disclosure = {existing_alert.notify_on_disclosure}") 
         new_status = not existing_alert.notify_on_disclosure
         logger.debug(f"Calculated new_status: {new_status}")       
         update_data = PriceAlertUpdate(notify_on_disclosure=new_status)
-        updated_alert_orm = await price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_update=update_data)
+        updated_alert_orm = await price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_data=update_data)
         logger.debug(f"After update_alert call: updated_alert_orm.notify_on_disclosure = {updated_alert_orm.notify_on_disclosure}")     
         return updated_alert_orm
     else:
@@ -58,7 +64,7 @@ async def toggle_disclosure_alert_for_bot(request: BotAlertRequest = Body(...), 
             notify_on_disclosure=True,
             is_active=True
         )
-        return await price_alert_service.create_alert(db, user_id=user.id, alert=create_data)
+        return await price_alert_service.create_alert(db, user_id=user.id, alert_data=create_data)
 
 class BotPriceAlertRequest(BaseModel):
     telegram_user_id: int
@@ -80,10 +86,15 @@ async def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db:
             telegram_id=request.telegram_user_id,
             username=request.telegram_username or f"telegram_user_{request.telegram_user_id}",
             first_name=request.telegram_first_name,
-            last_name=request.telegram_last_name
+            last_name=request.telegram_last_name,
+            password="telegram_user_password"  # 텔레그램 사용자용 기본 비밀번호
         )
     
-    existing_alert = price_alert_service.get_alert_by_user_and_symbol(db, user_id=user.id, symbol=request.symbol)
+    # 사용자와 심볼로 기존 알림 조회 (condition 무관)
+    existing_alert = db.query(PriceAlert).filter(
+        PriceAlert.user_id == user.id,
+        PriceAlert.symbol == request.symbol
+    ).first()
 
     if existing_alert:
         update_data = PriceAlertUpdate(
@@ -93,7 +104,7 @@ async def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db:
             is_active=True,
             notify_on_disclosure=existing_alert.notify_on_disclosure
         )
-        return await price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_update=update_data)
+        return await price_alert_service.update_alert(db, alert_id=existing_alert.id, alert_data=update_data)
     else:
         create_data = PriceAlertCreate(
             symbol=request.symbol,
@@ -101,7 +112,7 @@ async def set_price_alert_for_bot(request: BotPriceAlertRequest = Body(...), db:
             condition=request.condition,
             repeat_interval=request.repeat_interval
         )
-        return await price_alert_service.create_alert(db, user_id=user.id, alert=create_data)
+        return await price_alert_service.create_alert(db, user_id=user.id, alert_data=create_data)
 
 class BotAlertIdRequest(BaseModel):
     telegram_user_id: int
@@ -117,7 +128,7 @@ async def list_alerts_for_bot(request: BotListAlertsRequest = Body(...), db: Ses
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    alerts = await price_alert_service.get_alerts(db, user_id=user.id)
+    alerts = price_alert_service.get_alerts(db, user_id=user.id)
     return alerts
 
 @router.post("/alert/remove", response_model=dict)

@@ -100,7 +100,7 @@ def test_get_token_for_bot_no_key(client_for_key_test):
     response = client_for_key_test.post("/auth/bot/token", json={"telegram_id": 123})
 
     # THEN
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 # --- Admin Token Tests ---

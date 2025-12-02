@@ -159,7 +159,7 @@ async def test_update_disclosures_for_all_stocks_success(mock_dart_get_disclosur
     assert result['inserted'] == 2
     assert result['skipped'] == 0
     mock_db_session.bulk_save_objects.assert_called_once()
-    mock_db_session.commit.assert_called_once()
+    assert mock_db_session.commit.call_count == 2  # Once for bulk_save, once for SystemConfig update
 
 @pytest.mark.asyncio
 @patch('src.common.services.disclosure_service.dart_get_disclosures', new_callable=AsyncMock)

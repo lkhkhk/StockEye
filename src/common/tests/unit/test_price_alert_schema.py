@@ -57,6 +57,8 @@ def test_price_alert_read():
         "created_at": now,
         "updated_at": now,
         "notify_on_disclosure": True,
+        "notification_interval_hours": 24,
+        "notification_count": 0,
         "stock_name": "Netflix Inc."
     }
     alert = PriceAlertRead(**alert_data)

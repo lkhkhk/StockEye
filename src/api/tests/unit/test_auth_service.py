@@ -37,6 +37,7 @@ class TestAuthService:
         user.hashed_password = "hashed_password"
         user.role = "user"
         user.is_active = True
+        user.notification_preferences = {"telegram": True, "email": False}
         return user
 
     @patch('src.api.services.auth_service.get_password_hash')

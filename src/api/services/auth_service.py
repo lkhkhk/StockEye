@@ -1,7 +1,7 @@
 import logging
 from sqlalchemy.orm import Session
 from src.common.models.user import User
-from src.api.auth.password_utils import verify_password, get_password_hash # 변경된 임포트
+from src.common.utils.password_utils import verify_password, get_password_hash # 변경된 임포트
 from src.api.auth.jwt_handler import create_access_token
 from fastapi import HTTPException, status
 from datetime import timedelta

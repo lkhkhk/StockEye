@@ -103,9 +103,9 @@ class TestAdminRouter:
         - **Mock 대상**: 없음 (실제 인증 처리 로직 검증)
         """
         response = client.get("/api/v1/admin/admin_stats")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
-    @patch('src.api.routers.admin.StockService.update_stock_master')
+    @patch('src.common.services.stock_master_service.StockMasterService.update_stock_master')
     def test_update_master_success_as_admin(self, mock_update_stock_master, client: TestClient, admin_user_and_headers):
         """
         - **테스트 대상**: `POST /admin/update_master`
@@ -131,7 +131,7 @@ class TestAdminRouter:
 
         del app.dependency_overrides[get_current_active_admin_user]
 
-    @patch('src.api.routers.admin.StockService.update_stock_master')
+    @patch('src.common.services.stock_master_service.StockMasterService.update_stock_master')
     def test_update_master_failure_as_admin(self, mock_update_stock_master, client: TestClient, admin_user_and_headers):
         """
         - **테스트 대상**: `POST /admin/update_master`
@@ -178,9 +178,9 @@ class TestAdminRouter:
         - **Mock 대상**: 없음
         """
         response = client.post("/api/v1/admin/update_master")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
-    @patch('src.api.routers.admin.StockService.update_daily_prices')
+    @patch('src.common.services.market_data_service.MarketDataService.update_daily_prices')
     def test_update_price_success_as_admin(self, mock_update_daily_prices, client: TestClient, admin_user_and_headers):
         """
         - **테스트 대상**: `POST /admin/update_price`
@@ -205,7 +205,7 @@ class TestAdminRouter:
 
         del app.dependency_overrides[get_current_active_admin_user]
 
-    @patch('src.api.routers.admin.StockService.update_daily_prices')
+    @patch('src.common.services.market_data_service.MarketDataService.update_daily_prices')
     def test_update_price_failure_as_admin(self, mock_update_daily_prices, client: TestClient, admin_user_and_headers):
         """
         - **테스트 대상**: `POST /admin/update_price`
@@ -251,9 +251,9 @@ class TestAdminRouter:
         - **Mock 대상**: 없음
         """
         response = client.post("/api/v1/admin/update_price")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
-    @patch('src.common.services.stock_service.StockService.update_disclosures_for_all_stocks')
+    @patch('src.common.services.disclosure_service.DisclosureService.update_disclosures_for_all_stocks')
     def test_update_disclosure_all_success_as_admin(self, mock_update_all_disclosures, client: TestClient, admin_user_and_headers):
         """
         - **테스트 대상**: `POST /admin/update_disclosure` (전체 종목)
@@ -278,7 +278,7 @@ class TestAdminRouter:
 
         del app.dependency_overrides[get_current_active_admin_user]
 
-    @patch('src.api.routers.admin.StockService.update_disclosures')
+    @patch('src.common.services.disclosure_service.DisclosureService.update_disclosures')
     def test_update_disclosure_single_by_symbol_success_as_admin(self, mock_update_disclosures, client: TestClient, admin_user_and_headers):
         """
         - **테스트 대상**: `POST /admin/update_disclosure` (단일 종목)
@@ -302,7 +302,8 @@ class TestAdminRouter:
 
         def mock_get_db():
             mock_db_session = MagicMock(spec=Session)
-            mock_db_session.query.return_value.filter.return_value.first.return_value = mock_stock_instance
+            # search_stocks uses: query().filter().offset().limit().all()
+            mock_db_session.query.return_value.filter.return_value.offset.return_value.limit.return_value.all.return_value = [mock_stock_instance]
             yield mock_db_session
         app.dependency_overrides[get_db] = mock_get_db
 
@@ -333,7 +334,8 @@ class TestAdminRouter:
 
         def mock_get_db_not_found():
             mock_db_session = MagicMock(spec=Session)
-            mock_db_session.query.return_value.filter.return_value.limit.return_value.all.return_value = []
+            # search_stocks uses: query().filter().offset().limit().all()
+            mock_db_session.query.return_value.filter.return_value.offset.return_value.limit.return_value.all.return_value = []
             yield mock_db_session
         app.dependency_overrides[get_db] = mock_get_db_not_found
 
@@ -365,4 +367,4 @@ class TestAdminRouter:
         - **Mock 대상**: 없음
         """
         response = client.post("/api/v1/admin/update_disclosure")
-        assert response.status_code == 403
+        assert response.status_code == 401

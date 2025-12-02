@@ -1,7 +1,7 @@
 """
 User 모델 정의 파일입니다.
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, func, BigInteger
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, func, BigInteger, JSON
 from sqlalchemy.orm import relationship
 from src.common.database.db_connector import Base
 from src.common.models.price_alert import PriceAlert
@@ -38,6 +38,7 @@ class User(Base):
     telegram_id = Column(BigInteger, unique=True, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    notification_preferences = Column(JSON, default={"telegram": True, "email": False}, nullable=False)
 
     # Back-populates for relationships are defined in the related models
     price_alerts = relationship("PriceAlert", back_populates="user")

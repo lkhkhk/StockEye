@@ -27,7 +27,7 @@ def test_create_user_from_telegram_admin_role(mock_getenv, user_service, mock_db
     first_name = "Admin"
     last_name = "User"
 
-    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name)
+    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name, "dummy_password")
 
     assert user.role == "admin"
     mock_db_session.add.assert_called_once_with(user)
@@ -47,7 +47,7 @@ def test_create_user_from_telegram_user_role_mismatch(mock_getenv, user_service,
     first_name = "Normal"
     last_name = "User"
 
-    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name)
+    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name, "dummy_password")
 
     assert user.role == "user"
     mock_db_session.add.assert_called_once_with(user)
@@ -67,7 +67,7 @@ def test_create_user_from_telegram_user_role_no_admin_id(mock_getenv, user_servi
     first_name = "NoAdmin"
     last_name = "IDUser"
 
-    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name)
+    user = user_service.create_user_from_telegram(mock_db_session, telegram_id, username, first_name, last_name, "dummy_password")
 
     assert user.role == "user"
     mock_db_session.add.assert_called_once_with(user)

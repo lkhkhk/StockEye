@@ -306,7 +306,7 @@ async def set_price_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status_message = api_response.get("status_message", "설정되었습니다.")
         
         display_condition_kr = "이하로" if condition_kr == "이하" else f"{condition_kr}으로"
-        await update.message.reply_text(f"✅ '{symbol}'의 가격 알림을 {target_price:,.0f}원 {display_condition_k} {status_message}")
+        await update.message.reply_text(f"✅ '{symbol}'의 가격 알림을 {target_price:,.0f}원 {display_condition_kr} {status_message}")
 
     except (ValueError, IndexError):
         await update.message.reply_text("잘못된 형식입니다. 다시 입력해주세요 (예: 80000원 이상).")
