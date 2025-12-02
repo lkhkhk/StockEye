@@ -89,8 +89,8 @@ cd StockEye
 `docker-compose.yml`은 `APP_ENV` 환경 변수에 따라 `.env.production` 파일을 로드합니다. 운영 환경에 맞는 `.env.production` 파일을 생성하고 필요한 환경 변수를 설정합니다.
 
 ```bash
-# .env.production 파일 생성 (settings.env.example을 참고)
-cp settings.env.example .env.production
+# .env.production 파일 생성 (.env.example을 참고)
+cp .env.example .env.production
 ```
 
 `.env.production` 파일의 주요 설정 항목:

@@ -7,6 +7,7 @@
 # 환경/민감/불요 파일
 .env
 .env.*
+!.env.example
 *.pyc
 .pytest_cache/
 __pycache__/

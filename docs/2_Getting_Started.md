@@ -32,24 +32,26 @@ pip install -r requirements.txt
 
 ### 2.4. 환경 변수 설정
 
-프로젝트는 `APP_ENV` 환경 변수(`development` 또는 `production`)에 따라 다른 `.env` 파일을 로드합니다. `settings.env.example` 파일을 복사하여 환경에 맞는 `.env` 파일을 생성하고 필요한 값을 채워주세요.
+프로젝트는 `APP_ENV` 환경 변수(`development` 또는 `production`)에 따라 다른 `.env` 파일을 로드합니다. `.env.example` 파일을 복사하여 환경에 맞는 `.env` 파일을 생성하고 필요한 값을 채워주세요.
 
 **개발 환경:**
 ```bash
-cp settings.env.example .env.development
+cp .env.example .env.development
 ```
 
 **운영 환경:**
 ```bash
-cp settings.env.example .env.production
+cp .env.example .env.production
 ```
 
 생성된 `.env.*` 파일 내에 아래와 같이 실제 값들을 입력해야 합니다.
-- `TELEGRAM_BOT_TOKEN`: 텔레그램 봇 토큰
-- `TELEGRAM_ADMIN_ID`: 텔레그램 관리자 사용자 ID
-- `DART_API_KEY`: DART API 키
-- `JWT_SECRET_KEY`: JWT 서명에 사용할 비밀 키 (복잡한 문자열 권장)
+- `TELEGRAM_BOT_TOKEN`: 텔레그램 봇 토큰 (@BotFather에서 발급)
+- `TELEGRAM_ADMIN_ID`: 텔레그램 관리자 사용자 ID (숫자)
+- `DART_API_KEY`: DART API 키 (https://opendart.fss.or.kr/)
+- `BOT_SECRET_KEY`: Bot-API 간 인증 비밀 키 (최소 32자 이상)
+- `JWT_SECRET_KEY`: JWT 서명 비밀 키 (최소 32자 이상)
 - `DB_USER`, `DB_PASSWORD`, `DB_NAME`: PostgreSQL 접속 정보
+- `SMTP_*`: 이메일 알림 설정 (선택 사항, [이메일 설정 가이드](./EMAIL_SETUP.md) 참고)
 
 ### 2.5. Docker를 이용한 서비스 실행
 

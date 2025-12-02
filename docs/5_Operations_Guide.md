@@ -8,7 +8,7 @@
 
 1.  **서버 준비:** Git, Docker, Docker Compose가 설치된 서버를 준비합니다.
 2.  **소스 코드 복제:** `git clone`으로 소스 코드를 내려받습니다.
-3.  **운영 환경변수 설정:** `settings.env.example` 파일을 복사하여 `.env.production` 파일을 생성하고, 운영에 필요한 실제 값(DB 정보, API 키, 토큰 등)을 입력합니다.
+3.  **운영 환경변수 설정:** `.env.example` 파일을 복사하여 `.env.production` 파일을 생성하고, 운영에 필요한 실제 값(DB 정보, API 키, 토큰 등)을 입력합니다.
 4.  **서비스 빌드 및 기동:** `stockeye.sh` 스크립트를 사용하여 운영 환경으로 서비스를 빌드하고 시작합니다.
     ```bash
     ./stockeye.sh build production
