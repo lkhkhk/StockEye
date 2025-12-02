@@ -1,39 +1,12 @@
 #!/bin/bash
 
-
-# test shell-commands
-test_shell_command() {
-
-    # echo "함수 파라메타 \$@ : $@"
-    # echo "함수 파라메타 0 : $0 : 스크립트명"
-    # echo "함수 파라메타 1 : $1"
-    # echo "함수 파라메타 2 : $2"
-
-    script_name="$0"
-    echo "전체 경로 포함 스크립트명: $script_name"
-
-    file_name=$(basename "$script_name")
-    echo "스크립트 파일명: $file_name"
-
-    # 파일명에서 확장자 제거
-    name_without_extension="${file_name%.*}"
-    echo "파일명 (확장자 제거): $name_without_extension"  # 출력: my_script
-
-    # 확장자만 추출
-    extension="${file_name##*.}"
-    echo "확장자: $extension"  # 출력: sh
-
-    # exit;
-}
-
-# git switch develop && git pull && git switch main && git merge develop && git push
-
 # StockEye 개발/테스트/운영 스크립트
 
 # 색상 정의
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 프로젝트 루트 디렉토리 (스크립트가 어디서 실행되든 항상 프로젝트 루트로 이동)
@@ -44,15 +17,9 @@ PROJECT_ROOT="$SCRIPT_DIR"
 
 # Get 프로젝트명
 get_project_name() {
-
-    # 스크립트 파일명
     local script_name="$0"
     local file_name=$(basename "$script_name")
-    # 파일명에서 확장자 제거
     local name_without_extension="${file_name%.*}"
-    # 확장자만 추출
-    # local extension="${file_name##*.}"
-
     echo ${name_without_extension}
 }
 
@@ -73,10 +40,26 @@ build_and_restart() {
 # API 서비스 테스트 실행
 run_api_tests() {
     local env=${1:-development} # 기본값 development
-    echo -e "${YELLOW}>>> API 서비스 테스트 실행 (환경: $env)...${NC}"
+    local test_type=${2:-all} # 기본값 all (unit, integration, e2e, all)
+    
+    echo -e "${YELLOW}>>> API 서비스 테스트 실행 (환경: $env, 타입: $test_type)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
-    # API 컨테이너의 작업 디렉토리가 /app 이므로, src/api/tests/ 로 경로 지정
-    APP_ENV=$env docker compose exec api pytest src/api/tests/router_unit
+    
+    case "$test_type" in
+        unit)
+            APP_ENV=$env docker compose exec api pytest src/api/tests/unit
+            ;;
+        integration)
+            APP_ENV=$env docker compose exec api pytest src/api/tests/integration
+            ;;
+        e2e)
+            APP_ENV=$env docker compose exec api pytest src/api/tests/e2e
+            ;;
+        all|*)
+            APP_ENV=$env docker compose exec api pytest src/api/tests/
+            ;;
+    esac
+    
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}>>> API 서비스 테스트 통과.${NC}"
     else
@@ -90,7 +73,6 @@ run_bot_tests() {
     local env=${1:-development} # 기본값 development
     echo -e "${YELLOW}>>> Bot 서비스 테스트 실행 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
-    # Bot 컨테이너의 작업 디렉토리가 /app 이므로, src/bot/tests/ 로 경로 지정
     APP_ENV=$env docker compose exec bot pytest src/bot/tests/unit
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}>>> Bot 서비스 테스트 통과.${NC}"
@@ -100,32 +82,30 @@ run_bot_tests() {
     fi
 }
 
-# worker 서비스 테스트 실행
+# Worker 서비스 테스트 실행
 run_worker_tests() {
     local env=${1:-development} # 기본값 development
-    echo -e "${YELLOW}>>> worker 서비스 테스트 실행 (환경: $env)...${NC}"
+    echo -e "${YELLOW}>>> Worker 서비스 테스트 실행 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
-    # worker 컨테이너의 작업 디렉토리가 /app 이므로, src/worker/tests/ 로 경로 지정
     APP_ENV=$env docker compose exec worker pytest src/worker/tests/unit
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}>>> worker 서비스 테스트 통과.${NC}"
+        echo -e "${GREEN}>>> Worker 서비스 테스트 통과.${NC}"
     else
-        echo -e "${RED}>>> worker 서비스 테스트 실패.${NC}"
+        echo -e "${RED}>>> Worker 서비스 테스트 실패.${NC}"
         exit 1
     fi
 }
 
-# common 공통 모듈 테스트 실행
+# Common 공통 모듈 테스트 실행
 run_common_tests() {
     local env=${1:-development} # 기본값 development
-    echo -e "${YELLOW}>>> common 공통 모듈 테스트 실행 (환경: $env)...${NC}"
+    echo -e "${YELLOW}>>> Common 공통 모듈 테스트 실행 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
-    # common 컨테이너의 작업 디렉토리가 /app 이므로, src/common/tests/ 로 경로 지정
     docker build -t stockeye-common-tester -f src/common/Dockerfile.test . && docker run --rm stockeye-common-tester
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}>>> common 공통 모듈 테스트 통과.${NC}"
+        echo -e "${GREEN}>>> Common 공통 모듈 테스트 통과.${NC}"
     else
-        echo -e "${RED}>>> common 공통 모듈 테스트 실패.${NC}"
+        echo -e "${RED}>>> Common 공통 모듈 테스트 실패.${NC}"
         exit 1
     fi
 }
@@ -133,21 +113,20 @@ run_common_tests() {
 # 모든 테스트 실행
 run_all_tests() {
     echo -e "${YELLOW}>>> 모든 서비스 테스트 실행...${NC}"
-    run_common_tests $@
-    run_worker_tests $@
-    run_api_tests $@
-    run_bot_tests $@
+    run_common_tests "$@"
+    run_worker_tests "$@"
+    run_api_tests "$@"
+    run_bot_tests "$@"
     echo -e "${GREEN}>>> 모든 서비스 테스트 완료.${NC}"
 }
 
 # 특정 서비스 빌드 및 재시작
 build_and_restart_service() {
-    local project_name=$(get_project_name)
-    local service_name="${project_name}-${1:-frontend}" # 기본값 frontend
+    local service_name=${1:-api} # 기본값 api
     local env=${2:-development} # 기본값 development
-    echo -e "${YELLOW}>>> Docker Compose 서비스 빌드 및 재시작 (환경: $env)...${NC}"
+    echo -e "${YELLOW}>>> 서비스 '${service_name}' 빌드 및 재시작 (환경: $env)...${NC}"
     cd "$PROJECT_ROOT" || exit 1
-    APP_ENV=$env docker compose up -d --build "${service_name}"
+    APP_ENV=$env docker compose up -d --build "stockeye-${service_name}"
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}>>> 서비스 빌드 및 재시작 완료.${NC}"
     else
@@ -156,19 +135,67 @@ build_and_restart_service() {
     fi
 }
 
+# 서비스 상태 확인
+show_status() {
+    echo -e "${BLUE}>>> Docker Compose 서비스 상태 확인...${NC}"
+    cd "$PROJECT_ROOT" || exit 1
+    docker compose ps
+}
+
+# 서비스 로그 확인
+show_logs() {
+    local service_name=${1:-all}
+    local lines=${2:-50}
+    
+    cd "$PROJECT_ROOT" || exit 1
+    
+    if [ "$service_name" == "all" ]; then
+        echo -e "${BLUE}>>> 모든 서비스 로그 확인 (최근 $lines 줄)...${NC}"
+        docker compose logs --tail=$lines
+    else
+        echo -e "${BLUE}>>> 서비스 '${service_name}' 로그 확인 (최근 $lines 줄)...${NC}"
+        docker compose logs --tail=$lines "stockeye-${service_name}"
+    fi
+}
+
+# 서비스 재시작 (빌드 없이)
+restart_service() {
+    local service_name=${1:-all}
+    
+    cd "$PROJECT_ROOT" || exit 1
+    
+    if [ "$service_name" == "all" ]; then
+        echo -e "${YELLOW}>>> 모든 서비스 재시작...${NC}"
+        docker compose restart
+    else
+        echo -e "${YELLOW}>>> 서비스 '${service_name}' 재시작...${NC}"
+        docker compose restart "stockeye-${service_name}"
+    fi
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}>>> 재시작 완료.${NC}"
+    else
+        echo -e "${RED}>>> 재시작 실패.${NC}"
+        exit 1
+    fi
+}
+
 # Docker 환경 정리
 clean_env() {
     local is_clear_db=${1:-N} # 기본값 N
     local env=${2:-development} # 기본값 development
-    echo -e "${RED}>>> 경고: 이 작업은 모든 Docker 컨테이너, 네트워크, 볼륨을 영구적으로 삭제합니다. (환경: $env)...${NC}"
+    
+    echo -e "${RED}>>> 경고: 이 작업은 모든 Docker 컨테이너, 네트워크, 볼륨을 영구적으로 삭제합니다. (환경: $env)${NC}"
     if [[ "$is_clear_db" == [yY] ]]; then
-        echo -e "${RED}>>> 데이터베이스 데이터도 삭제되므로 주의하십시오. (환경: $env)...${NC}"
+        echo -e "${RED}>>> 데이터베이스 데이터도 삭제되므로 주의하십시오.${NC}"
     fi
+    
     read -p "정말 진행하시겠습니까? (y/N): " confirm
     if [[ "$confirm" == [yY] || "$confirm" == [yY][eE][sS] ]]; then
-        echo -e "${YELLOW}>>> Docker 환경 정리 중(환경: $env)...${NC}"
+        echo -e "${YELLOW}>>> Docker 환경 정리 중 (환경: $env)...${NC}"
         cd "$PROJECT_ROOT" || exit 1
         APP_ENV=$env docker compose down --volumes --remove-orphans
+        
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}>>> Docker 환경 정리 완료.${NC}"
             if [[ "$is_clear_db" == [yY] ]]; then
@@ -189,66 +216,99 @@ clean_env() {
 
 # 도움말 표시
 show_help() {
-    echo "사용법: ./$0 [명령어]"
+    echo "사용법: ./stockeye.sh [명령어] [옵션]"
     echo ""
-    echo "명령어:"
-    echo "  build       : Docker Compose 서비스를 빌드하고 재시작합니다."
-    echo "  api-test    : API 서비스의 pytest를 실행합니다."
-    echo "  bot-test    : Bot 서비스의 pytest를 실행합니다."
-    echo "  all-test    : API 및 Bot 서비스의 모든 pytest를 실행합니다."
-    echo "  clean       : 모든 Docker 컨테이너, 네트워크, 볼륨을 삭제합니다. (경고: 데이터 손실 가능)"
-    echo "  help        : 이 도움말 메시지를 표시합니다."
+    echo "=== 서비스 관리 ==="
+    echo "  build [env]              : Docker Compose 서비스를 빌드하고 재시작합니다."
+    echo "  rebuild [service] [env]  : 특정 서비스를 빌드하고 재시작합니다."
+    echo "  restart [service]        : 서비스를 재시작합니다 (빌드 없이)."
+    echo "  status                   : 모든 서비스의 상태를 확인합니다."
+    echo "  logs [service] [lines]   : 서비스 로그를 확인합니다."
+    echo "  clean [Y/N] [env]        : Docker 환경을 정리합니다."
+    echo ""
+    echo "=== 테스트 실행 ==="
+    echo "  all-test [env]           : 모든 서비스의 테스트를 실행합니다."
+    echo "  api-test [env] [type]    : API 서비스 테스트를 실행합니다."
+    echo "                             type: unit, integration, e2e, all (기본값: all)"
+    echo "  bot-test [env]           : Bot 서비스 테스트를 실행합니다."
+    echo "  worker-test [env]        : Worker 서비스 테스트를 실행합니다."
+    echo "  common-test [env]        : Common 모듈 테스트를 실행합니다."
+    echo ""
+    echo "=== 기타 ==="
+    echo "  help                     : 이 도움말 메시지를 표시합니다."
+    echo ""
+    echo "환경 (env): development (기본값), production"
+    echo "서비스: api, bot, worker, db, redis, all"
     echo ""
     echo "예시:"
-    echo "  ./$0 build"
-    echo "  ./$0 build production"
-    echo "  ./$0 [api|bot|worker] production"
-    echo "  ./$0 build production"
-    echo "  ./$0 all-test"
-    echo "  ./$0 all-test production"
-    echo "  ./$0 clean"
-    echo "  ./$0 clean Y production" 
-    }
+    echo "  ./stockeye.sh build"
+    echo "  ./stockeye.sh build production"
+    echo "  ./stockeye.sh rebuild api"
+    echo "  ./stockeye.sh restart bot"
+    echo "  ./stockeye.sh status"
+    echo "  ./stockeye.sh logs api 100"
+    echo "  ./stockeye.sh api-test development unit"
+    echo "  ./stockeye.sh all-test"
+    echo "  ./stockeye.sh clean"
+    echo "  ./stockeye.sh clean Y development"
+}
 
 # 메인 로직
 main() {
     case "$1" in
         build)
-            shift 
-            build_and_restart "$@" # 환경 인자 전달
+            shift
+            build_and_restart "$@"
+            ;;
+        rebuild)
+            shift
+            build_and_restart_service "$@"
+            ;;
+        restart)
+            shift
+            restart_service "$@"
+            ;;
+        status)
+            show_status
+            ;;
+        logs)
+            shift
+            show_logs "$@"
             ;;
         all-test)
-            run_all_tests "$@" # 환경 인자 전달
+            shift
+            run_all_tests "$@"
             ;;
         api-test)
-            shift 
-            run_api_tests "$@" # 환경 인자 전달
+            shift
+            run_api_tests "$@"
             ;;
         bot-test)
-            shift 
-            run_bot_tests "$@" # 환경 인자 전달
+            shift
+            run_bot_tests "$@"
             ;;
         worker-test)
-            shift 
-            run_worker_tests "$@" # 환경 인자 전달
+            shift
+            run_worker_tests "$@"
             ;;
         common-test)
-            shift 
-            run_common_tests "$@" # 환경 인자 전달
-            ;;
-        service)
-            shift 
-            build_and_restart_service "$@" # 환경 인자 전달
+            shift
+            run_common_tests "$@"
             ;;
         clean)
-            shift 
-            clean_env "$@" # 환경 인자 전달
+            shift
+            clean_env "$@"
             ;;
-        help)
+        help|--help|-h)
             show_help
             ;;
+        "")
+            echo -e "${RED}오류: 명령어를 입력하세요.${NC}"
+            show_help
+            exit 1
+            ;;
         *)
-            echo -e "${RED}오류: 알 수 없는 명령어입니다. 'help'를 입력하여 사용법을 확인하세요.${NC}"
+            echo -e "${RED}오류: 알 수 없는 명령어입니다: $1${NC}"
             show_help
             exit 1
             ;;
@@ -257,4 +317,3 @@ main() {
 
 # 메인 함수 호출
 main "$@"
-
